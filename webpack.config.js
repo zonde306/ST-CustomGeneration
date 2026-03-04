@@ -1,6 +1,8 @@
 import { resolve as _resolve } from 'path';
 import TerserPlugin from 'terser-webpack-plugin';
 
+const sourceRoot = _resolve('.', 'src').replace(/\\/g, '/');
+
 const serverConfig = {
     devtool: 'source-map',
     target: 'browserslist',
@@ -59,13 +61,24 @@ const serverConfig = {
     },
     plugins: [],
     externals: function({ context, request }, callback) {
-        if (request.startsWith('../../') || request.includes('libs/')) {
-            if(context.search(/(\/|\\)src\1/) > 0)
-                return callback(null, request.substring(3));
-            return callback(null, request);
-        } else if(request.startsWith('https://') || request.startsWith('http://')) {
+        const normalizedContext = String(context ?? '').replace(/\\/g, '/');
+        const isFromSource = normalizedContext === sourceRoot || normalizedContext.startsWith(`${sourceRoot}/`);
+
+        if (request.startsWith('../../')) {
+            if (isFromSource) {
+                return callback(null, request);
+            }
+            return callback();
+        }
+
+        if (request.includes('libs/')) {
             return callback(null, request);
         }
+
+        if (request.startsWith('https://') || request.startsWith('http://')) {
+            return callback(null, request);
+        }
+
         callback();
     },
 };
