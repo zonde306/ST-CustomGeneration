@@ -1,0 +1,46 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "outDir": "dist",
+        "strict": true,
+        "esModuleInterop": true,
+        "sourceMap": true,
+        "forceConsistentCasingInFileNames": true,
+        "allowJs": true,
+        "moduleDetection": "auto",
+        "moduleResolution": "bundler",
+        "allowUmdGlobalAccess": true,
+        "allowSyntheticDefaultImports": true,
+        "strictBindCallApply": true,
+        "checkJs": false,
+        "noUnusedLocals": true,
+        "noUnusedParameters": false,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "lib": [
+            "WebWorker",
+            "DOM",
+            "ESNext"
+        ],
+        "types": [
+            "lodash",
+            "jquery",
+            "toastr"
+        ],
+        "baseUrl": ".",
+        "paths": {
+            "@/*": ["src/ui/*"],
+            "/settings": ["src/settings.ts"]
+        }
+    },
+    "include": [
+        "src/**/*.ts",
+        "src/**/*.js",
+        "src/**/*.vue"
+    ],
+    "exclude": [
+        "**/node_modules/**",
+        "**/dist/**"
+    ]
+}

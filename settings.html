@@ -1,0 +1,226 @@
+<div id="custom_generation_settings">
+    <div class="inline-drawer wide100p">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>
+                <span data-i18n="Custom generation settings">Custom generation settings</span>
+            </b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+
+        <div class="inline-drawer-content">
+            <div class="flex-container alignItemsBaseline">
+                <h3 class="margin0">
+                    <span data-i18n="Connection">Connection</span>
+                </h3>
+            </div>
+
+            <div class="flex-container flexFlowColumn">
+                <label for="custom_generation_base_url">
+                    <small data-i18n="Custom Endpoint (Base URL)">Custom Endpoint (Base URL)</small>
+                </label>
+                <input id="custom_generation_base_url" class="text_pole" type="text" placeholder="http://localhost:8080/v1" />
+
+                <label for="custom_generation_api_key">
+                    <small>
+                        <span data-i18n="Custom API Key">Custom API Key</span>
+                        <span data-i18n="(Optional)">(Optional)</span>
+                    </small>
+                </label>
+                <input id="custom_generation_api_key" class="text_pole" type="password" autocomplete="off" />
+
+                <label for="custom_generation_model">
+                    <small data-i18n="Model ID">Model ID</small>
+                </label>
+                <input id="custom_generation_model" class="text_pole" type="text" placeholder="gpt-4o-mini" />
+
+                <label for="custom_generation_prompt_post_processing">
+                    <small data-i18n="Prompt Post-Processing">Prompt Post-Processing</small>
+                </label>
+                <select id="custom_generation_prompt_post_processing" class="text_pole">
+                    <option value="none" data-i18n="None">None</option>
+                    <option value="merge" data-i18n="Merge consecutive roles (no tools)">Merge consecutive roles (no tools)</option>
+                    <option value="semi" data-i18n="Semi-strict (alternating roles; no tools)">Semi-strict (alternating roles; no tools)</option>
+                    <option value="strict" data-i18n="Strict (user first, alternating roles; no tools)">Strict (user first, alternating roles; no tools)</option>
+                    <option value="single" data-i18n="Single user message (no tools)">Single user message (no tools)</option>
+                </select>
+            </div>
+
+            <hr />
+
+            <div class="flex-container alignItemsBaseline">
+                <h3 class="margin0 flex1">
+                    <span data-i18n="Presets">Presets</span>
+                </h3>
+            </div>
+            <div class="flex-container marginTop5">
+                <select id="custom_generation_preset_select" class="text_pole flex1"></select>
+                <i id="custom_generation_preset_new" class="menu_button fa-solid fa-file-circle-plus" title="Create preset" data-i18n="[title]Create preset"></i>
+                <i id="custom_generation_preset_duplicate" class="menu_button fa-solid fa-clone" title="Duplicate preset" data-i18n="[title]Duplicate preset"></i>
+                <i id="custom_generation_preset_rename" class="menu_button fa-solid fa-pencil" title="Rename preset" data-i18n="[title]Rename preset"></i>
+                <i id="custom_generation_preset_delete" class="menu_button fa-solid fa-trash" title="Delete preset" data-i18n="[title]Delete preset"></i>
+            </div>
+            <small id="custom_generation_preset_summary" class="text_muted"></small>
+
+            <hr />
+
+            <div class="flex-container alignItemsBaseline">
+                <h3 class="margin0 flex1">
+                    <span data-i18n="Prompt List">Prompt List</span>
+                </h3>
+                <div id="custom_generation_add_prompt" class="menu_button menu_button_icon" title="Add prompt" data-i18n="[title]Add prompt">
+                    <i class="fa-solid fa-plus"></i>
+                    <small data-i18n="Add">Add</small>
+                </div>
+            </div>
+            <div id="custom_generation_prompt_list" class="flex-container flexFlowColumn" no-items-text="No prompts" data-i18n="[no-items-text]No prompts"></div>
+
+            <div class="completion_prompt_manager_popup_entry marginTop5">
+                <form class="completion_prompt_manager_popup_entry_form" onsubmit="return false;">
+                    <div class="completion_prompt_manager_popup_header">
+                        <label for="custom_generation_prompt_content">
+                            <span data-i18n="Prompt Editor">Prompt Editor</span>
+                        </label>
+                    </div>
+                    <div class="completion_prompt_manager_popup_entry_form_control">
+                        <label for="custom_generation_prompt_name">
+                            <span data-i18n="Name">Name</span>
+                        </label>
+                        <input id="custom_generation_prompt_name" class="text_pole" type="text" />
+                    </div>
+                    <div class="flex-container">
+                        <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                            <label for="custom_generation_prompt_role">
+                                <span data-i18n="Role">Role</span>
+                            </label>
+                            <select id="custom_generation_prompt_role" class="text_pole">
+                                <option value="system" data-i18n="System">System</option>
+                                <option value="user" data-i18n="User">User</option>
+                                <option value="assistant" data-i18n="Assistant">Assistant</option>
+                            </select>
+                        </div>
+                        <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                            <label for="custom_generation_prompt_injection_position">
+                                <span data-i18n="Position">Position</span>
+                            </label>
+                            <select id="custom_generation_prompt_injection_position" class="text_pole">
+                                <option value="relative" data-i18n="Default (top of context)">Default (top of context)</option>
+                                <option value="inChat" data-i18n="In-chat @ Depth">In-chat @ Depth</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="completion_prompt_manager_popup_entry_form_control">
+                        <label for="custom_generation_prompt_triggers">
+                            <span data-i18n="Triggers (comma separated)">Triggers (comma separated)</span>
+                        </label>
+                        <input id="custom_generation_prompt_triggers" class="text_pole" type="text" placeholder="normal, continue" />
+                    </div>
+                    <div class="completion_prompt_manager_popup_entry_form_control">
+                        <label class="checkbox_label" for="custom_generation_prompt_enable">
+                            <input id="custom_generation_prompt_enable" type="checkbox" />
+                            <span data-i18n="Enabled">Enabled</span>
+                        </label>
+                    </div>
+                    <div class="completion_prompt_manager_popup_entry_form_control">
+                        <label for="custom_generation_prompt_content">
+                            <span data-i18n="Prompt">Prompt</span>
+                        </label>
+                        <textarea id="custom_generation_prompt_content" class="text_pole textarea_compact" rows="6"></textarea>
+                    </div>
+                    <div class="completion_prompt_manager_popup_entry_form_footer">
+                        <a id="custom_generation_prompt_delete" class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></a>
+                    </div>
+                </form>
+            </div>
+
+            <hr />
+
+            <div class="flex-container alignItemsBaseline">
+                <h3 class="margin0 flex1">
+                    <span data-i18n="Regex Scripts">Regex Scripts</span>
+                </h3>
+                <div id="custom_generation_add_regex" class="menu_button menu_button_icon" title="Add regex" data-i18n="[title]Add regex">
+                    <i class="fa-solid fa-plus"></i>
+                    <small data-i18n="Add">Add</small>
+                </div>
+            </div>
+            <div id="custom_generation_regex_list" class="flex-container flexFlowColumn" no-items-text="No scripts" data-i18n="[no-items-text]No scripts"></div>
+
+            <div class="completion_prompt_manager_popup_entry marginTop5">
+                <form class="completion_prompt_manager_popup_entry_form" onsubmit="return false;">
+                    <div class="completion_prompt_manager_popup_header">
+                        <label for="custom_generation_regex_regex">
+                            <span data-i18n="Regex Editor">Regex Editor</span>
+                        </label>
+                    </div>
+                    <div class="completion_prompt_manager_popup_entry_form_control">
+                        <label for="custom_generation_regex_name">
+                            <span data-i18n="Script Name">Script Name</span>
+                        </label>
+                        <input id="custom_generation_regex_name" class="text_pole" type="text" />
+                    </div>
+                    <div class="completion_prompt_manager_popup_entry_form_control">
+                        <label for="custom_generation_regex_regex">
+                            <span data-i18n="Find Regex">Find Regex</span>
+                        </label>
+                        <input id="custom_generation_regex_regex" class="text_pole" type="text" />
+                    </div>
+                    <div class="completion_prompt_manager_popup_entry_form_control">
+                        <label for="custom_generation_regex_replace">
+                            <span data-i18n="Replace With">Replace With</span>
+                        </label>
+                        <textarea id="custom_generation_regex_replace" class="text_pole textarea_compact" rows="3"></textarea>
+                    </div>
+                    <div class="flex-container">
+                        <label class="checkbox_label flex1" for="custom_generation_regex_user_input">
+                            <input id="custom_generation_regex_user_input" type="checkbox" />
+                            <span data-i18n="User Input">User Input</span>
+                        </label>
+                        <label class="checkbox_label flex1" for="custom_generation_regex_ai_output">
+                            <input id="custom_generation_regex_ai_output" type="checkbox" />
+                            <span data-i18n="AI Output">AI Output</span>
+                        </label>
+                        <label class="checkbox_label flex1" for="custom_generation_regex_world_info">
+                            <input id="custom_generation_regex_world_info" type="checkbox" />
+                            <span data-i18n="World Info">World Info</span>
+                        </label>
+                    </div>
+                    <div class="flex-container">
+                        <label class="checkbox_label flex1" for="custom_generation_regex_request">
+                            <input id="custom_generation_regex_request" type="checkbox" />
+                            <span data-i18n="Request">Request</span>
+                        </label>
+                        <label class="checkbox_label flex1" for="custom_generation_regex_response">
+                            <input id="custom_generation_regex_response" type="checkbox" />
+                            <span data-i18n="Response">Response</span>
+                        </label>
+                        <label class="checkbox_label flex1" for="custom_generation_regex_ephemerality">
+                            <input id="custom_generation_regex_ephemerality" type="checkbox" />
+                            <span data-i18n="Ephemerality">Ephemerality</span>
+                        </label>
+                        <label class="checkbox_label flex1" for="custom_generation_regex_enable">
+                            <input id="custom_generation_regex_enable" type="checkbox" />
+                            <span data-i18n="Enabled">Enabled</span>
+                        </label>
+                    </div>
+                    <div class="flex-container">
+                        <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                            <label for="custom_generation_regex_min_depth">
+                                <span data-i18n="Min Depth">Min Depth</span>
+                            </label>
+                            <input id="custom_generation_regex_min_depth" class="text_pole" type="number" min="-1" max="9999" placeholder="Unlimited" />
+                        </div>
+                        <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                            <label for="custom_generation_regex_max_depth">
+                                <span data-i18n="Max Depth">Max Depth</span>
+                            </label>
+                            <input id="custom_generation_regex_max_depth" class="text_pole" type="number" min="0" max="9999" placeholder="Unlimited" />
+                        </div>
+                    </div>
+                    <div class="completion_prompt_manager_popup_entry_form_footer">
+                        <a id="custom_generation_regex_delete" class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

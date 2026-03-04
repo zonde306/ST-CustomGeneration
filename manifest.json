@@ -1,0 +1,16 @@
+{
+	"display_name": "AdditionalGeneration/额外生成",
+	"loading_order": 1,
+	"requires": [],
+	"optional": [],
+	"js": "dist/index.js",
+	"css": "",
+	"author": "zonde306",
+	"version": "0.0.0.0",
+	"homePage": "https://github.com/zonde306/ST-AdditionalGeneration",
+	"auto_update": true,
+	"i18n": {
+		"zh-cn": "locales/zh-cn.json",
+		"zh-tw": "locales/zh-tw.json"
+	}
+}
