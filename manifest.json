@@ -1,5 +1,5 @@
 {
-	"display_name": "AdditionalGeneration/额外生成",
+	"display_name": "Custom Generation",
 	"loading_order": 1,
 	"requires": [],
 	"optional": [],
@@ -7,7 +7,7 @@
 	"css": "",
 	"author": "zonde306",
 	"version": "0.0.0.0",
-	"homePage": "https://github.com/zonde306/ST-AdditionalGeneration",
+	"homePage": "https://github.com/zonde306/ST-CustomGeneration",
 	"auto_update": true,
 	"i18n": {
 		"zh-cn": "locales/zh-cn.json",

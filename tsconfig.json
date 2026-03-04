@@ -30,14 +30,12 @@
         ],
         "baseUrl": ".",
         "paths": {
-            "@/*": ["src/ui/*"],
-            "/settings": ["src/settings.ts"]
+            "@/*": ["src/*"],
         }
     },
     "include": [
         "src/**/*.ts",
-        "src/**/*.js",
-        "src/**/*.vue"
+        "src/**/*.js"
     ],
     "exclude": [
         "**/node_modules/**",

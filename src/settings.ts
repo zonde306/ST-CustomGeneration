@@ -1,5 +1,6 @@
 import { eventSource, event_types, saveSettingsDebounced } from '../../../../../script.js';
 import { extension_settings, renderExtensionTemplateAsync } from '../../../../extensions.js';
+import * as YAML from 'yaml';
 
 interface PresetPrompt {
     // A name for this prompt. (displayed in the UI)
@@ -18,7 +19,7 @@ interface PresetPrompt {
     injectionPosition: 'relative' | 'inChat';
 
     // null will not be displayed in the list.
-    enable: boolean | null;
+    enabled: boolean | null;
 
     // built-in prompts or user-defined
     internal: 'main' | 'personaDescription' | 'charDescription' | 'charPersonality' | 'scenario' | 'worldInfoBefore' | 'worldInfoAfter' | 'chatExamples' | 'chatHistory' | null;
@@ -43,7 +44,7 @@ interface RegEx {
     // affects for world info
     worldInfo: boolean;
 
-    enable: boolean;
+    enabled: boolean;
 
     // Min Depth
     minDepth: number | null;
@@ -82,6 +83,18 @@ interface Settings {
     // Model ID
     model: string;
 
+    // streaming mode
+    stream: boolean;
+
+    // Additional Parameters: request headers
+    includeHeaders: Record<string, unknown>;
+
+    // Additional Parameters: body
+    includeBody: Record<string, unknown>;
+
+    // Additional Parameters: exclude body
+    excludeBody: Record<string, unknown>;
+
     // Prompt Post-Processing
     // like: https://docs.sillytavern.app/usage/api-connections/openai/#prompt-post-processing
     promptPostProcessing: 'none' | 'merge' | 'semi' | 'strict' | 'single';
@@ -102,7 +115,7 @@ const defaultPreset: Preset = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enable: true,
+            enabled: true,
             internal: 'main',
         },
         {
@@ -111,7 +124,7 @@ const defaultPreset: Preset = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enable: true,
+            enabled: true,
             internal: 'worldInfoBefore',
         },
         {
@@ -120,7 +133,7 @@ const defaultPreset: Preset = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enable: true,
+            enabled: true,
             internal: 'personaDescription',
         },
         {
@@ -129,7 +142,7 @@ const defaultPreset: Preset = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enable: true,
+            enabled: true,
             internal: 'charDescription',
         },
         {
@@ -138,7 +151,7 @@ const defaultPreset: Preset = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enable: true,
+            enabled: true,
             internal: 'charPersonality',
         },
         {
@@ -147,7 +160,7 @@ const defaultPreset: Preset = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enable: true,
+            enabled: true,
             internal: 'scenario',
         },
         {
@@ -156,7 +169,7 @@ const defaultPreset: Preset = {
             triggers: [],
             prompt: 'If you have more knowledge of {{char}}, add to the character\'s lore and personality to enhance them but keep the Character Sheet\'s definitions absolute.',
             injectionPosition: 'relative',
-            enable: false,
+            enabled: false,
             internal: null,
         },
         {
@@ -165,7 +178,7 @@ const defaultPreset: Preset = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enable: true,
+            enabled: true,
             internal: null,
         },
         {
@@ -174,7 +187,7 @@ const defaultPreset: Preset = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enable: true,
+            enabled: true,
             internal: 'worldInfoAfter',
         },
         {
@@ -183,7 +196,7 @@ const defaultPreset: Preset = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enable: true,
+            enabled: true,
             internal: 'chatExamples',
         },
         {
@@ -192,7 +205,7 @@ const defaultPreset: Preset = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enable: true,
+            enabled: true,
             internal: 'chatHistory',
         },
         {
@@ -201,7 +214,7 @@ const defaultPreset: Preset = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enable: true,
+            enabled: true,
             internal: null,
         },
     ],
@@ -215,6 +228,10 @@ const defaultSettings: Settings = {
     promptPostProcessing: 'none',
     presets: [defaultPreset],
     currentPreset: 0,
+    stream: false,
+    includeHeaders: {},
+    includeBody: {},
+    excludeBody: {},
 };
 
 export const settings: Settings = clone(defaultSettings);
@@ -253,6 +270,36 @@ function parseNullableInt(value: unknown, min: number): number | null {
     return Math.max(min, Math.trunc(parsed));
 }
 
+function normalizeRecord(value: unknown): Record<string, unknown> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return {};
+    }
+
+    return clone(value as Record<string, unknown>);
+}
+
+function parseYamlRecord(value: unknown): Record<string, unknown> {
+    const text = String(value ?? '').trim();
+    if (!text) {
+        return {};
+    }
+
+    const parsed = YAML.parse(text);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('YAML must be an object mapping.');
+    }
+
+    return clone(parsed as Record<string, unknown>);
+}
+
+function stringifyYamlRecord(value: Record<string, unknown>): string {
+    if (!value || Object.keys(value).length === 0) {
+        return '';
+    }
+
+    return YAML.stringify(value).trimEnd();
+}
+
 function uniquePresetName(baseName: string): string {
     const base = sanitizePresetName(baseName, 'Preset');
     const existing = new Set(settings.presets.map(x => x.name));
@@ -271,7 +318,7 @@ function uniquePresetName(baseName: string): string {
 function normalizePrompt(input: Partial<PresetPrompt>, fallbackName: string): PresetPrompt {
     const role = input.role === 'assistant' || input.role === 'user' ? input.role : 'system';
     const injectionPosition = input.injectionPosition === 'inChat' ? 'inChat' : 'relative';
-    const enable = input.enable === null ? null : Boolean(input.enable);
+    const enable = input.enabled === null ? null : Boolean(input.enabled);
 
     return {
         name: sanitizePresetName(String(input.name ?? ''), fallbackName),
@@ -281,7 +328,7 @@ function normalizePrompt(input: Partial<PresetPrompt>, fallbackName: string): Pr
             : [],
         prompt: String(input.prompt ?? ''),
         injectionPosition,
-        enable,
+        enabled: enable,
         internal: input.internal ?? null,
     };
 }
@@ -294,7 +341,7 @@ function normalizeRegex(input: Partial<RegEx>, fallbackName: string): RegEx {
         userInput: Boolean(input.userInput),
         aiOutput: Boolean(input.aiOutput),
         worldInfo: Boolean(input.worldInfo),
-        enable: Boolean(input.enable),
+        enabled: Boolean(input.enabled),
         minDepth: Number.isFinite(input.minDepth as number) ? Math.max(-1, Math.trunc(input.minDepth as number)) : null,
         maxDepth: Number.isFinite(input.maxDepth as number) ? Math.max(0, Math.trunc(input.maxDepth as number)) : null,
         ephemerality: Boolean(input.ephemerality),
@@ -323,6 +370,9 @@ function ensureSettingsIntegrity(resetSelections: boolean = false) {
     settings.baseUrl = String(settings.baseUrl ?? defaultSettings.baseUrl);
     settings.apiKey = String(settings.apiKey ?? '');
     settings.model = String(settings.model ?? 'None');
+    settings.includeHeaders = normalizeRecord(settings.includeHeaders);
+    settings.includeBody = normalizeRecord(settings.includeBody);
+    settings.excludeBody = normalizeRecord(settings.excludeBody);
 
     if (!['none', 'merge', 'semi', 'strict', 'single'].includes(settings.promptPostProcessing)) {
         settings.promptPostProcessing = 'none';
@@ -364,7 +414,7 @@ function buildPromptRow(prompt: PresetPrompt, index: number) {
 
     const right = $('<small class="text_muted"></small>');
     const roleLabel = prompt.role.toUpperCase();
-    const stateLabel = prompt.enable === null ? 'hidden' : (prompt.enable ? 'on' : 'off');
+    const stateLabel = prompt.enabled === null ? 'hidden' : (prompt.enabled ? 'on' : 'off');
     right.text(`${roleLabel} · ${stateLabel}`);
 
     item.append(left, right);
@@ -384,7 +434,7 @@ function buildRegexRow(regex: RegEx, index: number) {
     left.text(regex.name || `Regex ${index + 1}`);
 
     const right = $('<small class="text_muted"></small>');
-    right.text(regex.enable ? 'enabled' : 'disabled');
+    right.text(regex.enabled ? 'enabled' : 'disabled');
 
     item.append(left, right);
     item.on('click', () => {
@@ -396,8 +446,8 @@ function buildRegexRow(regex: RegEx, index: number) {
 }
 
 function updatePresetSummary(preset: Preset) {
-    const enabledPromptCount = preset.prompts.filter(x => x.enable === true).length;
-    const enabledRegexCount = preset.regexs.filter(x => x.enable).length;
+    const enabledPromptCount = preset.prompts.filter(x => x.enabled === true).length;
+    const enabledRegexCount = preset.regexs.filter(x => x.enabled).length;
 
     $('#custom_generation_preset_summary').text(
         `Prompts: ${preset.prompts.length} (enabled: ${enabledPromptCount}) · Regex: ${preset.regexs.length} (enabled: ${enabledRegexCount})`,
@@ -464,7 +514,7 @@ function updatePromptEditor(preset: Preset) {
     $('#custom_generation_prompt_role').val(prompt.role);
     $('#custom_generation_prompt_injection_position').val(prompt.injectionPosition);
     $('#custom_generation_prompt_triggers').val(prompt.triggers.join(', '));
-    $('#custom_generation_prompt_enable').prop('checked', prompt.enable === null ? false : prompt.enable);
+    $('#custom_generation_prompt_enable').prop('checked', prompt.enabled === null ? false : prompt.enabled);
     $('#custom_generation_prompt_content').val(prompt.prompt);
 
     isUpdatingUI = false;
@@ -503,7 +553,7 @@ function updateRegexEditor(preset: Preset) {
     $('#custom_generation_regex_request').prop('checked', regex.request);
     $('#custom_generation_regex_response').prop('checked', regex.response);
     $('#custom_generation_regex_ephemerality').prop('checked', regex.ephemerality);
-    $('#custom_generation_regex_enable').prop('checked', regex.enable);
+    $('#custom_generation_regex_enable').prop('checked', regex.enabled);
     $('#custom_generation_regex_min_depth').val(regex.minDepth ?? '');
     $('#custom_generation_regex_max_depth').val(regex.maxDepth ?? '');
 
@@ -532,7 +582,7 @@ function applyPromptEditorChanges() {
     const triggersRaw = String($('#custom_generation_prompt_triggers').val() ?? '');
     prompt.triggers = triggersRaw.split(',').map(x => x.trim()).filter(Boolean);
 
-    prompt.enable = Boolean($('#custom_generation_prompt_enable').prop('checked'));
+    prompt.enabled = Boolean($('#custom_generation_prompt_enable').prop('checked'));
     prompt.prompt = String($('#custom_generation_prompt_content').val() ?? '');
 
     updateSettingsUI();
@@ -559,7 +609,7 @@ function applyRegexEditorChanges() {
     regex.request = Boolean($('#custom_generation_regex_request').prop('checked'));
     regex.response = Boolean($('#custom_generation_regex_response').prop('checked'));
     regex.ephemerality = Boolean($('#custom_generation_regex_ephemerality').prop('checked'));
-    regex.enable = Boolean($('#custom_generation_regex_enable').prop('checked'));
+    regex.enabled = Boolean($('#custom_generation_regex_enable').prop('checked'));
     regex.minDepth = parseNullableInt($('#custom_generation_regex_min_depth').val(), -1);
     regex.maxDepth = parseNullableInt($('#custom_generation_regex_max_depth').val(), 0);
 
@@ -596,6 +646,25 @@ function bindEvents() {
             : 'none';
         saveSettings();
     });
+
+    const yamlFieldBindings: Array<{ selector: string; key: keyof Pick<Settings, 'includeHeaders' | 'includeBody' | 'excludeBody'>; label: string }> = [
+        { selector: '#custom_generation_include_headers_yaml', key: 'includeHeaders', label: 'Request Headers' },
+        { selector: '#custom_generation_include_body_yaml', key: 'includeBody', label: 'Request Body' },
+        { selector: '#custom_generation_exclude_body_yaml', key: 'excludeBody', label: 'Exclude Body Keys' },
+    ];
+
+    for (const field of yamlFieldBindings) {
+        $(field.selector).on('change', () => {
+            try {
+                settings[field.key] = parseYamlRecord($(field.selector).val());
+                saveSettings();
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error ?? 'Unknown YAML parse error');
+                window.alert(`${field.label} YAML parse failed: ${message}`);
+                updateSettingsUI();
+            }
+        });
+    }
 
     $('#custom_generation_preset_select').on('change', () => {
         const parsed = Number($('#custom_generation_preset_select').val());
@@ -676,7 +745,7 @@ function bindEvents() {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enable: true,
+            enabled: true,
             internal: null,
         }, `Prompt ${preset.prompts.length + 1}`));
 
@@ -715,7 +784,7 @@ function bindEvents() {
             userInput: true,
             aiOutput: true,
             worldInfo: false,
-            enable: true,
+            enabled: true,
             minDepth: null,
             maxDepth: null,
             ephemerality: false,
@@ -783,7 +852,7 @@ function bindEvents() {
 /**
  * Setup settings UI
  */
-async function setupSettings() {
+export async function setupSettings() {
     // Inject settings into the page
     if (!$('#custom_generation_settings').length) {
         $('#extensions_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'settings'));
@@ -827,6 +896,9 @@ export function updateSettingsUI() {
     $('#custom_generation_api_key').val(settings.apiKey);
     $('#custom_generation_model').val(settings.model);
     $('#custom_generation_prompt_post_processing').val(settings.promptPostProcessing);
+    $('#custom_generation_include_headers_yaml').val(stringifyYamlRecord(settings.includeHeaders));
+    $('#custom_generation_include_body_yaml').val(stringifyYamlRecord(settings.includeBody));
+    $('#custom_generation_exclude_body_yaml').val(stringifyYamlRecord(settings.excludeBody));
 
     const presetSelect = $('#custom_generation_preset_select');
     presetSelect.empty();
@@ -880,8 +952,3 @@ export function saveSettings() {
 function onSettingsLoaded() {
     loadSettings();
 }
-
-// jQuery
-$(async () => {
-    await setupSettings();
-});

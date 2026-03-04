@@ -43,6 +43,40 @@
                     <option value="strict" data-i18n="Strict (user first, alternating roles; no tools)">Strict (user first, alternating roles; no tools)</option>
                     <option value="single" data-i18n="Single user message (no tools)">Single user message (no tools)</option>
                 </select>
+
+                <div class="marginTop5">
+                    <small data-i18n="Additional Parameters (YAML)">Additional Parameters (YAML)</small>
+                </div>
+
+                <label for="custom_generation_include_headers_yaml">
+                    <small data-i18n="Request Headers (YAML)">Request Headers (YAML)</small>
+                </label>
+                <textarea
+                    id="custom_generation_include_headers_yaml"
+                    class="text_pole textarea_compact"
+                    rows="4"
+                    placeholder="Authorization: Bearer xxx"
+                ></textarea>
+
+                <label for="custom_generation_include_body_yaml">
+                    <small data-i18n="Request Body (YAML)">Request Body (YAML)</small>
+                </label>
+                <textarea
+                    id="custom_generation_include_body_yaml"
+                    class="text_pole textarea_compact"
+                    rows="4"
+                    placeholder="temperature: 0.7"
+                ></textarea>
+
+                <label for="custom_generation_exclude_body_yaml">
+                    <small data-i18n="Exclude Body Keys (YAML)">Exclude Body Keys (YAML)</small>
+                </label>
+                <textarea
+                    id="custom_generation_exclude_body_yaml"
+                    class="text_pole textarea_compact"
+                    rows="4"
+                    placeholder="top_p: true"
+                ></textarea>
             </div>
 
             <hr />

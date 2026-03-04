@@ -124,8 +124,8 @@ export class Context {
     }
 
     #buildMessages(prompts: PromptBuilder, historyMessages: ChatCompletionMessage[]): ChatCompletionMessage[] {
-        const currentGroup = settings.presetGroups[Number(settings.currentPresetGroupId)];
-        if (!currentGroup?.items?.length) {
+        const currentGroup = settings.presets[Number(settings.currentPreset)];
+        if (!currentGroup?.prompts?.length) {
             const messages = [...historyMessages];
             const authorNoteRange = this.#insertAuthorsNoteByMetadata(messages, null);
             this.#insertWorldInfoAroundAuthorsNote(messages, prompts, authorNoteRange);
@@ -135,57 +135,51 @@ export class Context {
         const messages: ChatCompletionMessage[] = [];
         let mainPromptRange: { start: number, end: number } | null = null;
 
-        for (const preset of currentGroup.items) {
+        for (const preset of currentGroup.prompts) {
             if (!preset.enabled) {
                 continue;
             }
 
             const insertStart = messages.length;
 
-            if (preset.builtInPresetItemId) {
+            if (preset.internal) {
                 let content: string | string[] | ChatCompletionMessage[] = '';
-                switch (preset.builtInPresetItemId) {
-                    case 'main-prompt':
+                switch (preset.internal) {
+                    case 'main':
                         content = prompts.mainPrompt;
                         break;
-                    case 'persona-description':
+                    case 'personaDescription':
                         content = prompts.personaDescription;
                         break;
-                    case 'char-description':
+                    case 'charDescription':
                         content = prompts.charDescription;
                         break;
-                    case 'char-personality':
+                    case 'charPersonality':
                         content = prompts.charPersonality;
                         break;
                     case 'scenario':
                         content = prompts.scenario;
                         break;
-                    case 'chat-examples':
+                    case 'chatExamples':
                         content = prompts.chatExampleArray;
                         break;
-                    case 'world-info-before':
+                    case 'worldInfoBefore':
                         content = prompts.worldInfoCharBefore;
                         break;
-                    case 'world-info-after':
+                    case 'worldInfoAfter':
                         content = prompts.worldInfoCharAfter;
                         break;
-                    case 'chat-history':
+                    case 'chatHistory':
                         content = historyMessages;
-                        break;
-                    case 'last-user-message':
-                        content = prompts.lastUserMessage;
-                        break;
-                    case 'last-assistant-message':
-                        content = prompts.lastAssistantMessage;
                         break;
                 }
 
                 this.#appendPresetContent(messages, preset.role, content);
             } else {
-                this.#appendPresetContent(messages, preset.role, preset.content);
+                this.#appendPresetContent(messages, preset.role, preset.prompt);
             }
 
-            if (preset.builtInPresetItemId === 'main-prompt' && messages.length > insertStart) {
+            if (preset.internal === 'main' && messages.length > insertStart) {
                 mainPromptRange = {
                     start: insertStart,
                     end: messages.length - 1,
@@ -563,29 +557,22 @@ export class Context {
     }
 
     #buildApiConfig(type: string): MainApiConfig | undefined {
-        const main = settings.api?.main;
-        if (!main) {
-            return undefined;
-        }
-
-        const hasCustomApi = Boolean(main.baseUrl || main.apiKey || main.model);
+        const hasCustomApi = Boolean(settings.baseUrl || settings.apiKey || settings.model);
         if (!hasCustomApi) {
             return undefined;
         }
 
-        const useAdvanced = !!main.advancedParams?.enabled;
-
         return {
-            url: String(main.baseUrl ?? ''),
-            key: String(main.apiKey ?? ''),
-            model: String(main.model ?? ''),
+            url: String(settings.baseUrl ?? ''),
+            key: String(settings.apiKey ?? ''),
+            model: String(settings.model ?? ''),
             type,
-            stream: !!main.streaming,
-            max_tokens: Number.isFinite(Number(main.maxTokens)) ? Number(main.maxTokens) : null,
-            temperature: useAdvanced ? Number(main.advancedParams.temperature) : null,
-            top_p: useAdvanced ? Number(main.advancedParams.topP) : null,
-            frequency_penalty: useAdvanced ? Number(main.advancedParams.frequencyPenalty) : null,
-            presence_penalty: useAdvanced ? Number(main.advancedParams.presencePenalty) : null,
+            stream: !!settings.stream,
+            max_tokens: Number.isFinite(Number(settings.includeBody.max_tokens)) ? Number(settings.includeBody.max_tokens) : null,
+            temperature: Number(settings.includeBody.temperature) || null,
+            top_p: Number(settings.includeBody.top_p) || null,
+            frequency_penalty: Number(settings.includeBody.frequency_penalty) || null,
+            presence_penalty: Number(settings.includeBody.presence_penalty) || null,
         };
     }
 
@@ -680,16 +667,16 @@ export class Context {
             return mergeConsecutive(normalized);
         };
 
-        switch (settings.api.main.promptPostProcess) {
+        switch (settings.promptPostProcessing) {
             case 'none':
                 return messages;
             case 'merge':
                 // 合并连续相同的 role
                 return mergeConsecutive(messages);
-            case 'alternate':
+            case 'semi':
                 // 在 merge 的基础上强制 user 和 assistant 交替出现
                 return toAlternate(messages);
-            case 'alternateUserLast': {
+            case 'strict': {
                 // 在 alternate 的基础上要求最后一个 role 必须是 user
                 const alternated = toAlternate(messages);
                 if (!alternated.length || alternated[alternated.length - 1].role === 'user') {
@@ -710,6 +697,9 @@ export class Context {
 
                 return mergeConsecutive(adjusted);
             }
+            case 'single':
+                // 合并为单个 user 消息
+                return [{ role: 'user', content: messages.map(item => item.content).join('\n\n') }]
             default:
                 return messages;
         }
