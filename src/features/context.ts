@@ -145,9 +145,9 @@ export class Context {
 
         await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun });
 
-        await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat, dryRun });
+        await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { messages, dryRun });
 
-        await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: chat }, dryRun);
+        await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: messages }, dryRun);
 
         await eventSource.emit(event_types.CHAT_COMPLETION_SETTINGS_READY, {
             type: type,
@@ -215,9 +215,9 @@ export class Context {
 
         await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun });
 
-        await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat, dryRun });
+        await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat: messages, dryRun });
 
-        await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: chat }, dryRun);
+        await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: messages }, dryRun);
 
         const result = await runGenerate(messages, abortController, taskId, apiConfig);
         const text = Array.isArray(result) ? (result[0] ?? '') : result;
@@ -248,7 +248,8 @@ export class Context {
                 let content: string | string[] | ChatCompletionMessage[] = '';
                 switch (preset.internal) {
                     case 'main':
-                        content = prompts.mainPrompt;
+                        // main prompt 优先使用预设的
+                        content = preset.prompt || prompts.mainPrompt;
                         break;
                     case 'personaDescription':
                         content = prompts.personaDescription;
