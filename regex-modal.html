@@ -23,14 +23,14 @@
             </label>
             <textarea id="custom_generation_regex_replace" class="text_pole textarea_compact" rows="4"></textarea>
         </div>
-        <div class="flex-container">
+        <div class="flex-container flex-multiline-around">
             <label class="checkbox_label flex1" for="custom_generation_regex_user_input">
                 <input id="custom_generation_regex_user_input" type="checkbox" />
-                <span data-i18n="User Input">User Input</span>
+                <span data-i18n="ext_regex_user_input">User Input</span>
             </label>
             <label class="checkbox_label flex1" for="custom_generation_regex_ai_output">
                 <input id="custom_generation_regex_ai_output" type="checkbox" />
-                <span data-i18n="AI Output">AI Output</span>
+                <span data-i18n="ext_regex_ai_output">AI Output</span>
             </label>
             <label class="checkbox_label flex1" for="custom_generation_regex_world_info">
                 <input id="custom_generation_regex_world_info" type="checkbox" />
@@ -60,13 +60,13 @@
                 <label for="custom_generation_regex_min_depth">
                     <span data-i18n="Min Depth">Min Depth</span>
                 </label>
-                <input id="custom_generation_regex_min_depth" class="text_pole" type="number" min="-1" max="9999" placeholder="Unlimited" />
+                <input id="custom_generation_regex_min_depth" class="text_pole" type="number" min="-1" max="9999" placeholder="Unlimited" data-i18n="[placeholder]ext_regex_min_depth_placeholder" />
             </div>
             <div class="completion_prompt_manager_popup_entry_form_control flex1">
                 <label for="custom_generation_regex_max_depth">
                     <span data-i18n="Max Depth">Max Depth</span>
                 </label>
-                <input id="custom_generation_regex_max_depth" class="text_pole" type="number" min="0" max="9999" placeholder="Unlimited" />
+                <input id="custom_generation_regex_max_depth" class="text_pole" type="number" min="0" max="9999" placeholder="Unlimited" data-i18n="[placeholder]ext_regex_min_depth_placeholder" />
             </div>
         </div>
         <div class="flex-container justifySpaceBetween marginTop5">
@@ -77,4 +77,10 @@
             </div>
         </div>
     </form>
+    <style>
+        .flex-multiline-around {
+            flex-wrap: wrap;
+            justify-content: space-around;
+        }
+    </style>
 </dialog>

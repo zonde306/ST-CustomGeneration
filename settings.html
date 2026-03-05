@@ -10,7 +10,7 @@
         <div class="inline-drawer-content">
             <div class="flex-container alignItemsBaseline">
                 <h3 class="margin0">
-                    <span data-i18n="Connection">Connection</span>
+                    <span data-i18n="Connection Profile">Connection</span>
                 </h3>
             </div>
 
@@ -34,7 +34,7 @@
                 <input id="custom_generation_model" class="text_pole" type="text" placeholder="gpt-4o-mini" />
 
                 <label for="custom_generation_model_select">
-                    <small data-i18n="Model Candidates">Model Candidates</small>
+                    <small data-i18n="Available Models">Available Models</small>
                 </label>
                 <div class="flex-container alignItemsCenter">
                     <select id="custom_generation_model_select" class="text_pole flex1">
@@ -92,33 +92,36 @@
                         <input id="custom_generation_presence_penalty" class="text_pole" type="number" min="-2" max="2" step="0.01" />
 
                         <label for="custom_generation_include_headers_yaml">
-                            <small data-i18n="Request Headers (YAML)">Request Headers (YAML)</small>
+                            <small data-i18n="Include Request Headers">Request Headers (YAML)</small>
                         </label>
                         <textarea
                             id="custom_generation_include_headers_yaml"
                             class="text_pole textarea_compact"
                             rows="4"
                             placeholder="Authorization: Bearer xxx"
+                            data-i18n="[placeholder]custom_include_headers_desc"
                         ></textarea>
 
                         <label for="custom_generation_include_body_yaml">
-                            <small data-i18n="Request Body (YAML)">Request Body (YAML)</small>
+                            <small data-i18n="Include Body Parameters">Request Body (YAML)</small>
                         </label>
                         <textarea
                             id="custom_generation_include_body_yaml"
                             class="text_pole textarea_compact"
                             rows="4"
                             placeholder="temperature: 0.7"
+                            data-i18n="[placeholder]custom_include_body_desc"
                         ></textarea>
 
                         <label for="custom_generation_exclude_body_yaml">
-                            <small data-i18n="Exclude Body Keys (YAML)">Exclude Body Keys (YAML)</small>
+                            <small data-i18n="Exclude Body Parameters">Exclude Body Keys (YAML)</small>
                         </label>
                         <textarea
                             id="custom_generation_exclude_body_yaml"
                             class="text_pole textarea_compact"
                             rows="4"
                             placeholder="top_p: true"
+                            data-i18n="[placeholder]custom_exclude_body_desc"
                         ></textarea>
                     </div>
                 </div>
@@ -128,10 +131,10 @@
                 </label>
                 <select id="custom_generation_prompt_post_processing" class="text_pole">
                     <option value="none" data-i18n="None">None</option>
-                    <option value="merge" data-i18n="Merge consecutive roles (no tools)">Merge consecutive roles (no tools)</option>
-                    <option value="semi" data-i18n="Semi-strict (alternating roles; no tools)">Semi-strict (alternating roles; no tools)</option>
-                    <option value="strict" data-i18n="Strict (user first, alternating roles; no tools)">Strict (user first, alternating roles; no tools)</option>
-                    <option value="single" data-i18n="Single user message (no tools)">Single user message (no tools)</option>
+                    <option value="merge" data-i18n="prompt_post_processing_merge">Merge consecutive roles (no tools)</option>
+                    <option value="semi" data-i18n="prompt_post_processing_semi">Semi-strict (alternating roles; no tools)</option>
+                    <option value="strict" data-i18n="prompt_post_processing_strict">Strict (user first, alternating roles; no tools)</option>
+                    <option value="single" data-i18n="prompt_post_processing_single">Single user message (no tools)</option>
                 </select>
             </div>
 
@@ -139,17 +142,17 @@
 
             <div class="flex-container alignItemsBaseline">
                 <h3 class="margin0 flex1">
-                    <span data-i18n="Presets">Presets</span>
+                    <span data-i18n="openaipresets">Presets</span>
                 </h3>
             </div>
             <div class="flex-container marginTop5">
                 <select id="custom_generation_preset_select" class="text_pole flex1"></select>
                 <i id="custom_generation_preset_new" class="custom_generation_button fa-solid fa-file-circle-plus" title="Create preset" data-i18n="[title]Create preset"></i>
-                <i id="custom_generation_preset_duplicate" class="custom_generation_button fa-solid fa-clone" title="Duplicate preset" data-i18n="[title]Duplicate preset"></i>
-                <i id="custom_generation_preset_rename" class="custom_generation_button fa-solid fa-pencil" title="Rename preset" data-i18n="[title]Rename preset"></i>
-                <i id="custom_generation_preset_delete" class="custom_generation_button fa-solid fa-trash" title="Delete preset" data-i18n="[title]Delete preset"></i>
-                <i id="custom_generation_preset_import" class="custom_generation_button fa-solid fa-file-import" title="Import presets" data-i18n="[title]Import presets"></i>
-                <i id="custom_generation_preset_export" class="custom_generation_button fa-solid fa-file-export" title="Export presets" data-i18n="[title]Export presets"></i>
+                <i id="custom_generation_preset_duplicate" class="custom_generation_button fa-solid fa-clone" title="Duplicate preset" data-i18n="[title]Save preset as"></i>
+                <i id="custom_generation_preset_rename" class="custom_generation_button fa-solid fa-pencil" title="Rename preset" data-i18n="[title]Rename current preset"></i>
+                <i id="custom_generation_preset_delete" class="custom_generation_button fa-solid fa-trash" title="Delete preset" data-i18n="[title]Delete the preset"></i>
+                <i id="custom_generation_preset_import" class="custom_generation_button fa-solid fa-file-import" title="Import presets" data-i18n="[title]Import preset"></i>
+                <i id="custom_generation_preset_export" class="custom_generation_button fa-solid fa-file-export" title="Export presets" data-i18n="[title]Export preset"></i>
             </div>
             <input id="custom_generation_preset_import_input" type="file" accept=".json,application/json" style="display: none;" />
             <small id="custom_generation_preset_summary" class="text_muted"></small>
@@ -158,9 +161,9 @@
 
             <div class="flex-container alignItemsBaseline">
                 <h3 class="margin0 flex1">
-                    <span data-i18n="Prompt List">Prompt List</span>
+                    <span data-i18n="Prompts">Prompt List</span>
                 </h3>
-                <div id="custom_generation_add_prompt" class="custom_generation_button custom_generation_button_icon" title="Add prompt" data-i18n="[title]Add prompt">
+                <div id="custom_generation_add_prompt" class="custom_generation_button custom_generation_button_icon" title="Add prompt" data-i18n="[title]New prompt">
                     <i class="fa-solid fa-plus"></i>
                     <small data-i18n="Add">Add</small>
                 </div>
@@ -171,7 +174,7 @@
 
             <div class="flex-container alignItemsBaseline">
                 <h3 class="margin0 flex1">
-                    <span data-i18n="Regex Scripts">Regex Scripts</span>
+                    <span data-i18n="ext_regex_preset_scripts">Regex Scripts</span>
                 </h3>
                 <div id="custom_generation_add_regex" class="custom_generation_button custom_generation_button_icon" title="Add regex" data-i18n="[title]Add regex">
                     <i class="fa-solid fa-plus"></i>
@@ -184,13 +187,13 @@
 
     <dialog id="custom_generation_export_dialog">
         <form method="dialog" class="flex-container flexFlowColumn" onsubmit="return false;">
-            <h3 class="margin0" data-i18n="Export Presets">Export Presets</h3>
+            <h3 class="margin0" data-i18n="Export preset">Export Presets</h3>
             <label class="checkbox_label marginTop5" for="custom_generation_export_include_api_connection">
                 <input id="custom_generation_export_include_api_connection" type="checkbox" />
                 <span data-i18n="Include API Connection data">Include API Connection data</span>
             </label>
             <small class="text_muted" data-i18n="API Key is always excluded">API Key is always excluded</small>
-            <div class="flex-container justifyEnd marginTop5">
+            <div class="flex-container justifyAround marginTop5">
                 <button id="custom_generation_export_cancel" class="custom_generation_button" value="cancel" type="button" data-i18n="Cancel">Cancel</button>
                 <button id="custom_generation_export_confirm" class="custom_generation_button" value="confirm" type="button" data-i18n="Export">Export</button>
             </div>
@@ -225,6 +228,13 @@
 
         #custom_generation_settings .custom_generation_list_row > .flex1 {
             min-width: 0;
+        }
+
+        .custom_generation_list_row {
+            border: 1px solid var(--SmartThemeBorderColor);
+            border-radius: 5px;
+            padding-left: 3px;
+            padding-right: 3px;
         }
 
         .custom_generation_button {
@@ -269,6 +279,10 @@
         #custom_generation_export_dialog .custom_generation_button {
             min-width: 72px;
             white-space: nowrap;
+        }
+
+        .justifyAround {
+            justify-content: space-around;
         }
     </style>
 </div>

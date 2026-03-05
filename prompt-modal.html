@@ -2,7 +2,7 @@
     <form class="completion_prompt_manager_popup_entry_form flex-container flexFlowColumn" method="dialog" onsubmit="return false;">
         <div class="completion_prompt_manager_popup_header">
             <label for="custom_generation_prompt_content">
-                <span data-i18n="Prompt Editor">Prompt Editor</span>
+                <span data-i18n="prompt_manager_edit">Prompt Editor</span>
             </label>
         </div>
         <div class="completion_prompt_manager_popup_entry_form_control">
@@ -24,11 +24,11 @@
             </div>
             <div class="completion_prompt_manager_popup_entry_form_control flex1">
                 <label for="custom_generation_prompt_injection_position">
-                    <span data-i18n="Position">Position</span>
+                    <span data-i18n="injection_position">Position</span>
                 </label>
                 <select id="custom_generation_prompt_injection_position" class="text_pole">
-                    <option value="relative" data-i18n="Default (top of context)">Default (top of context)</option>
-                    <option value="inChat" data-i18n="In-chat @ Depth">In-chat @ Depth</option>
+                    <option value="relative" data-i18n="prompt_manager_relative">Relative (to other prompts in prompt manager)</option>
+                    <option value="inChat" data-i18n="prompt_manager_in_chat">In-chat @ Depth</option>
                 </select>
             </div>
         </div>
