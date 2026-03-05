@@ -98,6 +98,12 @@ interface Settings {
     // Top P sampling 0.00~1.00
     topP: number;
 
+    // Frequency Penalty -2.00~2.00
+    frequencyPenalty: number;
+
+    // Presence Penalty -2.00~2.00
+    presencePenalty: number;
+
     // streaming mode
     stream: boolean;
 
@@ -133,6 +139,8 @@ interface ExportPayload {
         temperature: number;
         topK: number;
         topP: number;
+        frequencyPenalty: number;
+        presencePenalty: number;
         promptPostProcessing: Settings['promptPostProcessing'];
         includeHeaders: Record<string, unknown>;
         includeBody: Record<string, unknown>;
@@ -152,6 +160,8 @@ interface ImportPayload {
         temperature?: unknown;
         topK?: unknown;
         topP?: unknown;
+        frequencyPenalty?: unknown;
+        presencePenalty?: unknown;
         promptPostProcessing?: unknown;
         includeHeaders?: unknown;
         includeBody?: unknown;
@@ -280,10 +290,12 @@ const defaultSettings: Settings = {
     apiKey: '',
     model: 'None',
     contextSize: 8192,
-    maxTokens: 512,
-    temperature: 0.7,
-    topK: 40,
+    maxTokens: 4096,
+    temperature: 1,
+    topK: 1,
     topP: 1,
+    presencePenalty: 0,
+    frequencyPenalty: 0,
     promptPostProcessing: 'none',
     presets: [defaultPreset],
     currentPreset: 0,
@@ -306,7 +318,6 @@ let isEventsBound = false;
 let isSettingsLoadedListenerBound = false;
 let modelCandidates: string[] = [];
 
-const placeholderModelCandidates = ['gpt-4o-mini', 'gpt-4o', 'claude-3.5-sonnet'];
 const exportSchemaVersion = '1.0.0';
 
 function clone<T>(value: T): T {
@@ -464,6 +475,8 @@ function ensureSettingsIntegrity(resetSelections: boolean = false) {
     settings.temperature = parseNumber(settings.temperature, defaultSettings.temperature, 0, 2, false);
     settings.topK = parseNumber(settings.topK, defaultSettings.topK, 0, 1_000_000, true);
     settings.topP = parseNumber(settings.topP, defaultSettings.topP, 0, 1, false);
+    settings.frequencyPenalty = parseNumber(settings.frequencyPenalty, defaultSettings.frequencyPenalty, -2, 2, false);
+    settings.presencePenalty = parseNumber(settings.presencePenalty, defaultSettings.presencePenalty, -2, 2, false);
     settings.includeHeaders = normalizeRecord(settings.includeHeaders);
     settings.includeBody = normalizeRecord(settings.includeBody);
     settings.excludeBody = normalizeRecord(settings.excludeBody);
@@ -538,9 +551,9 @@ function closeDialog(selector: string): void {
     }
 }
 
-function setAdditionalParametersExpanded(expanded: boolean): void {
-    const body = $('#custom_generation_additional_params_body');
-    const icon = $('#custom_generation_additional_params_icon');
+function setAdvancedParametersExpanded(expanded: boolean): void {
+    const body = $('#custom_generation_advanced_params_body');
+    const icon = $('#custom_generation_advanced_params_icon');
     body.toggle(expanded);
     icon.toggleClass('down', expanded);
 }
@@ -1057,6 +1070,8 @@ function buildExportPayload(includeApiConnection: boolean): ExportPayload {
             temperature: settings.temperature,
             topK: settings.topK,
             topP: settings.topP,
+            frequencyPenalty: settings.frequencyPenalty,
+            presencePenalty: settings.presencePenalty,
             promptPostProcessing: settings.promptPostProcessing,
             includeHeaders: clone(settings.includeHeaders),
             includeBody: clone(settings.includeBody),
@@ -1161,6 +1176,8 @@ async function importPresetsFromFile(file: File): Promise<void> {
         settings.temperature = parseNumber(normalized.apiConnection.temperature, settings.temperature, 0, 2, false);
         settings.topK = parseNumber(normalized.apiConnection.topK, settings.topK, 0, 1_000_000, true);
         settings.topP = parseNumber(normalized.apiConnection.topP, settings.topP, 0, 1, false);
+        settings.frequencyPenalty = parseNumber(normalized.apiConnection.frequencyPenalty, settings.frequencyPenalty, -2, 2, false);
+        settings.presencePenalty = parseNumber(normalized.apiConnection.presencePenalty, settings.presencePenalty, -2, 2, false);
         settings.promptPostProcessing = parsePromptPostProcessing(normalized.apiConnection.promptPostProcessing);
         settings.includeHeaders = normalizeRecord(normalized.apiConnection.includeHeaders);
         settings.includeBody = normalizeRecord(normalized.apiConnection.includeBody);
@@ -1232,6 +1249,16 @@ function bindEvents() {
         saveSettings();
     });
 
+    $('#custom_generation_frequency_penalty').on('input', () => {
+        settings.frequencyPenalty = parseNumber($('#custom_generation_frequency_penalty').val(), defaultSettings.frequencyPenalty, -2, 2, false);
+        saveSettings();
+    });
+
+    $('#custom_generation_presence_penalty').on('input', () => {
+        settings.presencePenalty = parseNumber($('#custom_generation_presence_penalty').val(), defaultSettings.presencePenalty, -2, 2, false);
+        saveSettings();
+    });
+
     $('#custom_generation_model_select').on('change', () => {
         const value = String($('#custom_generation_model_select').val() ?? '').trim();
         if (!value) {
@@ -1243,15 +1270,54 @@ function bindEvents() {
         saveSettings();
     });
 
-    $('#custom_generation_model_connect').on('click', () => {
-        modelCandidates = clone(placeholderModelCandidates);
-        updateModelSelectOptions();
-        $('#custom_generation_model_connect_status').text('Placeholder connection enabled. Real model fetch is not implemented yet.');
+    $('#custom_generation_model_connect').on('click', async () => {
+        const status = $('#custom_generation_model_connect_status');
+        status.text('Loading models...');
+
+        const baseUrl = String($('#custom_generation_base_url').val() ?? settings.baseUrl ?? '').trim();
+        const apiKey = String($('#custom_generation_api_key').val() ?? settings.apiKey ?? '').trim();
+        const requestUrl = baseUrl ? `${baseUrl.replace(/\/$/, '')}/models` : '';
+
+        if (!requestUrl) {
+            const message = 'Base URL is required.';
+            status.text('');
+            toastr.error(message);
+            return;
+        }
+
+        try {
+            const response = await fetch(requestUrl, {
+                method: 'GET',
+                headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Request failed (${response.status})`);
+            }
+
+            const payload = await response.json();
+            const rawList = Array.isArray(payload?.data) ? payload.data : [];
+            const candidates = rawList
+                .map((entry: any) => String(entry?.id ?? '').trim())
+                .filter(Boolean);
+
+            if (candidates.length === 0) {
+                throw new Error('No models returned from server.');
+            }
+
+            modelCandidates = candidates;
+            updateModelSelectOptions();
+            status.text(`Loaded ${candidates.length} models.`);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error ?? 'Unknown error');
+            status.text('');
+            toastr.error(message);
+        }
     });
 
-    $('#custom_generation_additional_params_toggle').on('click', () => {
-        const expanded = !$('#custom_generation_additional_params_body').is(':visible');
-        setAdditionalParametersExpanded(expanded);
+    $('#custom_generation_advanced_params_toggle').on('click', () => {
+        const expanded = !$('#custom_generation_advanced_params_body').is(':visible');
+        setAdvancedParametersExpanded(expanded);
     });
 
     $('#custom_generation_prompt_post_processing').on('change', () => {
@@ -1482,7 +1548,7 @@ export async function setupSettings() {
     }
 
     await ensureModalTemplatesInjected();
-    setAdditionalParametersExpanded(false);
+    setAdvancedParametersExpanded(false);
 
     bindEvents();
 
@@ -1530,6 +1596,8 @@ export function updateSettingsUI() {
     $('#custom_generation_temperature').val(settings.temperature);
     $('#custom_generation_top_k').val(settings.topK);
     $('#custom_generation_top_p').val(settings.topP);
+    $('#custom_generation_frequency_penalty').val(settings.frequencyPenalty);
+    $('#custom_generation_presence_penalty').val(settings.presencePenalty);
     $('#custom_generation_prompt_post_processing').val(settings.promptPostProcessing);
     $('#custom_generation_include_headers_yaml').val(stringifyYamlRecord(settings.includeHeaders));
     $('#custom_generation_include_body_yaml').val(stringifyYamlRecord(settings.includeBody));

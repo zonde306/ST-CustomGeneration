@@ -47,51 +47,50 @@
                 </div>
                 <small id="custom_generation_model_connect_status" class="text_muted"></small>
 
-                <label for="custom_generation_context_size">
-                    <small data-i18n="Context Size (tokens)">Context Size (tokens)</small>
-                </label>
-                <input id="custom_generation_context_size" class="text_pole" type="number" min="1" step="1" />
-
-                <label for="custom_generation_max_tokens">
-                    <small data-i18n="Max Response Length (tokens)">Max Response Length (tokens)</small>
-                </label>
-                <input id="custom_generation_max_tokens" class="text_pole" type="number" min="1" step="1" />
-
-                <label for="custom_generation_temperature">
-                    <small data-i18n="Temperature">Temperature</small>
-                </label>
-                <input id="custom_generation_temperature" class="text_pole" type="number" min="0" max="2" step="0.01" />
-
-                <label for="custom_generation_top_k">
-                    <small data-i18n="Top K">Top K</small>
-                </label>
-                <input id="custom_generation_top_k" class="text_pole" type="number" min="0" step="1" />
-
-                <label for="custom_generation_top_p">
-                    <small data-i18n="Top P">Top P</small>
-                </label>
-                <input id="custom_generation_top_p" class="text_pole" type="number" min="0" max="1" step="0.01" />
-
-                <label for="custom_generation_prompt_post_processing">
-                    <small data-i18n="Prompt Post-Processing">Prompt Post-Processing</small>
-                </label>
-                <select id="custom_generation_prompt_post_processing" class="text_pole">
-                    <option value="none" data-i18n="None">None</option>
-                    <option value="merge" data-i18n="Merge consecutive roles (no tools)">Merge consecutive roles (no tools)</option>
-                    <option value="semi" data-i18n="Semi-strict (alternating roles; no tools)">Semi-strict (alternating roles; no tools)</option>
-                    <option value="strict" data-i18n="Strict (user first, alternating roles; no tools)">Strict (user first, alternating roles; no tools)</option>
-                    <option value="single" data-i18n="Single user message (no tools)">Single user message (no tools)</option>
-                </select>
-
-                <div class="inline-drawer marginTop5" id="custom_generation_additional_params_drawer">
-                    <div id="custom_generation_additional_params_toggle" class="inline-drawer-header">
+                <div class="inline-drawer marginTop5" id="custom_generation_advanced_params_drawer">
+                    <div id="custom_generation_advanced_params_toggle" class="inline-drawer-header">
                         <b>
-                            <span data-i18n="Additional Parameters (YAML)">Additional Parameters (YAML)</span>
+                            <span data-i18n="Advanced Parameters">Advanced Parameters</span>
                         </b>
-                        <div id="custom_generation_additional_params_icon" class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                        <div id="custom_generation_advanced_params_icon" class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                     </div>
 
-                    <div id="custom_generation_additional_params_body" class="inline-drawer-content" style="display: none;">
+                    <div id="custom_generation_advanced_params_body" class="inline-drawer-content" style="display: none;">
+                        <label for="custom_generation_context_size">
+                            <small data-i18n="Context Size (tokens)">Context Size (tokens)</small>
+                        </label>
+                        <input id="custom_generation_context_size" class="text_pole" type="number" min="1" step="1" />
+
+                        <label for="custom_generation_max_tokens">
+                            <small data-i18n="Max Response Length (tokens)">Max Response Length (tokens)</small>
+                        </label>
+                        <input id="custom_generation_max_tokens" class="text_pole" type="number" min="1" step="1" />
+
+                        <label for="custom_generation_temperature">
+                            <small data-i18n="Temperature">Temperature</small>
+                        </label>
+                        <input id="custom_generation_temperature" class="text_pole" type="number" min="0" max="2" step="0.01" />
+
+                        <label for="custom_generation_top_k">
+                            <small data-i18n="Top K">Top K</small>
+                        </label>
+                        <input id="custom_generation_top_k" class="text_pole" type="number" min="0" step="1" />
+
+                        <label for="custom_generation_top_p">
+                            <small data-i18n="Top P">Top P</small>
+                        </label>
+                        <input id="custom_generation_top_p" class="text_pole" type="number" min="0" max="1" step="0.01" />
+
+                        <label for="custom_generation_frequency_penalty">
+                            <small data-i18n="Frequency Penalty">Frequency Penalty</small>
+                        </label>
+                        <input id="custom_generation_frequency_penalty" class="text_pole" type="number" min="-2" max="2" step="0.01" />
+
+                        <label for="custom_generation_presence_penalty">
+                            <small data-i18n="Presence Penalty">Presence Penalty</small>
+                        </label>
+                        <input id="custom_generation_presence_penalty" class="text_pole" type="number" min="-2" max="2" step="0.01" />
+
                         <label for="custom_generation_include_headers_yaml">
                             <small data-i18n="Request Headers (YAML)">Request Headers (YAML)</small>
                         </label>
@@ -123,6 +122,17 @@
                         ></textarea>
                     </div>
                 </div>
+
+                <label for="custom_generation_prompt_post_processing">
+                    <small data-i18n="Prompt Post-Processing">Prompt Post-Processing</small>
+                </label>
+                <select id="custom_generation_prompt_post_processing" class="text_pole">
+                    <option value="none" data-i18n="None">None</option>
+                    <option value="merge" data-i18n="Merge consecutive roles (no tools)">Merge consecutive roles (no tools)</option>
+                    <option value="semi" data-i18n="Semi-strict (alternating roles; no tools)">Semi-strict (alternating roles; no tools)</option>
+                    <option value="strict" data-i18n="Strict (user first, alternating roles; no tools)">Strict (user first, alternating roles; no tools)</option>
+                    <option value="single" data-i18n="Single user message (no tools)">Single user message (no tools)</option>
+                </select>
             </div>
 
             <hr />
