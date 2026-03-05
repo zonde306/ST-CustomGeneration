@@ -1,10 +1,6 @@
 import { resolve as _resolve, relative as _relative } from 'path';
 import TerserPlugin from 'terser-webpack-plugin';
 
-const sourceRoot = _resolve('.', 'src').replace(/\\/g, '/');
-const projectRoot = _resolve('.').replace(/\\/g, '/');
-const distRoot = _resolve('.', 'dist').replace(/\\/g, '/');
-
 const serverConfig = {
     devtool: 'source-map',
     target: 'browserslist',
@@ -63,6 +59,12 @@ const serverConfig = {
     },
     plugins: [],
     externals: function({ context, request }, callback) {
+        // 对 yaml 库的特殊兼容，因为 yaml 有 ../../
+        if(request.includes('/nodes/') || request.includes('/stringify/')) {
+            return callback();
+        }
+
+        // 服务器上有的文件，不需要打包，也不能打包进去
         if (request.startsWith('../../') || request.includes('libs/')) {
             if(context.search(/(\/|\\)src\1/) > 0)
                 return callback(null, request.substring(3));
