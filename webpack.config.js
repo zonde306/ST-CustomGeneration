@@ -63,32 +63,13 @@ const serverConfig = {
     },
     plugins: [],
     externals: function({ context, request }, callback) {
-        const normalizedContext = String(context ?? '').replace(/\\/g, '/');
-        const isFromSource = normalizedContext === sourceRoot || normalizedContext.startsWith(`${sourceRoot}/`);
-
-        if (request.startsWith('../../')) {
-            if (isFromSource) {
-                const absoluteRequest = _resolve(normalizedContext, request).replace(/\\/g, '/');
-                const relativeToProject = _relative(projectRoot, absoluteRequest).replace(/\\/g, '/');
-                const relativeToDist = _relative(distRoot, absoluteRequest).replace(/\\/g, '/');
-
-                if (relativeToProject === relativeToDist) {
-                    return callback(null, `./${relativeToProject}`);
-                }
-
-                return callback(null, `/scripts/${relativeToProject}`);
-            }
-            return callback();
-        }
-
-        if (request.includes('libs/')) {
+        if (request.startsWith('../../') || request.includes('libs/')) {
+            if(context.search(/(\/|\\)src\1/) > 0)
+                return callback(null, request.substring(3));
+            return callback(null, request);
+        } else if(request.startsWith('https://') || request.startsWith('http://')) {
             return callback(null, request);
         }
-
-        if (request.startsWith('https://') || request.startsWith('http://')) {
-            return callback(null, request);
-        }
-
         callback();
     },
 };
