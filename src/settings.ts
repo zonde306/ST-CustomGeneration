@@ -83,6 +83,21 @@ interface Settings {
     // Model ID
     model: string;
 
+    // Context Size (tokens)
+    contextSize: number;
+
+    // Max Response Length (tokens)
+    maxTokens: number;
+
+    // temperature 0.00~2.00
+    temperature: number;
+
+    // top-k sampling 0~40
+    topK: number;
+
+    // Top P sampling 0.00~1.00
+    topP: number;
+
     // streaming mode
     stream: boolean;
 
@@ -113,6 +128,11 @@ interface ExportPayload {
     apiConnection?: {
         baseUrl: string;
         model: string;
+        contextSize: number;
+        maxTokens: number;
+        temperature: number;
+        topK: number;
+        topP: number;
         promptPostProcessing: Settings['promptPostProcessing'];
         includeHeaders: Record<string, unknown>;
         includeBody: Record<string, unknown>;
@@ -127,6 +147,11 @@ interface ImportPayload {
     apiConnection?: {
         baseUrl?: unknown;
         model?: unknown;
+        contextSize?: unknown;
+        maxTokens?: unknown;
+        temperature?: unknown;
+        topK?: unknown;
+        topP?: unknown;
         promptPostProcessing?: unknown;
         includeHeaders?: unknown;
         includeBody?: unknown;
@@ -254,6 +279,11 @@ const defaultSettings: Settings = {
     baseUrl: 'http://localhost:8080/v1',
     apiKey: '',
     model: 'None',
+    contextSize: 8192,
+    maxTokens: 512,
+    temperature: 0.7,
+    topK: 40,
+    topP: 1,
     promptPostProcessing: 'none',
     presets: [defaultPreset],
     currentPreset: 0,
@@ -306,6 +336,16 @@ function parseNullableInt(value: unknown, min: number): number | null {
     }
 
     return Math.max(min, Math.trunc(parsed));
+}
+
+function parseNumber(value: unknown, fallback: number, min: number, max: number, integer: boolean = false): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+        return fallback;
+    }
+
+    const clamped = clamp(parsed, min, max);
+    return integer ? Math.trunc(clamped) : clamped;
 }
 
 function normalizeRecord(value: unknown): Record<string, unknown> {
@@ -419,6 +459,11 @@ function ensureSettingsIntegrity(resetSelections: boolean = false) {
     settings.baseUrl = String(settings.baseUrl ?? defaultSettings.baseUrl);
     settings.apiKey = String(settings.apiKey ?? '');
     settings.model = String(settings.model ?? 'None');
+    settings.contextSize = parseNumber(settings.contextSize, defaultSettings.contextSize, 1, 1_000_000, true);
+    settings.maxTokens = parseNumber(settings.maxTokens, defaultSettings.maxTokens, 1, 1_000_000, true);
+    settings.temperature = parseNumber(settings.temperature, defaultSettings.temperature, 0, 2, false);
+    settings.topK = parseNumber(settings.topK, defaultSettings.topK, 0, 1_000_000, true);
+    settings.topP = parseNumber(settings.topP, defaultSettings.topP, 0, 1, false);
     settings.includeHeaders = normalizeRecord(settings.includeHeaders);
     settings.includeBody = normalizeRecord(settings.includeBody);
     settings.excludeBody = normalizeRecord(settings.excludeBody);
@@ -529,7 +574,7 @@ function updateModelSelectOptions(): void {
 }
 
 function buildPromptRow(prompt: PresetPrompt, index: number) {
-    const row = $('<div class="menu_button flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
+    const row = $('<div class="custom_generation_list_row flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
     row.attr('draggable', 'true');
     row.toggleClass('active', index === selectedPromptIndex);
 
@@ -633,7 +678,7 @@ function buildPromptRow(prompt: PresetPrompt, index: number) {
 }
 
 function buildRegexRow(regex: RegEx, index: number) {
-    const row = $('<div class="menu_button flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
+    const row = $('<div class="custom_generation_list_row flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
     row.attr('draggable', 'true');
     row.toggleClass('active', index === selectedRegexIndex);
 
@@ -1007,6 +1052,11 @@ function buildExportPayload(includeApiConnection: boolean): ExportPayload {
         payload.apiConnection = {
             baseUrl: settings.baseUrl,
             model: settings.model,
+            contextSize: settings.contextSize,
+            maxTokens: settings.maxTokens,
+            temperature: settings.temperature,
+            topK: settings.topK,
+            topP: settings.topP,
             promptPostProcessing: settings.promptPostProcessing,
             includeHeaders: clone(settings.includeHeaders),
             includeBody: clone(settings.includeBody),
@@ -1106,6 +1156,11 @@ async function importPresetsFromFile(file: File): Promise<void> {
     if (normalized.apiConnection) {
         settings.baseUrl = String(normalized.apiConnection.baseUrl ?? settings.baseUrl);
         settings.model = String(normalized.apiConnection.model ?? settings.model);
+        settings.contextSize = parseNumber(normalized.apiConnection.contextSize, settings.contextSize, 1, 1_000_000, true);
+        settings.maxTokens = parseNumber(normalized.apiConnection.maxTokens, settings.maxTokens, 1, 1_000_000, true);
+        settings.temperature = parseNumber(normalized.apiConnection.temperature, settings.temperature, 0, 2, false);
+        settings.topK = parseNumber(normalized.apiConnection.topK, settings.topK, 0, 1_000_000, true);
+        settings.topP = parseNumber(normalized.apiConnection.topP, settings.topP, 0, 1, false);
         settings.promptPostProcessing = parsePromptPostProcessing(normalized.apiConnection.promptPostProcessing);
         settings.includeHeaders = normalizeRecord(normalized.apiConnection.includeHeaders);
         settings.includeBody = normalizeRecord(normalized.apiConnection.includeBody);
@@ -1149,6 +1204,31 @@ function bindEvents() {
     $('#custom_generation_model').on('input', () => {
         settings.model = String($('#custom_generation_model').val() ?? 'None');
         updateModelSelectOptions();
+        saveSettings();
+    });
+
+    $('#custom_generation_context_size').on('input', () => {
+        settings.contextSize = parseNumber($('#custom_generation_context_size').val(), defaultSettings.contextSize, 1, 1_000_000, true);
+        saveSettings();
+    });
+
+    $('#custom_generation_max_tokens').on('input', () => {
+        settings.maxTokens = parseNumber($('#custom_generation_max_tokens').val(), defaultSettings.maxTokens, 1, 1_000_000, true);
+        saveSettings();
+    });
+
+    $('#custom_generation_temperature').on('input', () => {
+        settings.temperature = parseNumber($('#custom_generation_temperature').val(), defaultSettings.temperature, 0, 2, false);
+        saveSettings();
+    });
+
+    $('#custom_generation_top_k').on('input', () => {
+        settings.topK = parseNumber($('#custom_generation_top_k').val(), defaultSettings.topK, 0, 1_000_000, true);
+        saveSettings();
+    });
+
+    $('#custom_generation_top_p').on('input', () => {
+        settings.topP = parseNumber($('#custom_generation_top_p').val(), defaultSettings.topP, 0, 1, false);
         saveSettings();
     });
 
@@ -1445,6 +1525,11 @@ export function updateSettingsUI() {
     $('#custom_generation_base_url').val(settings.baseUrl);
     $('#custom_generation_api_key').val(settings.apiKey);
     $('#custom_generation_model').val(settings.model);
+    $('#custom_generation_context_size').val(settings.contextSize);
+    $('#custom_generation_max_tokens').val(settings.maxTokens);
+    $('#custom_generation_temperature').val(settings.temperature);
+    $('#custom_generation_top_k').val(settings.topK);
+    $('#custom_generation_top_p').val(settings.topP);
     $('#custom_generation_prompt_post_processing').val(settings.promptPostProcessing);
     $('#custom_generation_include_headers_yaml').val(stringifyYamlRecord(settings.includeHeaders));
     $('#custom_generation_include_body_yaml').val(stringifyYamlRecord(settings.includeBody));

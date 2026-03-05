@@ -11,6 +11,7 @@ interface ApiConfig {
     source?: string;
 
     stream?: boolean | null;
+    max_context?: number | null;
     max_tokens?: number | null;
     temperature?: number | null;
     top_p?: number | null;
@@ -51,6 +52,7 @@ export async function generate(
             data.proxy_password = api.key || '';
             data.model = api.model;
 
+            assign('max_context');
             assign('max_tokens');
             assign('temperature');
             assign('top_p');

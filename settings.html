@@ -47,6 +47,31 @@
                 </div>
                 <small id="custom_generation_model_connect_status" class="text_muted"></small>
 
+                <label for="custom_generation_context_size">
+                    <small data-i18n="Context Size (tokens)">Context Size (tokens)</small>
+                </label>
+                <input id="custom_generation_context_size" class="text_pole" type="number" min="1" step="1" />
+
+                <label for="custom_generation_max_tokens">
+                    <small data-i18n="Max Response Length (tokens)">Max Response Length (tokens)</small>
+                </label>
+                <input id="custom_generation_max_tokens" class="text_pole" type="number" min="1" step="1" />
+
+                <label for="custom_generation_temperature">
+                    <small data-i18n="Temperature">Temperature</small>
+                </label>
+                <input id="custom_generation_temperature" class="text_pole" type="number" min="0" max="2" step="0.01" />
+
+                <label for="custom_generation_top_k">
+                    <small data-i18n="Top K">Top K</small>
+                </label>
+                <input id="custom_generation_top_k" class="text_pole" type="number" min="0" step="1" />
+
+                <label for="custom_generation_top_p">
+                    <small data-i18n="Top P">Top P</small>
+                </label>
+                <input id="custom_generation_top_p" class="text_pole" type="number" min="0" max="1" step="0.01" />
+
                 <label for="custom_generation_prompt_post_processing">
                     <small data-i18n="Prompt Post-Processing">Prompt Post-Processing</small>
                 </label>
@@ -59,7 +84,7 @@
                 </select>
 
                 <div class="inline-drawer marginTop5" id="custom_generation_additional_params_drawer">
-                    <div id="custom_generation_additional_params_toggle" class="inline-drawer-toggle inline-drawer-header">
+                    <div id="custom_generation_additional_params_toggle" class="inline-drawer-header">
                         <b>
                             <span data-i18n="Additional Parameters (YAML)">Additional Parameters (YAML)</span>
                         </b>
@@ -161,4 +186,50 @@
             </div>
         </form>
     </dialog>
+
+    <style>
+        #custom_generation_prompt_list,
+        #custom_generation_regex_list {
+            width: 100%;
+            max-width: 100%;
+            align-items: stretch;
+            gap: 6px;
+        }
+
+        #custom_generation_prompt_list > *,
+        #custom_generation_regex_list > * {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        #custom_generation_settings .custom_generation_list_row {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #custom_generation_settings .custom_generation_list_row > .flex1 {
+            min-width: 0;
+        }
+
+        #custom_generation_prompt_dialog .completion_prompt_manager_popup_entry_form,
+        #custom_generation_regex_dialog .completion_prompt_manager_popup_entry_form {
+            width: min(720px, 92vw);
+            max-width: 92vw;
+            box-sizing: border-box;
+        }
+
+        #custom_generation_prompt_dialog .menu_button,
+        #custom_generation_regex_dialog .menu_button,
+        #custom_generation_export_dialog .menu_button {
+            min-width: 72px;
+            white-space: nowrap;
+            flex: 0 0 auto;
+        }
+    </style>
 </div>

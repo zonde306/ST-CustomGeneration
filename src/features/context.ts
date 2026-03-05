@@ -39,8 +39,10 @@ type MainApiConfig = {
     model: string,
     type: string,
     stream?: boolean,
+    max_context?: number | null,
     max_tokens?: number | null,
     temperature?: number | null,
+    top_k?: number | null,
     top_p?: number | null,
     frequency_penalty?: number | null,
     presence_penalty?: number | null,
@@ -102,7 +104,7 @@ export class Context {
         }
 
         const worldinfoTrigger: string[] = this.chat.slice(-world_info_depth).map(x => x.mes ?? '');
-        const prompts = await PromptBuilder.create(worldinfoTrigger, type, dryRun);
+        const prompts = await PromptBuilder.create(worldinfoTrigger, type, dryRun, settings.contextSize);
 
         this.#rebuildDepthInjections(prompts);
         const historyMessages = this.#buildChatHistoryWithDepthInjection(type === 'continue');
@@ -568,9 +570,11 @@ export class Context {
             model: String(settings.model ?? ''),
             type,
             stream: !!settings.stream,
-            max_tokens: Number.isFinite(Number(settings.includeBody.max_tokens)) ? Number(settings.includeBody.max_tokens) : null,
-            temperature: Number(settings.includeBody.temperature) || null,
-            top_p: Number(settings.includeBody.top_p) || null,
+            max_context: settings.contextSize,
+            max_tokens: settings.maxTokens,
+            temperature: settings.temperature,
+            top_k: settings.topK,
+            top_p: settings.topP,
             frequency_penalty: Number(settings.includeBody.frequency_penalty) || null,
             presence_penalty: Number(settings.includeBody.presence_penalty) || null,
         };
