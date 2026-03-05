@@ -9,6 +9,7 @@ import {
     characters,
     depth_prompt_depth_default,
     depth_prompt_role_default,
+    chat
 } from '../../../../../../script.js';
 import { metadata_keys } from '../../../../../authors-note.js';
 import { world_info_depth } from '../../../../../world-info.js';
@@ -18,6 +19,10 @@ import { PromptBuilder } from '../functions/prompts';
 import { generate as runGenerate } from '../functions/generate';
 
 type ContextRole = 'user' | 'system' | 'assistant';
+
+type VariableData = Record<string, any>;
+type ChatMessageEx = ChatMessage & { variables?: VariableData[] };
+type ChatMetadataEx = ChatMetadata & { variables?: VariableData };
 
 type ExtensionPrompts = {
     value: string,
@@ -49,28 +54,40 @@ type MainApiConfig = {
 };
 
 export class Context {
-    public chat: ChatMessage[];
-    public variables: Record<string, any>;
+    public chat: ChatMessageEx[];
+    public chat_metadata: ChatMetadataEx;
     public extension_prompts: Record<string, ExtensionPrompts>;
+    public isGlobal: boolean;
 
     constructor() {
         this.chat = [];
-        this.variables = {};
         this.extension_prompts = {};
+        this.chat_metadata = {};
+        this.isGlobal = false;
+    }
+
+    static global(): Context {
+        const ctx = new Context();
+        ctx.chat = chat;
+        ctx.chat_metadata = chat_metadata;
+        ctx.isGlobal = true;
+        return ctx;
     }
 
     static fromObject(value: Context): Context {
         const context = new Context();
         context.chat = value.chat ?? [];
-        context.variables = value.variables ?? {};
         context.extension_prompts = value.extension_prompts ?? {};
         return context;
     }
 
     toObject(): Object {
+        if(this.isGlobal)
+            console.warn('toObject called on global context');
+
         return {
             chat: this.chat,
-            variables: this.variables,
+            chat_metadata: this.chat_metadata,
             extension_prompts: this.extension_prompts,
         };
     }
@@ -83,6 +100,47 @@ export class Context {
             send_date: new Date(),
             name,
         });
+    }
+
+    get lastMessage(): ChatMessageEx | undefined {
+        return this.chat[this.chat.length - 1];
+    }
+
+    get variables(): VariableData {
+        const last = this.lastMessage;
+        if(last == null)
+            return {};
+
+        if(last.variables == null)
+            last.variables = [];
+        if(!((last.swipe_id ?? 0) in last.variables))
+            last.variables[last.swipe_id ?? 0] = {};
+
+        return last?.variables?.[last.swipe_id ?? 0] ?? {};
+    }
+
+    get localVariables(): VariableData {
+        if(this.chat_metadata.variables == null)
+            this.chat_metadata.variables = {};
+        return this.chat_metadata.variables ?? {};
+    }
+
+    async getGenerationMessages(type: string = 'normal', options: GenerateOptionsLite = {}) {
+        // Prevent generation from shallow characters
+        await unshallowCharacter(this_chid);
+
+        // Occurs every time, even if the generation is aborted due to slash commands execution
+        await eventSource.emit(event_types.GENERATION_STARTED, type, options, true);
+
+        // Occurs only if the generation is not aborted due to slash commands execution
+        await eventSource.emit(event_types.GENERATION_AFTER_COMMANDS, type, options, true);
+
+        const worldinfoTrigger: string[] = this.chat.slice(-world_info_depth).map(x => x.mes ?? '');
+        const prompts = await PromptBuilder.create(worldinfoTrigger, type, true, settings.contextSize);
+
+        this.#rebuildDepthInjections(prompts);
+        const historyMessages = this.#buildChatHistoryWithDepthInjection(type === 'continue');
+        return this.#buildMessages(prompts, historyMessages);
     }
 
     async generate(type: string = 'normal', options: GenerateOptionsLite = {}, dryRun: boolean = false): Promise<string> {
@@ -575,8 +633,8 @@ export class Context {
             temperature: settings.temperature,
             top_k: settings.topK,
             top_p: settings.topP,
-            frequency_penalty: Number(settings.includeBody.frequency_penalty) || null,
-            presence_penalty: Number(settings.includeBody.presence_penalty) || null,
+            frequency_penalty: settings.frequencyPenalty,
+            presence_penalty: settings.presencePenalty,
         };
     }
 
