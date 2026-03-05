@@ -1,0 +1,61 @@
+<dialog id="custom_generation_prompt_dialog">
+    <form class="completion_prompt_manager_popup_entry_form flex-container flexFlowColumn" method="dialog" onsubmit="return false;">
+        <div class="completion_prompt_manager_popup_header">
+            <label for="custom_generation_prompt_content">
+                <span data-i18n="Prompt Editor">Prompt Editor</span>
+            </label>
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <label for="custom_generation_prompt_name">
+                <span data-i18n="Name">Name</span>
+            </label>
+            <input id="custom_generation_prompt_name" class="text_pole" type="text" />
+        </div>
+        <div class="flex-container">
+            <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                <label for="custom_generation_prompt_role">
+                    <span data-i18n="Role">Role</span>
+                </label>
+                <select id="custom_generation_prompt_role" class="text_pole">
+                    <option value="system" data-i18n="System">System</option>
+                    <option value="user" data-i18n="User">User</option>
+                    <option value="assistant" data-i18n="Assistant">Assistant</option>
+                </select>
+            </div>
+            <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                <label for="custom_generation_prompt_injection_position">
+                    <span data-i18n="Position">Position</span>
+                </label>
+                <select id="custom_generation_prompt_injection_position" class="text_pole">
+                    <option value="relative" data-i18n="Default (top of context)">Default (top of context)</option>
+                    <option value="inChat" data-i18n="In-chat @ Depth">In-chat @ Depth</option>
+                </select>
+            </div>
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <label for="custom_generation_prompt_triggers">
+                <span data-i18n="Triggers (comma separated)">Triggers (comma separated)</span>
+            </label>
+            <input id="custom_generation_prompt_triggers" class="text_pole" type="text" placeholder="normal, continue" />
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <label class="checkbox_label" for="custom_generation_prompt_enable">
+                <input id="custom_generation_prompt_enable" type="checkbox" />
+                <span data-i18n="Enabled">Enabled</span>
+            </label>
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <label for="custom_generation_prompt_content">
+                <span data-i18n="Prompt">Prompt</span>
+            </label>
+            <textarea id="custom_generation_prompt_content" class="text_pole textarea_compact" rows="8"></textarea>
+        </div>
+        <div class="flex-container justifySpaceBetween marginTop5">
+            <a id="custom_generation_prompt_delete" class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></a>
+            <div class="flex-container">
+                <button id="custom_generation_prompt_cancel" class="menu_button" type="button" data-i18n="Cancel">Cancel</button>
+                <button id="custom_generation_prompt_save" class="menu_button" type="button" data-i18n="Save">Save</button>
+            </div>
+        </div>
+    </form>
+</dialog>

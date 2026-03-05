@@ -106,6 +106,35 @@ interface Settings {
     currentPreset: number;
 }
 
+interface ExportPayload {
+    version: string;
+    presets: Preset[];
+    currentPreset: number;
+    apiConnection?: {
+        baseUrl: string;
+        model: string;
+        promptPostProcessing: Settings['promptPostProcessing'];
+        includeHeaders: Record<string, unknown>;
+        includeBody: Record<string, unknown>;
+        excludeBody: Record<string, unknown>;
+    };
+}
+
+interface ImportPayload {
+    version?: unknown;
+    presets?: unknown;
+    currentPreset?: unknown;
+    apiConnection?: {
+        baseUrl?: unknown;
+        model?: unknown;
+        promptPostProcessing?: unknown;
+        includeHeaders?: unknown;
+        includeBody?: unknown;
+        excludeBody?: unknown;
+        apiKey?: unknown;
+    };
+}
+
 const defaultPreset: Preset = {
     name: 'Default',
     prompts: [
@@ -238,8 +267,17 @@ export const settings: Settings = clone(defaultSettings);
 
 let selectedPromptIndex = 0;
 let selectedRegexIndex = 0;
+let editingPromptIndex: number | null = null;
+let editingRegexIndex: number | null = null;
+let draggedPromptIndex: number | null = null;
+let draggedRegexIndex: number | null = null;
 let isUpdatingUI = false;
 let isEventsBound = false;
+let isSettingsLoadedListenerBound = false;
+let modelCandidates: string[] = [];
+
+const placeholderModelCandidates = ['gpt-4o-mini', 'gpt-4o', 'claude-3.5-sonnet'];
+const exportSchemaVersion = '1.0.0';
 
 function clone<T>(value: T): T {
     return typeof structuredClone === 'function'
@@ -276,6 +314,17 @@ function normalizeRecord(value: unknown): Record<string, unknown> {
     }
 
     return clone(value as Record<string, unknown>);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function parsePromptPostProcessing(value: unknown): Settings['promptPostProcessing'] {
+    const text = String(value ?? 'none');
+    return ['none', 'merge', 'semi', 'strict', 'single'].includes(text)
+        ? text as Settings['promptPostProcessing']
+        : 'none';
 }
 
 function parseYamlRecord(value: unknown): Record<string, unknown> {
@@ -373,10 +422,7 @@ function ensureSettingsIntegrity(resetSelections: boolean = false) {
     settings.includeHeaders = normalizeRecord(settings.includeHeaders);
     settings.includeBody = normalizeRecord(settings.includeBody);
     settings.excludeBody = normalizeRecord(settings.excludeBody);
-
-    if (!['none', 'merge', 'semi', 'strict', 'single'].includes(settings.promptPostProcessing)) {
-        settings.promptPostProcessing = 'none';
-    }
+    settings.promptPostProcessing = parsePromptPostProcessing(settings.promptPostProcessing);
 
     const normalizedPresets = Array.isArray(settings.presets)
         ? settings.presets.map((preset, index) => normalizePreset(preset, `Preset ${index + 1}`))
@@ -392,6 +438,8 @@ function ensureSettingsIntegrity(resetSelections: boolean = false) {
     if (resetSelections) {
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
+        editingPromptIndex = null;
+        editingRegexIndex = null;
     }
 }
 
@@ -405,44 +453,287 @@ function getCurrentPreset(): Preset {
     return settings.presets[settings.currentPreset];
 }
 
+function moveArrayItem<T>(array: T[], fromIndex: number, toIndex: number): void {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= array.length || toIndex >= array.length) {
+        return;
+    }
+
+    const [item] = array.splice(fromIndex, 1);
+    array.splice(toIndex, 0, item);
+}
+
+function getDialog(selector: string): HTMLDialogElement | null {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLDialogElement ? element : null;
+}
+
+function openDialog(selector: string): void {
+    const dialog = getDialog(selector);
+    if (!dialog || dialog.open) {
+        return;
+    }
+
+    try {
+        dialog.showModal();
+    } catch {
+        dialog.setAttribute('open', 'open');
+    }
+}
+
+function closeDialog(selector: string): void {
+    const dialog = getDialog(selector);
+    if (!dialog) {
+        return;
+    }
+
+    if (dialog.open) {
+        dialog.close();
+    } else {
+        dialog.removeAttribute('open');
+    }
+}
+
+function setAdditionalParametersExpanded(expanded: boolean): void {
+    const body = $('#custom_generation_additional_params_body');
+    const icon = $('#custom_generation_additional_params_icon');
+    body.toggle(expanded);
+    icon.toggleClass('down', expanded);
+}
+
+function updateModelSelectOptions(): void {
+    const modelSelect = $('#custom_generation_model_select');
+    const currentModel = String(settings.model ?? '').trim();
+    const candidateSet = new Set(modelCandidates.map(x => x.trim()).filter(Boolean));
+
+    modelSelect.empty();
+
+    if (candidateSet.size === 0) {
+        modelSelect.append('<option value="">(No models loaded)</option>');
+    } else {
+        modelSelect.append('<option value="">(Select a model)</option>');
+        for (const candidate of candidateSet) {
+            modelSelect.append(`<option value="${candidate}">${candidate}</option>`);
+        }
+    }
+
+    if (currentModel && !candidateSet.has(currentModel)) {
+        modelSelect.append(`<option value="${currentModel}">${currentModel} (custom)</option>`);
+        candidateSet.add(currentModel);
+    }
+
+    if (currentModel && candidateSet.has(currentModel)) {
+        modelSelect.val(currentModel);
+    } else {
+        modelSelect.val('');
+    }
+}
+
 function buildPromptRow(prompt: PresetPrompt, index: number) {
-    const item = $('<div class="menu_button flex-container alignItemsCenter justifySpaceBetween"></div>');
-    item.toggleClass('active', index === selectedPromptIndex);
+    const row = $('<div class="menu_button flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
+    row.attr('draggable', 'true');
+    row.toggleClass('active', index === selectedPromptIndex);
 
-    const left = $('<div class="flex1"></div>');
-    left.text(prompt.name || `Prompt ${index + 1}`);
+    const left = $('<div class="flex-container alignItemsCenter flex1"></div>');
+    const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
+    const toggle = $('<input type="checkbox" />').prop('checked', prompt.enabled === true);
+    const name = $('<div class="flex1"></div>').text(prompt.name || `Prompt ${index + 1}`);
 
-    const right = $('<small class="text_muted"></small>');
-    const roleLabel = prompt.role.toUpperCase();
-    const stateLabel = prompt.enabled === null ? 'hidden' : (prompt.enabled ? 'on' : 'off');
-    right.text(`${roleLabel} · ${stateLabel}`);
+    left.append(dragHandle, toggle, name);
 
-    item.append(left, right);
-    item.on('click', () => {
+    const actions = $('<div class="flex-container alignItemsCenter"></div>');
+    const editButton = $('<i class="menu_button fa-solid fa-pen-to-square" title="Edit" data-i18n="[title]Edit"></i>');
+    const deleteButton = $('<i class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></i>');
+    actions.append(editButton, deleteButton);
+
+    row.on('click', () => {
         selectedPromptIndex = index;
         updateSettingsUI();
     });
 
-    return item;
+    toggle.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+    });
+
+    toggle.on('change', () => {
+        const preset = getCurrentPreset();
+        const target = preset.prompts[index];
+        if (!target) {
+            return;
+        }
+
+        target.enabled = Boolean(toggle.prop('checked'));
+        selectedPromptIndex = index;
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    editButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        openPromptEditor(index);
+    });
+
+    deleteButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        const preset = getCurrentPreset();
+        const target = preset.prompts[index];
+        if (!target) {
+            return;
+        }
+
+        if (!window.confirm(`Delete prompt "${target.name}"?`)) {
+            return;
+        }
+
+        preset.prompts.splice(index, 1);
+        selectedPromptIndex = clamp(index, 0, Math.max(0, preset.prompts.length - 1));
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    row.on('dragstart', (event: JQuery.TriggeredEvent) => {
+        draggedPromptIndex = index;
+        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
+        if (nativeEvent?.dataTransfer) {
+            nativeEvent.dataTransfer.effectAllowed = 'move';
+            nativeEvent.dataTransfer.setData('text/plain', String(index));
+        }
+    });
+
+    row.on('dragover', (event: JQuery.TriggeredEvent) => {
+        event.preventDefault();
+    });
+
+    row.on('drop', (event: JQuery.TriggeredEvent) => {
+        event.preventDefault();
+
+        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
+        const payload = Number(nativeEvent?.dataTransfer?.getData('text/plain'));
+        const sourceIndex = Number.isFinite(payload) ? Math.trunc(payload) : draggedPromptIndex;
+        if (sourceIndex === null) {
+            return;
+        }
+
+        const preset = getCurrentPreset();
+        if (sourceIndex < 0 || sourceIndex >= preset.prompts.length || index < 0 || index >= preset.prompts.length) {
+            return;
+        }
+
+        moveArrayItem(preset.prompts, sourceIndex, index);
+        selectedPromptIndex = index;
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    row.on('dragend', () => {
+        draggedPromptIndex = null;
+    });
+
+    row.append(left, actions);
+    return row;
 }
 
 function buildRegexRow(regex: RegEx, index: number) {
-    const item = $('<div class="menu_button flex-container alignItemsCenter justifySpaceBetween"></div>');
-    item.toggleClass('active', index === selectedRegexIndex);
+    const row = $('<div class="menu_button flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
+    row.attr('draggable', 'true');
+    row.toggleClass('active', index === selectedRegexIndex);
 
-    const left = $('<div class="flex1"></div>');
-    left.text(regex.name || `Regex ${index + 1}`);
+    const left = $('<div class="flex-container alignItemsCenter flex1"></div>');
+    const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
+    const toggle = $('<input type="checkbox" />').prop('checked', regex.enabled);
+    const name = $('<div class="flex1"></div>').text(regex.name || `Regex ${index + 1}`);
 
-    const right = $('<small class="text_muted"></small>');
-    right.text(regex.enabled ? 'enabled' : 'disabled');
+    left.append(dragHandle, toggle, name);
 
-    item.append(left, right);
-    item.on('click', () => {
+    const actions = $('<div class="flex-container alignItemsCenter"></div>');
+    const editButton = $('<i class="menu_button fa-solid fa-pen-to-square" title="Edit" data-i18n="[title]Edit"></i>');
+    const deleteButton = $('<i class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></i>');
+    actions.append(editButton, deleteButton);
+
+    row.on('click', () => {
         selectedRegexIndex = index;
         updateSettingsUI();
     });
 
-    return item;
+    toggle.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+    });
+
+    toggle.on('change', () => {
+        const preset = getCurrentPreset();
+        const target = preset.regexs[index];
+        if (!target) {
+            return;
+        }
+
+        target.enabled = Boolean(toggle.prop('checked'));
+        selectedRegexIndex = index;
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    editButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        openRegexEditor(index);
+    });
+
+    deleteButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        const preset = getCurrentPreset();
+        const target = preset.regexs[index];
+        if (!target) {
+            return;
+        }
+
+        if (!window.confirm(`Delete regex "${target.name}"?`)) {
+            return;
+        }
+
+        preset.regexs.splice(index, 1);
+        selectedRegexIndex = clamp(index, 0, Math.max(0, preset.regexs.length - 1));
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    row.on('dragstart', (event: JQuery.TriggeredEvent) => {
+        draggedRegexIndex = index;
+        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
+        if (nativeEvent?.dataTransfer) {
+            nativeEvent.dataTransfer.effectAllowed = 'move';
+            nativeEvent.dataTransfer.setData('text/plain', String(index));
+        }
+    });
+
+    row.on('dragover', (event: JQuery.TriggeredEvent) => {
+        event.preventDefault();
+    });
+
+    row.on('drop', (event: JQuery.TriggeredEvent) => {
+        event.preventDefault();
+
+        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
+        const payload = Number(nativeEvent?.dataTransfer?.getData('text/plain'));
+        const sourceIndex = Number.isFinite(payload) ? Math.trunc(payload) : draggedRegexIndex;
+        if (sourceIndex === null) {
+            return;
+        }
+
+        const preset = getCurrentPreset();
+        if (sourceIndex < 0 || sourceIndex >= preset.regexs.length || index < 0 || index >= preset.regexs.length) {
+            return;
+        }
+
+        moveArrayItem(preset.regexs, sourceIndex, index);
+        selectedRegexIndex = index;
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    row.on('dragend', () => {
+        draggedRegexIndex = null;
+    });
+
+    row.append(left, actions);
+    return row;
 }
 
 function updatePresetSummary(preset: Preset) {
@@ -463,6 +754,7 @@ function setPromptEditorEnabled(enabled: boolean) {
         '#custom_generation_prompt_enable',
         '#custom_generation_prompt_content',
         '#custom_generation_prompt_delete',
+        '#custom_generation_prompt_save',
     ];
 
     for (const selector of selectors) {
@@ -485,6 +777,7 @@ function setRegexEditorEnabled(enabled: boolean) {
         '#custom_generation_regex_min_depth',
         '#custom_generation_regex_max_depth',
         '#custom_generation_regex_delete',
+        '#custom_generation_regex_save',
     ];
 
     for (const selector of selectors) {
@@ -492,8 +785,9 @@ function setRegexEditorEnabled(enabled: boolean) {
     }
 }
 
-function updatePromptEditor(preset: Preset) {
-    const prompt = preset.prompts[selectedPromptIndex];
+function updatePromptEditor() {
+    const preset = getCurrentPreset();
+    const prompt = editingPromptIndex === null ? null : preset.prompts[editingPromptIndex];
 
     isUpdatingUI = true;
 
@@ -514,14 +808,15 @@ function updatePromptEditor(preset: Preset) {
     $('#custom_generation_prompt_role').val(prompt.role);
     $('#custom_generation_prompt_injection_position').val(prompt.injectionPosition);
     $('#custom_generation_prompt_triggers').val(prompt.triggers.join(', '));
-    $('#custom_generation_prompt_enable').prop('checked', prompt.enabled === null ? false : prompt.enabled);
+    $('#custom_generation_prompt_enable').prop('checked', prompt.enabled === true);
     $('#custom_generation_prompt_content').val(prompt.prompt);
 
     isUpdatingUI = false;
 }
 
-function updateRegexEditor(preset: Preset) {
-    const regex = preset.regexs[selectedRegexIndex];
+function updateRegexEditor() {
+    const preset = getCurrentPreset();
+    const regex = editingRegexIndex === null ? null : preset.regexs[editingRegexIndex];
 
     isUpdatingUI = true;
 
@@ -560,18 +855,35 @@ function updateRegexEditor(preset: Preset) {
     isUpdatingUI = false;
 }
 
-function applyPromptEditorChanges() {
-    if (isUpdatingUI) {
+function openPromptEditor(index: number): void {
+    const preset = getCurrentPreset();
+    if (!preset.prompts[index]) {
         return;
     }
 
+    editingPromptIndex = index;
+    selectedPromptIndex = index;
+    updatePromptEditor();
+    openDialog('#custom_generation_prompt_dialog');
+}
+
+function closePromptEditor(): void {
+    editingPromptIndex = null;
+    closeDialog('#custom_generation_prompt_dialog');
+}
+
+function savePromptEditor(): void {
     const preset = getCurrentPreset();
-    const prompt = preset.prompts[selectedPromptIndex];
+    if (editingPromptIndex === null) {
+        return;
+    }
+
+    const prompt = preset.prompts[editingPromptIndex];
     if (!prompt) {
         return;
     }
 
-    prompt.name = sanitizePresetName(String($('#custom_generation_prompt_name').val() ?? ''), `Prompt ${selectedPromptIndex + 1}`);
+    prompt.name = sanitizePresetName(String($('#custom_generation_prompt_name').val() ?? ''), `Prompt ${editingPromptIndex + 1}`);
 
     const role = String($('#custom_generation_prompt_role').val() ?? 'system');
     prompt.role = role === 'assistant' || role === 'user' ? role : 'system';
@@ -585,22 +897,64 @@ function applyPromptEditorChanges() {
     prompt.enabled = Boolean($('#custom_generation_prompt_enable').prop('checked'));
     prompt.prompt = String($('#custom_generation_prompt_content').val() ?? '');
 
+    selectedPromptIndex = editingPromptIndex;
+    closePromptEditor();
     updateSettingsUI();
     saveSettings();
 }
 
-function applyRegexEditorChanges() {
-    if (isUpdatingUI) {
+function deletePromptFromEditor(): void {
+    const preset = getCurrentPreset();
+    if (editingPromptIndex === null) {
         return;
     }
 
+    const prompt = preset.prompts[editingPromptIndex];
+    if (!prompt) {
+        return;
+    }
+
+    if (!window.confirm(`Delete prompt "${prompt.name}"?`)) {
+        return;
+    }
+
+    const removedIndex = editingPromptIndex;
+    preset.prompts.splice(removedIndex, 1);
+    closePromptEditor();
+    selectedPromptIndex = clamp(removedIndex, 0, Math.max(0, preset.prompts.length - 1));
+    updateSettingsUI();
+    saveSettings();
+}
+
+function openRegexEditor(index: number): void {
     const preset = getCurrentPreset();
-    const regex = preset.regexs[selectedRegexIndex];
+    if (!preset.regexs[index]) {
+        return;
+    }
+
+    editingRegexIndex = index;
+    selectedRegexIndex = index;
+    updateRegexEditor();
+    openDialog('#custom_generation_regex_dialog');
+}
+
+function closeRegexEditor(): void {
+    editingRegexIndex = null;
+    closeDialog('#custom_generation_regex_dialog');
+}
+
+function saveRegexEditor(): void {
+    const preset = getCurrentPreset();
+    if (editingRegexIndex === null) {
+        return;
+    }
+
+    const regex = preset.regexs[editingRegexIndex];
     if (!regex) {
         return;
     }
 
-    regex.name = sanitizePresetName(String($('#custom_generation_regex_name').val() ?? ''), `Regex ${selectedRegexIndex + 1}`);
+    regex.name = sanitizePresetName(String($('#custom_generation_regex_name').val() ?? ''), `Regex ${editingRegexIndex + 1}`);
     regex.regex = String($('#custom_generation_regex_regex').val() ?? '');
     regex.replace = String($('#custom_generation_regex_replace').val() ?? '');
     regex.userInput = Boolean($('#custom_generation_regex_user_input').prop('checked'));
@@ -613,8 +967,166 @@ function applyRegexEditorChanges() {
     regex.minDepth = parseNullableInt($('#custom_generation_regex_min_depth').val(), -1);
     regex.maxDepth = parseNullableInt($('#custom_generation_regex_max_depth').val(), 0);
 
+    selectedRegexIndex = editingRegexIndex;
+    closeRegexEditor();
     updateSettingsUI();
     saveSettings();
+}
+
+function deleteRegexFromEditor(): void {
+    const preset = getCurrentPreset();
+    if (editingRegexIndex === null) {
+        return;
+    }
+
+    const regex = preset.regexs[editingRegexIndex];
+    if (!regex) {
+        return;
+    }
+
+    if (!window.confirm(`Delete regex "${regex.name}"?`)) {
+        return;
+    }
+
+    const removedIndex = editingRegexIndex;
+    preset.regexs.splice(removedIndex, 1);
+    closeRegexEditor();
+    selectedRegexIndex = clamp(removedIndex, 0, Math.max(0, preset.regexs.length - 1));
+    updateSettingsUI();
+    saveSettings();
+}
+
+function buildExportPayload(includeApiConnection: boolean): ExportPayload {
+    const payload: ExportPayload = {
+        version: exportSchemaVersion,
+        presets: clone(settings.presets),
+        currentPreset: settings.currentPreset,
+    };
+
+    if (includeApiConnection) {
+        payload.apiConnection = {
+            baseUrl: settings.baseUrl,
+            model: settings.model,
+            promptPostProcessing: settings.promptPostProcessing,
+            includeHeaders: clone(settings.includeHeaders),
+            includeBody: clone(settings.includeBody),
+            excludeBody: clone(settings.excludeBody),
+        };
+    }
+
+    return payload;
+}
+
+function downloadExportPayload(payload: ExportPayload): void {
+    const content = JSON.stringify(payload, null, 2);
+    const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = `st-custom-generation-presets-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+}
+
+function openExportDialog(): void {
+    $('#custom_generation_export_include_api_connection').prop('checked', false);
+    openDialog('#custom_generation_export_dialog');
+}
+
+function confirmExport(): void {
+    const includeApiConnection = Boolean($('#custom_generation_export_include_api_connection').prop('checked'));
+    const payload = buildExportPayload(includeApiConnection);
+    closeDialog('#custom_generation_export_dialog');
+    downloadExportPayload(payload);
+}
+
+function parseImportPayload(raw: unknown): {
+    presets: Preset[];
+    currentPreset: number;
+    apiConnection: ImportPayload['apiConnection'] | null;
+} {
+    if (!isRecord(raw)) {
+        throw new Error('Invalid JSON payload.');
+    }
+
+    const payload = raw as ImportPayload;
+    if (!Array.isArray(payload.presets)) {
+        throw new Error('Invalid import format: presets is required.');
+    }
+
+    const presets = payload.presets.map((preset, index) => normalizePreset(
+        isRecord(preset) ? preset as Partial<Preset> : {},
+        `Preset ${index + 1}`,
+    ));
+
+    if (presets.length === 0) {
+        throw new Error('Invalid import format: presets cannot be empty.');
+    }
+
+    const currentPresetRaw = Number(payload.currentPreset);
+    const currentPreset = Number.isFinite(currentPresetRaw)
+        ? clamp(Math.trunc(currentPresetRaw), 0, presets.length - 1)
+        : 0;
+
+    const apiConnection = isRecord(payload.apiConnection)
+        ? payload.apiConnection
+        : null;
+
+    return {
+        presets,
+        currentPreset,
+        apiConnection,
+    };
+}
+
+async function importPresetsFromFile(file: File): Promise<void> {
+    const text = await file.text();
+    let parsed: unknown;
+
+    try {
+        parsed = JSON.parse(text);
+    } catch {
+        throw new Error('Invalid JSON file.');
+    }
+
+    const normalized = parseImportPayload(parsed);
+
+    const previousApiKey = settings.apiKey;
+
+    settings.presets = normalized.presets;
+    settings.currentPreset = normalized.currentPreset;
+    selectedPromptIndex = 0;
+    selectedRegexIndex = 0;
+    editingPromptIndex = null;
+    editingRegexIndex = null;
+
+    if (normalized.apiConnection) {
+        settings.baseUrl = String(normalized.apiConnection.baseUrl ?? settings.baseUrl);
+        settings.model = String(normalized.apiConnection.model ?? settings.model);
+        settings.promptPostProcessing = parsePromptPostProcessing(normalized.apiConnection.promptPostProcessing);
+        settings.includeHeaders = normalizeRecord(normalized.apiConnection.includeHeaders);
+        settings.includeBody = normalizeRecord(normalized.apiConnection.includeBody);
+        settings.excludeBody = normalizeRecord(normalized.apiConnection.excludeBody);
+    }
+
+    settings.apiKey = previousApiKey;
+
+    ensureSettingsIntegrity(true);
+    updateSettingsUI();
+    saveSettings();
+}
+
+async function ensureModalTemplatesInjected(): Promise<void> {
+    if (!$('#custom_generation_prompt_dialog').length) {
+        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'prompt-modal'));
+    }
+
+    if (!$('#custom_generation_regex_dialog').length) {
+        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'regex-modal'));
+    }
 }
 
 function bindEvents() {
@@ -636,14 +1148,34 @@ function bindEvents() {
 
     $('#custom_generation_model').on('input', () => {
         settings.model = String($('#custom_generation_model').val() ?? 'None');
+        updateModelSelectOptions();
         saveSettings();
     });
 
+    $('#custom_generation_model_select').on('change', () => {
+        const value = String($('#custom_generation_model_select').val() ?? '').trim();
+        if (!value) {
+            return;
+        }
+
+        settings.model = value;
+        $('#custom_generation_model').val(value);
+        saveSettings();
+    });
+
+    $('#custom_generation_model_connect').on('click', () => {
+        modelCandidates = clone(placeholderModelCandidates);
+        updateModelSelectOptions();
+        $('#custom_generation_model_connect_status').text('Placeholder connection enabled. Real model fetch is not implemented yet.');
+    });
+
+    $('#custom_generation_additional_params_toggle').on('click', () => {
+        const expanded = !$('#custom_generation_additional_params_body').is(':visible');
+        setAdditionalParametersExpanded(expanded);
+    });
+
     $('#custom_generation_prompt_post_processing').on('change', () => {
-        const value = String($('#custom_generation_prompt_post_processing').val() ?? 'none');
-        settings.promptPostProcessing = ['none', 'merge', 'semi', 'strict', 'single'].includes(value)
-            ? value as Settings['promptPostProcessing']
-            : 'none';
+        settings.promptPostProcessing = parsePromptPostProcessing($('#custom_generation_prompt_post_processing').val());
         saveSettings();
     });
 
@@ -673,6 +1205,8 @@ function bindEvents() {
             : 0;
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
+        editingPromptIndex = null;
+        editingRegexIndex = null;
         updateSettingsUI();
         saveSettings();
     });
@@ -690,6 +1224,8 @@ function bindEvents() {
         settings.currentPreset = settings.presets.length - 1;
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
+        editingPromptIndex = null;
+        editingRegexIndex = null;
         updateSettingsUI();
         saveSettings();
     });
@@ -702,6 +1238,8 @@ function bindEvents() {
         settings.currentPreset = settings.presets.length - 1;
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
+        editingPromptIndex = null;
+        editingRegexIndex = null;
         updateSettingsUI();
         saveSettings();
     });
@@ -733,8 +1271,51 @@ function bindEvents() {
         settings.currentPreset = clamp(settings.currentPreset, 0, settings.presets.length - 1);
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
+        editingPromptIndex = null;
+        editingRegexIndex = null;
         updateSettingsUI();
         saveSettings();
+    });
+
+    $('#custom_generation_preset_import').on('click', () => {
+        const input = document.getElementById('custom_generation_preset_import_input');
+        if (!(input instanceof HTMLInputElement)) {
+            return;
+        }
+
+        input.value = '';
+        input.click();
+    });
+
+    $('#custom_generation_preset_import_input').on('change', async () => {
+        const input = document.getElementById('custom_generation_preset_import_input');
+        if (!(input instanceof HTMLInputElement) || !input.files || input.files.length === 0) {
+            return;
+        }
+
+        const file = input.files[0];
+
+        try {
+            await importPresetsFromFile(file);
+            window.alert('Presets imported successfully.');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error ?? 'Unknown import error');
+            window.alert(`Import failed: ${message}`);
+        } finally {
+            input.value = '';
+        }
+    });
+
+    $('#custom_generation_preset_export').on('click', () => {
+        openExportDialog();
+    });
+
+    $('#custom_generation_export_cancel').on('click', () => {
+        closeDialog('#custom_generation_export_dialog');
+    });
+
+    $('#custom_generation_export_confirm').on('click', () => {
+        confirmExport();
     });
 
     $('#custom_generation_add_prompt').on('click', () => {
@@ -752,27 +1333,7 @@ function bindEvents() {
         selectedPromptIndex = preset.prompts.length - 1;
         updateSettingsUI();
         saveSettings();
-    });
-
-    $('#custom_generation_prompt_delete').on('click', () => {
-        const preset = getCurrentPreset();
-        if (!preset.prompts.length) {
-            return;
-        }
-
-        const prompt = preset.prompts[selectedPromptIndex];
-        if (!prompt) {
-            return;
-        }
-
-        if (!window.confirm(`Delete prompt "${prompt.name}"?`)) {
-            return;
-        }
-
-        preset.prompts.splice(selectedPromptIndex, 1);
-        selectedPromptIndex = clamp(selectedPromptIndex, 0, Math.max(0, preset.prompts.length - 1));
-        updateSettingsUI();
-        saveSettings();
+        openPromptEditor(selectedPromptIndex);
     });
 
     $('#custom_generation_add_regex').on('click', () => {
@@ -795,58 +1356,40 @@ function bindEvents() {
         selectedRegexIndex = preset.regexs.length - 1;
         updateSettingsUI();
         saveSettings();
+        openRegexEditor(selectedRegexIndex);
+    });
+
+    $('#custom_generation_prompt_cancel').on('click', () => {
+        closePromptEditor();
+    });
+
+    $('#custom_generation_prompt_save').on('click', () => {
+        savePromptEditor();
+    });
+
+    $('#custom_generation_prompt_delete').on('click', () => {
+        deletePromptFromEditor();
+    });
+
+    $('#custom_generation_regex_cancel').on('click', () => {
+        closeRegexEditor();
+    });
+
+    $('#custom_generation_regex_save').on('click', () => {
+        saveRegexEditor();
     });
 
     $('#custom_generation_regex_delete').on('click', () => {
-        const preset = getCurrentPreset();
-        if (!preset.regexs.length) {
-            return;
-        }
-
-        const regex = preset.regexs[selectedRegexIndex];
-        if (!regex) {
-            return;
-        }
-
-        if (!window.confirm(`Delete regex "${regex.name}"?`)) {
-            return;
-        }
-
-        preset.regexs.splice(selectedRegexIndex, 1);
-        selectedRegexIndex = clamp(selectedRegexIndex, 0, Math.max(0, preset.regexs.length - 1));
-        updateSettingsUI();
-        saveSettings();
+        deleteRegexFromEditor();
     });
 
-    const promptEditorSelectors = [
-        '#custom_generation_prompt_name',
-        '#custom_generation_prompt_role',
-        '#custom_generation_prompt_injection_position',
-        '#custom_generation_prompt_triggers',
-        '#custom_generation_prompt_enable',
-        '#custom_generation_prompt_content',
-    ];
-    for (const selector of promptEditorSelectors) {
-        $(selector).on('input change', applyPromptEditorChanges);
-    }
+    $('#custom_generation_prompt_dialog').on('close', () => {
+        editingPromptIndex = null;
+    });
 
-    const regexEditorSelectors = [
-        '#custom_generation_regex_name',
-        '#custom_generation_regex_regex',
-        '#custom_generation_regex_replace',
-        '#custom_generation_regex_user_input',
-        '#custom_generation_regex_ai_output',
-        '#custom_generation_regex_world_info',
-        '#custom_generation_regex_request',
-        '#custom_generation_regex_response',
-        '#custom_generation_regex_ephemerality',
-        '#custom_generation_regex_enable',
-        '#custom_generation_regex_min_depth',
-        '#custom_generation_regex_max_depth',
-    ];
-    for (const selector of regexEditorSelectors) {
-        $(selector).on('input change', applyRegexEditorChanges);
-    }
+    $('#custom_generation_regex_dialog').on('close', () => {
+        editingRegexIndex = null;
+    });
 }
 
 /**
@@ -855,11 +1398,18 @@ function bindEvents() {
 export async function setupSettings() {
     // Inject settings into the page
     if (!$('#custom_generation_settings').length) {
-        $('#extensions_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'settings'));
+        $('#extensions_settings2').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'settings'));
     }
 
+    await ensureModalTemplatesInjected();
+    setAdditionalParametersExpanded(false);
+
     bindEvents();
-    eventSource.on(event_types.SETTINGS_LOADED, onSettingsLoaded);
+
+    if (!isSettingsLoadedListenerBound) {
+        eventSource.on(event_types.SETTINGS_LOADED, onSettingsLoaded);
+        isSettingsLoadedListenerBound = true;
+    }
 }
 
 /**
@@ -900,6 +1450,8 @@ export function updateSettingsUI() {
     $('#custom_generation_include_body_yaml').val(stringifyYamlRecord(settings.includeBody));
     $('#custom_generation_exclude_body_yaml').val(stringifyYamlRecord(settings.excludeBody));
 
+    updateModelSelectOptions();
+
     const presetSelect = $('#custom_generation_preset_select');
     presetSelect.empty();
     settings.presets.forEach((preset, index) => {
@@ -931,8 +1483,21 @@ export function updateSettingsUI() {
 
     isUpdatingUI = false;
 
-    updatePromptEditor(currentPreset);
-    updateRegexEditor(currentPreset);
+    if (editingPromptIndex !== null) {
+        if (currentPreset.prompts[editingPromptIndex]) {
+            updatePromptEditor();
+        } else {
+            closePromptEditor();
+        }
+    }
+
+    if (editingRegexIndex !== null) {
+        if (currentPreset.regexs[editingRegexIndex]) {
+            updateRegexEditor();
+        } else {
+            closeRegexEditor();
+        }
+    }
 }
 
 export function saveSettings() {

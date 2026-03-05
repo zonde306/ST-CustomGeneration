@@ -1,0 +1,80 @@
+<dialog id="custom_generation_regex_dialog">
+    <form class="completion_prompt_manager_popup_entry_form flex-container flexFlowColumn" method="dialog" onsubmit="return false;">
+        <div class="completion_prompt_manager_popup_header">
+            <label for="custom_generation_regex_regex">
+                <span data-i18n="Regex Editor">Regex Editor</span>
+            </label>
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <label for="custom_generation_regex_name">
+                <span data-i18n="Script Name">Script Name</span>
+            </label>
+            <input id="custom_generation_regex_name" class="text_pole" type="text" />
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <label for="custom_generation_regex_regex">
+                <span data-i18n="Find Regex">Find Regex</span>
+            </label>
+            <input id="custom_generation_regex_regex" class="text_pole" type="text" />
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <label for="custom_generation_regex_replace">
+                <span data-i18n="Replace With">Replace With</span>
+            </label>
+            <textarea id="custom_generation_regex_replace" class="text_pole textarea_compact" rows="4"></textarea>
+        </div>
+        <div class="flex-container">
+            <label class="checkbox_label flex1" for="custom_generation_regex_user_input">
+                <input id="custom_generation_regex_user_input" type="checkbox" />
+                <span data-i18n="User Input">User Input</span>
+            </label>
+            <label class="checkbox_label flex1" for="custom_generation_regex_ai_output">
+                <input id="custom_generation_regex_ai_output" type="checkbox" />
+                <span data-i18n="AI Output">AI Output</span>
+            </label>
+            <label class="checkbox_label flex1" for="custom_generation_regex_world_info">
+                <input id="custom_generation_regex_world_info" type="checkbox" />
+                <span data-i18n="World Info">World Info</span>
+            </label>
+        </div>
+        <div class="flex-container">
+            <label class="checkbox_label flex1" for="custom_generation_regex_request">
+                <input id="custom_generation_regex_request" type="checkbox" />
+                <span data-i18n="Request">Request</span>
+            </label>
+            <label class="checkbox_label flex1" for="custom_generation_regex_response">
+                <input id="custom_generation_regex_response" type="checkbox" />
+                <span data-i18n="Response">Response</span>
+            </label>
+            <label class="checkbox_label flex1" for="custom_generation_regex_ephemerality">
+                <input id="custom_generation_regex_ephemerality" type="checkbox" />
+                <span data-i18n="Ephemerality">Ephemerality</span>
+            </label>
+            <label class="checkbox_label flex1" for="custom_generation_regex_enable">
+                <input id="custom_generation_regex_enable" type="checkbox" />
+                <span data-i18n="Enabled">Enabled</span>
+            </label>
+        </div>
+        <div class="flex-container">
+            <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                <label for="custom_generation_regex_min_depth">
+                    <span data-i18n="Min Depth">Min Depth</span>
+                </label>
+                <input id="custom_generation_regex_min_depth" class="text_pole" type="number" min="-1" max="9999" placeholder="Unlimited" />
+            </div>
+            <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                <label for="custom_generation_regex_max_depth">
+                    <span data-i18n="Max Depth">Max Depth</span>
+                </label>
+                <input id="custom_generation_regex_max_depth" class="text_pole" type="number" min="0" max="9999" placeholder="Unlimited" />
+            </div>
+        </div>
+        <div class="flex-container justifySpaceBetween marginTop5">
+            <a id="custom_generation_regex_delete" class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></a>
+            <div class="flex-container">
+                <button id="custom_generation_regex_cancel" class="menu_button" type="button" data-i18n="Cancel">Cancel</button>
+                <button id="custom_generation_regex_save" class="menu_button" type="button" data-i18n="Save">Save</button>
+            </div>
+        </div>
+    </form>
+</dialog>
