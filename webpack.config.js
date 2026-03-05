@@ -1,7 +1,9 @@
-import { resolve as _resolve } from 'path';
+import { resolve as _resolve, relative as _relative } from 'path';
 import TerserPlugin from 'terser-webpack-plugin';
 
 const sourceRoot = _resolve('.', 'src').replace(/\\/g, '/');
+const projectRoot = _resolve('.').replace(/\\/g, '/');
+const distRoot = _resolve('.', 'dist').replace(/\\/g, '/');
 
 const serverConfig = {
     devtool: 'source-map',
@@ -66,7 +68,15 @@ const serverConfig = {
 
         if (request.startsWith('../../')) {
             if (isFromSource) {
-                return callback(null, request);
+                const absoluteRequest = _resolve(normalizedContext, request).replace(/\\/g, '/');
+                const relativeToProject = _relative(projectRoot, absoluteRequest).replace(/\\/g, '/');
+                const relativeToDist = _relative(distRoot, absoluteRequest).replace(/\\/g, '/');
+
+                if (relativeToProject === relativeToDist) {
+                    return callback(null, `./${relativeToProject}`);
+                }
+
+                return callback(null, `/scripts/${relativeToProject}`);
             }
             return callback();
         }
