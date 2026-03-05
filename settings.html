@@ -40,7 +40,7 @@
                     <select id="custom_generation_model_select" class="text_pole flex1">
                         <option value="" data-i18n="(No models loaded)">(No models loaded)</option>
                     </select>
-                    <div id="custom_generation_model_connect" class="menu_button menu_button_icon" title="Connect" data-i18n="[title]Connect">
+                    <div id="custom_generation_model_connect" class="custom_generation_button custom_generation_button_icon" title="Connect" data-i18n="[title]Connect">
                         <i class="fa-solid fa-plug"></i>
                         <small data-i18n="Connect">Connect</small>
                     </div>
@@ -134,12 +134,12 @@
             </div>
             <div class="flex-container marginTop5">
                 <select id="custom_generation_preset_select" class="text_pole flex1"></select>
-                <i id="custom_generation_preset_new" class="menu_button fa-solid fa-file-circle-plus" title="Create preset" data-i18n="[title]Create preset"></i>
-                <i id="custom_generation_preset_duplicate" class="menu_button fa-solid fa-clone" title="Duplicate preset" data-i18n="[title]Duplicate preset"></i>
-                <i id="custom_generation_preset_rename" class="menu_button fa-solid fa-pencil" title="Rename preset" data-i18n="[title]Rename preset"></i>
-                <i id="custom_generation_preset_delete" class="menu_button fa-solid fa-trash" title="Delete preset" data-i18n="[title]Delete preset"></i>
-                <i id="custom_generation_preset_import" class="menu_button fa-solid fa-file-import" title="Import presets" data-i18n="[title]Import presets"></i>
-                <i id="custom_generation_preset_export" class="menu_button fa-solid fa-file-export" title="Export presets" data-i18n="[title]Export presets"></i>
+                <i id="custom_generation_preset_new" class="custom_generation_button fa-solid fa-file-circle-plus" title="Create preset" data-i18n="[title]Create preset"></i>
+                <i id="custom_generation_preset_duplicate" class="custom_generation_button fa-solid fa-clone" title="Duplicate preset" data-i18n="[title]Duplicate preset"></i>
+                <i id="custom_generation_preset_rename" class="custom_generation_button fa-solid fa-pencil" title="Rename preset" data-i18n="[title]Rename preset"></i>
+                <i id="custom_generation_preset_delete" class="custom_generation_button fa-solid fa-trash" title="Delete preset" data-i18n="[title]Delete preset"></i>
+                <i id="custom_generation_preset_import" class="custom_generation_button fa-solid fa-file-import" title="Import presets" data-i18n="[title]Import presets"></i>
+                <i id="custom_generation_preset_export" class="custom_generation_button fa-solid fa-file-export" title="Export presets" data-i18n="[title]Export presets"></i>
             </div>
             <input id="custom_generation_preset_import_input" type="file" accept=".json,application/json" style="display: none;" />
             <small id="custom_generation_preset_summary" class="text_muted"></small>
@@ -150,7 +150,7 @@
                 <h3 class="margin0 flex1">
                     <span data-i18n="Prompt List">Prompt List</span>
                 </h3>
-                <div id="custom_generation_add_prompt" class="menu_button menu_button_icon" title="Add prompt" data-i18n="[title]Add prompt">
+                <div id="custom_generation_add_prompt" class="custom_generation_button custom_generation_button_icon" title="Add prompt" data-i18n="[title]Add prompt">
                     <i class="fa-solid fa-plus"></i>
                     <small data-i18n="Add">Add</small>
                 </div>
@@ -163,7 +163,7 @@
                 <h3 class="margin0 flex1">
                     <span data-i18n="Regex Scripts">Regex Scripts</span>
                 </h3>
-                <div id="custom_generation_add_regex" class="menu_button menu_button_icon" title="Add regex" data-i18n="[title]Add regex">
+                <div id="custom_generation_add_regex" class="custom_generation_button custom_generation_button_icon" title="Add regex" data-i18n="[title]Add regex">
                     <i class="fa-solid fa-plus"></i>
                     <small data-i18n="Add">Add</small>
                 </div>
@@ -181,8 +181,8 @@
             </label>
             <small class="text_muted" data-i18n="API Key is always excluded">API Key is always excluded</small>
             <div class="flex-container justifyEnd marginTop5">
-                <button id="custom_generation_export_cancel" class="menu_button" value="cancel" type="button" data-i18n="Cancel">Cancel</button>
-                <button id="custom_generation_export_confirm" class="menu_button" value="confirm" type="button" data-i18n="Export">Export</button>
+                <button id="custom_generation_export_cancel" class="custom_generation_button" value="cancel" type="button" data-i18n="Cancel">Cancel</button>
+                <button id="custom_generation_export_confirm" class="custom_generation_button" value="confirm" type="button" data-i18n="Export">Export</button>
             </div>
         </form>
     </dialog>
@@ -217,6 +217,36 @@
             min-width: 0;
         }
 
+        .custom_generation_button {
+            color: var(--SmartThemeBodyColor);
+            filter: grayscale(0.5);
+            background-color: var(--SmartThemeBlurTintColor);
+            border: 1px solid var(--SmartThemeBorderColor);
+            border-radius: 5px;
+            padding: 3px 5px;
+            cursor: pointer;
+            margin: 5px 0;
+            transition: var(--animation-duration-2x);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            text-align: center;
+            min-width: 0;
+            width: auto;
+            text-decoration: none;
+        }
+
+        .custom_generation_button:hover,
+        .custom_generation_button:active {
+            background-color: var(--white30a);
+        }
+
+        .custom_generation_button_icon {
+            flex-direction: column;
+            line-height: 1.1;
+        }
+
         #custom_generation_prompt_dialog .completion_prompt_manager_popup_entry_form,
         #custom_generation_regex_dialog .completion_prompt_manager_popup_entry_form {
             width: min(720px, 92vw);
@@ -224,12 +254,11 @@
             box-sizing: border-box;
         }
 
-        #custom_generation_prompt_dialog .menu_button,
-        #custom_generation_regex_dialog .menu_button,
-        #custom_generation_export_dialog .menu_button {
+        #custom_generation_prompt_dialog .custom_generation_button,
+        #custom_generation_regex_dialog .custom_generation_button,
+        #custom_generation_export_dialog .custom_generation_button {
             min-width: 72px;
             white-space: nowrap;
-            flex: 0 0 auto;
         }
     </style>
 </div>
