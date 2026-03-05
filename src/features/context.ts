@@ -1,6 +1,7 @@
 import { eventSource, event_types } from '../../../../../events.js';
 import {
     name1,
+    name2,
     unshallowCharacter,
     this_chid,
     chat_metadata,
@@ -125,22 +126,57 @@ export class Context {
         return this.chat_metadata.variables ?? {};
     }
 
-    async getGenerationMessages(type: string = 'normal', options: GenerateOptionsLite = {}) {
+    async getGenerationMessages(type: string = 'normal', options: GenerateOptionsLite = {}, dryRun: boolean = false) {
         // Prevent generation from shallow characters
         await unshallowCharacter(this_chid);
 
         // Occurs every time, even if the generation is aborted due to slash commands execution
-        await eventSource.emit(event_types.GENERATION_STARTED, type, options, true);
+        await eventSource.emit(event_types.GENERATION_STARTED, type, options, dryRun);
 
         // Occurs only if the generation is not aborted due to slash commands execution
-        await eventSource.emit(event_types.GENERATION_AFTER_COMMANDS, type, options, true);
+        await eventSource.emit(event_types.GENERATION_AFTER_COMMANDS, type, options, dryRun);
 
         const worldinfoTrigger: string[] = this.chat.slice(-world_info_depth).map(x => x.mes ?? '');
-        const prompts = await PromptBuilder.create(worldinfoTrigger, type, true, settings.contextSize);
+        const prompts = await PromptBuilder.create(worldinfoTrigger, type, dryRun, settings.contextSize);
 
         this.#rebuildDepthInjections(prompts);
         const historyMessages = this.#buildChatHistoryWithDepthInjection(type === 'continue');
-        return this.#buildMessages(prompts, historyMessages);
+        const messages = this.#buildMessages(prompts, historyMessages);
+
+        await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun });
+
+        await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat, dryRun });
+
+        await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: chat }, dryRun);
+
+        await eventSource.emit(event_types.CHAT_COMPLETION_SETTINGS_READY, {
+            type: type,
+            messages: messages,
+            model: 'None',
+            temperature: 1.0,
+            frequency_penalty: 1.0,
+            presence_penalty: 1.0,
+            top_p: 1,
+            max_tokens: 2048,
+            stream: false,
+            logit_bias: {},
+            stop: [],
+            chat_completion_source: 'openai',
+            n: 1,
+            user_name: name1,
+            char_name: name2,
+            group_names: [],
+            include_reasoning: false,
+            reasoning_effort: 'none',
+            enable_web_search: false,
+            request_images: false,
+            request_image_resolution: '',
+            request_image_aspect_ratio: '',
+            custom_prompt_post_processing: 'none',
+            verbosity: '',
+        });
+
+        return messages;
     }
 
     async generate(type: string = 'normal', options: GenerateOptionsLite = {}, dryRun: boolean = false): Promise<string> {
@@ -176,6 +212,12 @@ export class Context {
         const abortController = this.#createAbortController(options.signal);
         const taskId = typeof this.variables?.taskId === 'string' ? this.variables.taskId : '';
         const apiConfig = this.#buildApiConfig(type);
+
+        await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun });
+
+        await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat, dryRun });
+
+        await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: chat }, dryRun);
 
         const result = await runGenerate(messages, abortController, taskId, apiConfig);
         const text = Array.isArray(result) ? (result[0] ?? '') : result;
