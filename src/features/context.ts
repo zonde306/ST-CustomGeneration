@@ -145,7 +145,7 @@ export class Context {
 
         await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun });
 
-        await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { messages, dryRun });
+        await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat: messages, dryRun });
 
         await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: messages }, dryRun);
 
