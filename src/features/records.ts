@@ -4,6 +4,7 @@ import { chat } from '../../../../../../script.js';
 import { world_info_depth } from '../../../../../world-info.js';
 import { Context } from './context';
 import { WorldInfoEntry } from '../utils/defines.js';
+import { eventTypes } from '../utils/events';
 
 async function onGenerateEnded() {
     const triggers = chat.slice(-world_info_depth);
@@ -17,7 +18,8 @@ async function onGenerateEnded() {
             continue;
 
         const ctx = new Context(triggers);
-        ctx.send(`\
+        const data = {
+            prompt: `\
 Based on the above, update the following data documents:
 
 <document>
@@ -25,7 +27,16 @@ ${getRecord(entry) ?? parser.cleanContent}
 </document>
 
 You need to use the \`<document>\` tag to output the updates to the above document.\
-`);
+`,
+            context: ctx,
+            decorators: parser,
+            entry,
+        };
+
+        await eventSource.emit(eventTypes.RECORD_UPDATING, data);
+
+        await ctx.send(data.prompt);
+
         tasks.push({
             context: ctx,
             awaitee: ctx.generate(),
@@ -43,7 +54,14 @@ You need to use the \`<document>\` tag to output the updates to the above docume
             content = Array.isArray(content) ? content[0] : content;
             const match = content.match(/<document>([\s\S]+?)<\/document>/);
             if(match) {
-                updateRecord(world, uid, match[1]);
+                const data = {
+                    world,
+                    uid,
+                    content: match[1],
+                };
+                await eventSource.emit(eventTypes.RECORD_UPDATED, data);
+                updateRecord(data.world, data.uid, data.content);
+                
                 console.log(`update record ${world}/${uid} done`);
             } else {
                 console.error(`update record ${world}/${uid} failed: no response `, content);

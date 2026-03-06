@@ -2,6 +2,7 @@ import { eventSource, event_types } from '../../../../../events.js';
 import { oai_settings, sendOpenAIRequest, chat_completion_sources } from '../../../../../openai.js';
 import { TokenLogprobs } from '../../../../../logprobs.js';
 import { uuidv4 } from '../../../../../utils.js';
+import { eventTypes } from '../utils/events'
 
 export interface ApiConfig {
     url: string;
@@ -132,7 +133,7 @@ class StreamHandler {
                 if(!text)
                     continue;
 
-                await eventSource.emit("ltm_generate_chunk", {
+                await eventSource.emit(eventTypes.GENERATION_STREAM_CHUNK, {
                     taskId: this.taskId,
                     swipe,
                     text,
@@ -143,7 +144,7 @@ class StreamHandler {
             lastError = err;
         }
 
-        await eventSource.emit("ltm_generate_done", {
+        await eventSource.emit(eventTypes.GENERATION_DONE, {
             taskId: this.taskId,
             error: lastError,
             response: this.buffer,
@@ -172,7 +173,7 @@ class StreamHandler {
 async function responseHandler(response: any, taskId: string): Promise<string[] | string> {
     const result = extractText(response);
 
-    await eventSource.emit("ltm_generate_done", {
+    await eventSource.emit(eventTypes.GENERATION_DONE, {
         taskId,
         error: response.error ?? null,
         response: result,

@@ -3,6 +3,7 @@ import { Context } from "./features/context";
 import { PromptContext } from "./functions/prompt-context";
 import { MessageBuilder } from "./functions/message-builder";
 import { setup } from "./features/records";
+import { eventTypes } from "./utils/events";
 
 // jQuery
 $(async () => {
@@ -19,7 +20,8 @@ $(async () => {
         },
         async buildMessages(chat: ChatMessage[], type: string = 'normal', dryRun: boolean = false) {
             return await new MessageBuilder(chat).buildFully(type, {}, dryRun);
-        }
+        },
+        eventTypes,
     };
     
     console.log('Custom generation initialized');

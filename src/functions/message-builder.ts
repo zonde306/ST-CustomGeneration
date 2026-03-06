@@ -24,7 +24,7 @@ import { Preset, defaultPreset } from "../settings";
 import { runRegexScript, substitute_find_regex } from "../../../../regex/engine.js";
 import { wi_anchor_position } from '../../../../../world-info.js';
 
-type ExtensionPrompts = {
+interface ExtensionPrompts {
     value: string,
     position: number,
     depth: number,
@@ -33,15 +33,29 @@ type ExtensionPrompts = {
     filter: (() => Promise<boolean> | boolean) | null,
 };
 
+export interface PromptFilter {
+    main?: boolean | string | string[] | ChatCompletionMessage[];
+    personaDescription?: boolean | string | string[] | ChatCompletionMessage[];
+    charDescription?: boolean | string | string[] | ChatCompletionMessage[];
+    charPersonality?: boolean | string | string[] | ChatCompletionMessage[];
+    scenario?: boolean | string | string[] | ChatCompletionMessage[];
+    chatExamples?: boolean | string | string[] | ChatCompletionMessage[];
+    worldInfoBefore?: boolean | string | string[] | ChatCompletionMessage[];
+    worldInfoAfter?: boolean | string | string[] | ChatCompletionMessage[];
+    chatHistory?: boolean | string | string[] | ChatCompletionMessage[];
+}
+
 export class MessageBuilder {
     private chat: ChatMessage[];
     private extensionPrompts: Record<string, ExtensionPrompts>;
     private preset: Preset;
+    public filters: PromptFilter;
 
     constructor(chat: ChatMessage[], preset?: Preset) {
         this.chat = chat;
         this.extensionPrompts = {};
         this.preset = preset ?? settings.presets[Number(settings.currentPreset)] ?? defaultPreset;
+        this.filters = {};
     }
 
     async build(type: string = 'normal', dryRun: boolean = false, wiDepth = world_info_depth): Promise<ChatCompletionMessage[]> {
@@ -123,36 +137,44 @@ export class MessageBuilder {
             const insertStart = messages.length;
 
             if (preset.internal) {
+                const filting = this.filters[preset.internal];
+                if(filting === false)
+                    continue;
+
                 let content: string | string[] | ChatCompletionMessage[] = '';
-                switch (preset.internal) {
-                    case 'main':
-                        // main prompt 优先使用预设的
-                        content = preset.prompt || prompts.mainPrompt;
-                        break;
-                    case 'personaDescription':
-                        content = prompts.personaDescription;
-                        break;
-                    case 'charDescription':
-                        content = prompts.charDescription;
-                        break;
-                    case 'charPersonality':
-                        content = prompts.charPersonality;
-                        break;
-                    case 'scenario':
-                        content = prompts.scenario;
-                        break;
-                    case 'chatExamples':
-                        content = this.#buildExampleMessages(prompts);
-                        break;
-                    case 'worldInfoBefore':
-                        content = this.#applyRegex(prompts.worldInfoCharBefore, { world: true });
-                        break;
-                    case 'worldInfoAfter':
-                        content = this.#applyRegex(prompts.worldInfoCharAfter, { world: true });
-                        break;
-                    case 'chatHistory':
-                        content = historyMessages;
-                        break;
+                if(filting === 'string' || Array.isArray(filting)) {
+                    content = filting;
+                } else {
+                    switch (preset.internal) {
+                        case 'main':
+                            // main prompt 优先使用预设的
+                            content = preset.prompt || prompts.mainPrompt;
+                            break;
+                        case 'personaDescription':
+                            content = prompts.personaDescription;
+                            break;
+                        case 'charDescription':
+                            content = prompts.charDescription;
+                            break;
+                        case 'charPersonality':
+                            content = prompts.charPersonality;
+                            break;
+                        case 'scenario':
+                            content = prompts.scenario;
+                            break;
+                        case 'chatExamples':
+                            content = this.#buildExampleMessages(prompts);
+                            break;
+                        case 'worldInfoBefore':
+                            content = this.#applyRegex(prompts.worldInfoCharBefore, { world: true });
+                            break;
+                        case 'worldInfoAfter':
+                            content = this.#applyRegex(prompts.worldInfoCharAfter, { world: true });
+                            break;
+                        case 'chatHistory':
+                            content = historyMessages;
+                            break;
+                    }
                 }
 
                 this.#appendPresetContent(messages, preset.role, content);

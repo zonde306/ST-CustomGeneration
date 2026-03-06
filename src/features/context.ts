@@ -11,9 +11,10 @@ import {
 } from '../../../../../../script.js';
 import { settings, Preset, defaultPreset } from '../settings';
 import { generate as runGenerate, ApiConfig } from '../functions/generate';
-import { MessageBuilder } from '../functions/message-builder';
+import { MessageBuilder, PromptFilter } from '../functions/message-builder';
 import { ContextRole } from '../utils/defines'
 import { runRegexScript, substitute_find_regex } from "../../../../regex/engine.js";
+import { eventTypes } from '../utils/events';
 
 type VariableData = Record<string, any>;
 type ChatMessageEx = ChatMessage & { variables?: VariableData[] };
@@ -42,6 +43,7 @@ export class Context {
     public presetOverride?: Preset;
     public apiOverride: Partial<ApiConfig>;
     public macroOverride: MacroOverride;
+    public filters: PromptFilter;
 
     constructor(_chat: ChatMessageEx[] = [], _metadata: ChatMetadataEx = {}) {
         this.chat = _chat;
@@ -50,6 +52,7 @@ export class Context {
         this.presetOverride = undefined;
         this.apiOverride = {};
         this.macroOverride = {};
+        this.filters = {};
     }
 
     static global(): Context {
@@ -104,7 +107,7 @@ export class Context {
             variables: [{}]
         });
 
-        await eventSource.emit('cg_message_created', this.chat.length, this.chat[this.chat.length - 1]);
+        await eventSource.emit(eventTypes.MESSAGE_CREATED, this.chat.length, this.chat[this.chat.length - 1]);
     }
 
     async #recv(contents: string[], role: ContextRole = 'assistant', name: string = name2): Promise<string[]> {
@@ -140,7 +143,7 @@ export class Context {
             extra: {},
         });
 
-        await eventSource.emit('cg_message_created', this.chat.length, this.chat[this.chat.length - 1]);
+        await eventSource.emit(eventTypes.MESSAGE_CREATED, this.chat.length, this.chat[this.chat.length - 1]);
         return swipes;
     }
 
@@ -198,6 +201,7 @@ export class Context {
         }
 
         const builder = new MessageBuilder(this.chat, options.preset ?? this.presetOverride);
+        builder.filters = this.filters;
         const messages = await builder.build(type, dryRun);
 
         for(const message of messages) {
