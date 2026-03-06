@@ -193,6 +193,10 @@ export class Context {
             }
         }
 
+        if(type === 'continue' && !dryRun && this.chat.length > 0) {
+            this.send('Continue');
+        }
+
         const builder = new MessageBuilder(this.chat, options.preset ?? this.presetOverride);
         const messages = await builder.build(type, dryRun);
 
@@ -226,6 +230,12 @@ export class Context {
         }
 
         let result = await runGenerate(messages, abortController, taskId, apiConfig as ApiConfig);
+
+        if(type === 'continue') {
+            // remove the temporary message
+            this.chat.length = this.chat.length - 1;
+        }
+
         result = (Array.isArray(result) ? result : [ result ]);
         if(result.length < 1) {
             toastr.error('Generate failed, empty responses');
