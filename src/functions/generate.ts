@@ -32,7 +32,8 @@ export async function generate(
     messages: ChatCompletionMessage[],
     abortController: AbortController,
     taskId: string = '',
-    api?: ApiConfig
+    api?: ApiConfig,
+    customOptions?: Record<string, any>,
 ): Promise<string | string[]> {
     if(!taskId)
         taskId = uuidv4();
@@ -61,6 +62,15 @@ export async function generate(
             assign('frequency_penalty');
             assign('presence_penalty');
 
+            for(const [key, val] of Object.entries(customOptions ?? {})) {
+                Object.defineProperty(data, key, {
+                    value: val,
+                    writable: true,
+                    enumerable: false,
+                    configurable: true,
+                });
+            }
+
             // @ts-expect-error: 2345
             eventSource.removeListener(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
             oai_settings.stream_openai = originalStream;
@@ -74,12 +84,10 @@ export async function generate(
             oai_settings.stream_openai = true;
             const handler = new StreamHandler(taskId, abortController);
             handler.generator = await sendOpenAIRequest(api?.type || 'quiet', messages, abortController.signal) as typeof handler.generator;
-            oai_settings.stream_openai = originalStream;
             result = await handler.generate();
         } else {
             oai_settings.stream_openai = false;
             const response = await sendOpenAIRequest(api?.type || 'quiet', messages, abortController.signal);
-            oai_settings.stream_openai = originalStream;
             result = await responseHandler(response, taskId);
         }
     } catch(err) {

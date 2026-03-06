@@ -229,7 +229,7 @@ export class Context {
                 apiConfig = options.apiConfig;
         }
 
-        let result = await runGenerate(messages, abortController, taskId, apiConfig as ApiConfig);
+        let result = await runGenerate(messages, abortController, taskId, apiConfig as ApiConfig, { context: this });
 
         if(type === 'continue') {
             // remove the temporary message
