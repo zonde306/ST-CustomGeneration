@@ -90,9 +90,9 @@ export class Context {
         await eventSource.emit('cg_message_created', this.chat.length, this.chat[this.chat.length - 1]);
     }
 
-    async #recv(contents: string[], role: ContextRole = 'assistant', name: string = name2) {
+    async #recv(contents: string[], role: ContextRole = 'assistant', name: string = name2): Promise<string[]> {
         if(contents.length < 1)
-            return;
+            return [];
 
         const swipes : string[] = [];
         const swipe_info: SwipeInfo[] = [];
@@ -124,6 +124,7 @@ export class Context {
         });
 
         await eventSource.emit('cg_message_created', this.chat.length, this.chat[this.chat.length - 1]);
+        return swipes;
     }
 
     get lastMessage(): ChatMessageEx | undefined {
@@ -198,18 +199,25 @@ export class Context {
                 apiConfig = options.apiConfig;
         }
 
-        const result = await runGenerate(messages, abortController, taskId, apiConfig as ApiConfig);
+        let result = await runGenerate(messages, abortController, taskId, apiConfig as ApiConfig);
+        result = (Array.isArray(result) ? result : [ result ]);
+        if(result.length < 1) {
+            toastr.error('Generate failed, empty responses');
+            return '';
+        }
 
         if(!options.dontCreate) {
-            await this.#recv(Array.isArray(result) ? result : [ result ]);
+            result = await this.#recv(result);
+        } else {
+            const self = this;
+            result = result.map(mes => self.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
         }
 
         if(options.allResponses) {
-            return Array.isArray(result) ? result : [ result ];
+            return result;
         }
 
-        const text = Array.isArray(result) ? (result[0] ?? '') : result;
-        return typeof text === 'string' ? text : String(text ?? '');
+        return result.find(mes => !!mes.trim()) ?? '';
     }
 
     #buildApiConfig(type: string): ApiConfig | undefined {
