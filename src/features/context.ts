@@ -244,7 +244,7 @@ export class Context {
             this.chat.length = this.chat.length - 1;
         }
 
-        if(result.toString() === '[object AsyncGenerator]') {
+        if(Object.prototype.toString.call(result) === '[object AsyncGenerator]') {
             const self = this;
             async function * stream() {
                 let buffers : string[] = [];
