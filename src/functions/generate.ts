@@ -37,7 +37,8 @@ export async function generate(
     if(!taskId)
         taskId = uuidv4();
 
-    let eventHandler = null;
+    let eventHandler: Function | null = null;
+    const originalStream = oai_settings.stream_openai;
     if(api) {
         eventHandler = (data: any) => {
             function assign(key: keyof ApiConfig) {
@@ -59,21 +60,26 @@ export async function generate(
             assign('top_k');
             assign('frequency_penalty');
             assign('presence_penalty');
+
+            // @ts-expect-error: 2345
+            eventSource.removeListener(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
+            oai_settings.stream_openai = originalStream;
         };
-        eventSource.once(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
+        eventSource.makeFirst(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
     }
 
     let result = null;
-    const originalStream = oai_settings.stream_openai;
     try {
-        if(api?.stream === true) {
+        if(api?.stream) {
             oai_settings.stream_openai = true;
             const handler = new StreamHandler(taskId, abortController);
             handler.generator = await sendOpenAIRequest(api?.type || 'quiet', messages, abortController.signal) as typeof handler.generator;
+            oai_settings.stream_openai = originalStream;
             result = await handler.generate();
         } else {
             oai_settings.stream_openai = false;
             const response = await sendOpenAIRequest(api?.type || 'quiet', messages, abortController.signal);
+            oai_settings.stream_openai = originalStream;
             result = await responseHandler(response, taskId);
         }
     } catch(err) {
