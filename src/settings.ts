@@ -804,6 +804,9 @@ async function testGenerateConnection(): Promise<string> {
         top_p: settings.topP,
         frequency_penalty: settings.frequencyPenalty,
         presence_penalty: settings.presencePenalty,
+        custom_include_body: YAML.stringify(settings.includeBody),
+        custom_exclude_body: YAML.stringify(settings.excludeBody),
+        custom_include_headers: YAML.stringify(settings.includeHeaders),
     };
 
     const messages: ChatCompletionMessage[] = [

@@ -18,6 +18,10 @@ export interface ApiConfig {
     top_k?: number | null;
     frequency_penalty?: number | null;
     presence_penalty?: number | null;
+    
+    custom_exclude_body?: string; // yaml
+    custom_include_body?: string; // yaml
+    custom_include_headers?: string; // yaml
 };
 
 interface StreamChunk {
@@ -61,6 +65,9 @@ export async function generate(
             assign('top_k');
             assign('frequency_penalty');
             assign('presence_penalty');
+            assign('custom_exclude_body');
+            assign('custom_include_body');
+            assign('custom_include_headers');
 
             for(const [key, val] of Object.entries(customOptions ?? {})) {
                 Object.defineProperty(data, key, {
