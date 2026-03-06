@@ -31,15 +31,15 @@ export class Context {
     public chat: ChatMessageEx[];
     public chat_metadata: ChatMetadataEx;
     public isGlobal: boolean;
-    public preset: Preset;
-    public api: Partial<ApiConfig>;
+    public presetOverride?: Preset;
+    public apiOverride: Partial<ApiConfig>;
 
     constructor() {
         this.chat = [];
         this.chat_metadata = {};
         this.isGlobal = false;
-        this.preset = settings.presets[settings.currentPreset] ?? defaultPreset;
-        this.api = {};
+        this.presetOverride = undefined;
+        this.apiOverride = {};
     }
 
     static global(): Context {
@@ -53,6 +53,9 @@ export class Context {
     static fromObject(value: Context): Context {
         const context = new Context();
         context.chat = value.chat ?? [];
+        context.chat_metadata = value.chat_metadata ?? {};
+        context.presetOverride = value.presetOverride;
+        context.apiOverride = value.apiOverride ?? {};
         return context;
     }
 
@@ -63,6 +66,8 @@ export class Context {
         return {
             chat: this.chat,
             chat_metadata: this.chat_metadata,
+            presetOverride: this.presetOverride,
+            apiOverride: this.apiOverride,
         };
     }
 
@@ -176,7 +181,7 @@ export class Context {
             }
         }
 
-        const builder = new MessageBuilder(this.chat, options.preset ?? this.preset);
+        const builder = new MessageBuilder(this.chat, options.preset ?? this.presetOverride);
         const messages = await builder.build(type, dryRun);
 
         await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun, context: this });
@@ -227,18 +232,18 @@ export class Context {
         }
 
         return {
-            url: this.api.url ?? settings.baseUrl ?? '',
-            key: this.api.key ?? settings.apiKey ?? '',
-            model: this.api.model ?? settings.model ?? '',
+            url: this.apiOverride.url ?? settings.baseUrl ?? '',
+            key: this.apiOverride.key ?? settings.apiKey ?? '',
+            model: this.apiOverride.model ?? settings.model ?? '',
             type,
-            stream: this.api.stream ?? settings.stream ?? false,
-            max_context: this.api.max_context ?? settings.contextSize,
-            max_tokens: this.api.max_tokens ?? settings.maxTokens,
-            temperature: this.api.temperature ?? settings.temperature,
-            top_k: this.api.top_k ?? settings.topK,
-            top_p: this.api.top_p ?? settings.topP,
-            frequency_penalty: this.api.frequency_penalty ?? settings.frequencyPenalty,
-            presence_penalty: this.api.presence_penalty ?? settings.presencePenalty,
+            stream: this.apiOverride.stream ?? settings.stream ?? false,
+            max_context: this.apiOverride.max_context ?? settings.contextSize,
+            max_tokens: this.apiOverride.max_tokens ?? settings.maxTokens,
+            temperature: this.apiOverride.temperature ?? settings.temperature,
+            top_k: this.apiOverride.top_k ?? settings.topK,
+            top_p: this.apiOverride.top_p ?? settings.topP,
+            frequency_penalty: this.apiOverride.frequency_penalty ?? settings.frequencyPenalty,
+            presence_penalty: this.apiOverride.presence_penalty ?? settings.presencePenalty,
         };
     }
 
@@ -266,7 +271,8 @@ export class Context {
     }
 
     #applyRegex(content: string, { user, assistant, request, response } = {} as { user?: boolean, assistant?: boolean, request?: boolean, response?: boolean }): string {
-        for(const regex of this.preset.regexs) {
+        const preset = this.presetOverride ?? settings.presets[settings.currentPreset] ?? defaultPreset;
+        for(const regex of preset.regexs) {
             if(!regex.enabled || !regex.ephemerality)
                 continue;
 
