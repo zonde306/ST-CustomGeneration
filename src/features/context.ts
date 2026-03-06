@@ -43,9 +43,9 @@ export class Context {
     public apiOverride: Partial<ApiConfig>;
     public macroOverride: MacroOverride;
 
-    constructor() {
-        this.chat = [];
-        this.chat_metadata = {};
+    constructor(_chat: ChatMessageEx[] = [], _metadata: ChatMetadataEx = {}) {
+        this.chat = _chat;
+        this.chat_metadata = _metadata;
         this.isGlobal = false;
         this.presetOverride = undefined;
         this.apiOverride = {};

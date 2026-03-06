@@ -1,9 +1,11 @@
-import { loadWorldInfo, METADATA_KEY, selected_world_info, world_info, DEFAULT_DEPTH, world_info_position, world_names } from '../../../../../world-info.js';
-import { chat_metadata, this_chid, characters } from '../../../../../../script.js';
+import { loadWorldInfo, METADATA_KEY, selected_world_info, world_info, DEFAULT_DEPTH, world_info_position, world_names, getWorldInfoPrompt } from '../../../../../world-info.js';
+import { chat_metadata, this_chid, characters, getCharacterCardFieldsLazy, getMaxContextSize } from '../../../../../../script.js';
 import { power_user } from '../../../../../power-user.js';
 import { getCharaFilename } from '../../../../../utils.js';
 import { getGroupMembers } from '../../../../../group-chats.js';
 import { WorldInfoEntry, LoreBook } from '../utils/defines';
+import { eventSource, event_types } from '../../../../../events.js';
+import { GENERATION_TYPE_TRIGGERS } from '../../../../../constants.js';
 
 
 const KNOWN_DECORATORS = [
@@ -136,6 +138,38 @@ export function collectEnabledWorldInfos(
     return results;
 }
 
+export class DecoratorParser {
+    decorators: string[] = [];
+    arguments: string[] = [];
+    cleanContent: string = '';
+    entry: WorldInfoEntry;
+
+    constructor(entry: WorldInfoEntry, override: boolean = false) {
+        this.entry = entry;
+        if(entry.decorators?.length) {
+            this.decorators = entry.decorators;
+            this.cleanContent = entry.content;
+        } else {
+            const [decorators, cleanContent] = parseDecorators(entry.content);
+            this.decorators = decorators;
+            this.cleanContent = cleanContent;
+
+            if(override) {
+                entry.decorators = this.decorators;
+                entry.content = this.cleanContent;
+            }
+        }
+
+        for(const i in this.decorators) {
+            if(this.decorators[i].includes(' ')) {
+                const firstSpaceIndex = this.decorators[i].indexOf(' ');
+                this.arguments[i] = this.decorators[i].substring(firstSpaceIndex + 1);
+                this.decorators[i] = this.decorators[i].substring(0, firstSpaceIndex);
+            }
+        }
+    }
+}
+
 /**
  * Parse decorators from worldinfo content
  * @param content The content to parse
@@ -205,6 +239,7 @@ export function parseDecorators(content: string): [string[], string] {
     return [decorators, newContent];
 }
 
+
 // Sorting offset table
 const DEPTH_MAPPING = {
     [world_info_position.before]: 4, // Before Char Defs
@@ -250,4 +285,48 @@ function worldInfoSorter(a: WorldInfoEntry, b: WorldInfoEntry, top: number = DEF
     return calcDepth(b) - calcDepth(a) ||
         a.order - b.order ||
         b.uid - a.uid;   
+}
+
+interface WorldInfoScanResult {
+    state: {
+        current: number;
+        next: number;
+        loopCount: number;
+    };
+    new: {
+        all: WorldInfoEntry[];
+        successful: WorldInfoEntry[];
+    };
+    activated: {
+        entries: WorldInfoEntry[];
+        text: string;
+    };
+    sortedEntries: WorldInfoEntry[];
+    recursionDelay: {
+        availableLevels: number[];
+        currentLevel: number;
+    };
+    budget: {
+        current: number;
+        overflowed: boolean;
+    };
+    timedEffects: any;
+}
+
+export async function getActivatedEntries(triggerWords: string[], type: string = 'normal', dryRun: boolean = true): Promise<WorldInfoEntry[]> {
+    const fields = getCharacterCardFieldsLazy();
+    const globalScanData = {
+        personaDescription: fields.persona,
+        characterDescription: fields.description,
+        characterPersonality: fields.personality,
+        characterDepthPrompt: fields.charDepthPrompt,
+        scenario: fields.scenario,
+        creatorNotes: fields.creatorNotes,
+        trigger: GENERATION_TYPE_TRIGGERS.includes(type) ? type : 'normal',
+    };
+
+    return new Promise((resolve, reject) => {
+        eventSource.once(event_types.WORLDINFO_SCAN_DONE, (data: WorldInfoScanResult) => resolve(data.activated.entries));
+        getWorldInfoPrompt(triggerWords, getMaxContextSize(), dryRun, globalScanData).catch(reject);
+    });
 }

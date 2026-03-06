@@ -2,10 +2,12 @@ import { setupSettings } from "./settings";
 import { Context } from "./features/context";
 import { PromptContext } from "./functions/prompt-context";
 import { MessageBuilder } from "./functions/message-builder";
+import { setup } from "./features/worldinfoUpdate";
 
 // jQuery
 $(async () => {
     await setupSettings();
+    await setup();
 
     // @ts-expect-error: 7017
     globalThis.CustomGeneration = {
