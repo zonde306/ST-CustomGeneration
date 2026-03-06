@@ -13,6 +13,7 @@ import {
     depth_prompt_role_default,
     baseChatReplace,
     parseMesExamples,
+    substituteParams,
 } from '../../../../../../script.js';
 import { metadata_keys } from '../../../../../authors-note.js';
 import { world_info_depth } from '../../../../../world-info.js';
@@ -65,6 +66,10 @@ export class MessageBuilder {
         await eventSource.emit(event_types.GENERATION_AFTER_COMMANDS, type, options, dryRun);
 
         const messages = await this.build(type, dryRun);
+
+        for(const message of messages) {
+            message.content = substituteParams(message.content);
+        }
 
         await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun });
         await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat: messages, dryRun });

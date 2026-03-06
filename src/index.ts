@@ -15,8 +15,8 @@ $(async () => {
         get globalContext() {
             return Context.global();
         },
-        async buildMessages(chat: ChatMessage[], type: string = 'normal', dryRun: boolean = false, wiDepth = 2) {
-            return await new MessageBuilder(chat).build(type, dryRun, wiDepth);
+        async buildMessages(chat: ChatMessage[], type: string = 'normal', dryRun: boolean = false) {
+            return await new MessageBuilder(chat).buildFully(type, {}, dryRun);
         }
     };
     

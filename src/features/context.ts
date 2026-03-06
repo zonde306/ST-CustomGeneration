@@ -7,6 +7,7 @@ import {
     chat,
     deleteLastMessage,
     name2,
+    substituteParams,
 } from '../../../../../../script.js';
 import { settings, Preset, defaultPreset } from '../settings';
 import { generate as runGenerate, ApiConfig } from '../functions/generate';
@@ -27,12 +28,20 @@ interface GenerateOptionsLite {
     preset?: Preset;
 };
 
+interface MacroOverride {
+    user?: string;
+    char?: string;
+    original?: string;
+    group?: string;
+};
+
 export class Context {
     public chat: ChatMessageEx[];
     public chat_metadata: ChatMetadataEx;
     public isGlobal: boolean;
     public presetOverride?: Preset;
     public apiOverride: Partial<ApiConfig>;
+    public macroOverride: MacroOverride;
 
     constructor() {
         this.chat = [];
@@ -40,6 +49,7 @@ export class Context {
         this.isGlobal = false;
         this.presetOverride = undefined;
         this.apiOverride = {};
+        this.macroOverride = {};
     }
 
     static global(): Context {
@@ -56,6 +66,7 @@ export class Context {
         context.chat_metadata = value.chat_metadata ?? {};
         context.presetOverride = value.presetOverride;
         context.apiOverride = value.apiOverride ?? {};
+        context.macroOverride = value.macroOverride ?? {};
         return context;
     }
 
@@ -68,6 +79,7 @@ export class Context {
             chat_metadata: this.chat_metadata,
             presetOverride: this.presetOverride,
             apiOverride: this.apiOverride,
+            macroOverride: this.macroOverride,
         };
     }
 
@@ -183,6 +195,15 @@ export class Context {
 
         const builder = new MessageBuilder(this.chat, options.preset ?? this.presetOverride);
         const messages = await builder.build(type, dryRun);
+
+        for(const message of messages) {
+            message.content = substituteParams(message.content, {
+                name1Override: this.macroOverride.user,
+                name2Override: this.macroOverride.char,
+                original: this.macroOverride.original,
+                groupOverride: this.macroOverride.group,
+            });
+        }
 
         await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun, context: this });
 
