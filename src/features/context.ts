@@ -27,6 +27,8 @@ interface GenerateOptionsLite {
     allResponses?: boolean;
     apiConfig?: Partial<ApiConfig>;
     preset?: Preset;
+    streaming?: boolean;
+    context?: Context;
 };
 
 interface MacroOverride {
@@ -170,17 +172,19 @@ export class Context {
         return this.chat_metadata.variables ?? {};
     }
 
-    async generate(type: string = 'normal', options: GenerateOptionsLite = {}, dryRun: boolean = false): Promise<string | string[]> {
+    async generate(type: string = 'normal', options: GenerateOptionsLite = {}, dryRun: boolean = false): Promise<string | string[] | AsyncGenerator<{ swipe: number, text: string } | string>> {
         console.log('Generate entered');
 
         // Prevent generation from shallow characters
         await unshallowCharacter(this_chid);
 
+        options.context = this;
+
         // Occurs every time, even if the generation is aborted due to slash commands execution
-        await eventSource.emit(event_types.GENERATION_STARTED, type, { ...options, context: this }, dryRun);
+        await eventSource.emit(event_types.GENERATION_STARTED, type, options, dryRun);
 
         // Occurs only if the generation is not aborted due to slash commands execution
-        await eventSource.emit(event_types.GENERATION_AFTER_COMMANDS, type, { ...options, context: this }, dryRun);
+        await eventSource.emit(event_types.GENERATION_AFTER_COMMANDS, type, options, dryRun);
 
         if (type === 'regenerate' &&
             !dryRun &&
@@ -233,14 +237,38 @@ export class Context {
                 apiConfig = options.apiConfig;
         }
 
-        let result = await runGenerate(messages, abortController, taskId, apiConfig as ApiConfig, { context: this });
+        let result = await runGenerate(messages, abortController, taskId, apiConfig as ApiConfig, { context: this }, options.streaming);
 
         if(type === 'continue') {
             // remove the temporary message
             this.chat.length = this.chat.length - 1;
         }
 
-        result = (Array.isArray(result) ? result : [ result ]);
+        if(result.toString() === '[object AsyncGenerator]') {
+            const self = this;
+            async function * stream() {
+                let buffers : string[] = [];
+                for await (const chunk of result) {
+                    yield chunk;
+                    
+                    if(typeof chunk === 'string') {
+                        if(buffers[0] == null) buffers[0] = '';
+                        buffers[0] += chunk;
+                    } else if(chunk.swipe) {
+                        if(buffers[chunk.swipe] == null) buffers[chunk.swipe] = '';
+                        buffers[chunk.swipe] += chunk.text;
+                    }
+                }
+
+                if(!options.dontCreate) {
+                    buffers = await self.#recv(buffers);
+                }
+            }
+
+            return stream();
+        }
+
+        result = (Array.isArray(result) ? result : [ result ]) as string[];
         if(result.length < 1) {
             toastr.error('Generate failed, empty responses');
             return '';

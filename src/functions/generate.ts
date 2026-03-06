@@ -39,7 +39,8 @@ export async function generate(
     taskId: string = '',
     api?: ApiConfig,
     customOptions?: Record<string, any>,
-): Promise<string | string[]> {
+    streaming: boolean = false,
+): Promise<string | string[] | AsyncGenerator<{ swipe: number, text: string }>> {
     if(!taskId)
         taskId = uuidv4();
 
@@ -92,7 +93,10 @@ export async function generate(
             oai_settings.stream_openai = true;
             const handler = new StreamHandler(taskId, abortController);
             handler.generator = await sendOpenAIRequest(api?.type || 'quiet', messages, abortController.signal) as typeof handler.generator;
-            result = await handler.generate();
+            if(streaming)
+                result = handler.streaming();
+            else
+                result = await handler.generate();
         } else {
             oai_settings.stream_openai = false;
             const response = await sendOpenAIRequest(api?.type || 'quiet', messages, abortController.signal);
@@ -151,6 +155,37 @@ class StreamHandler {
         });
 
         return this.buffer.length === 1 ? this.buffer[0] : this.buffer;
+    }
+
+    async *streaming(): AsyncGenerator<{ swipe: number, text: string }> {
+        if(!this.generator)
+            throw new Error('Generator is not set');
+
+        let lastError = null;
+        try {
+            for await (const chunk of this.generator()) {
+                const { swipe, text } = this.parseChunk(chunk);
+                if(!text)
+                    continue;
+
+                await eventSource.emit(eventTypes.GENERATION_STREAM_CHUNK, {
+                    taskId: this.taskId,
+                    swipe,
+                    text,
+                    buffer: this.buffer,
+                });
+
+                yield { swipe, text };
+            }
+        } catch (err) {
+            lastError = err;
+        }
+
+        await eventSource.emit(eventTypes.GENERATION_DONE, {
+            taskId: this.taskId,
+            error: lastError,
+            response: this.buffer,
+        });
     }
 
     parseChunk(chunk: StreamChunk): { swipe: number, text: string } {
