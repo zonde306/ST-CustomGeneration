@@ -11,12 +11,17 @@ import {
     characters,
     depth_prompt_depth_default,
     depth_prompt_role_default,
+    baseChatReplace,
+    parseMesExamples,
 } from '../../../../../../script.js';
 import { metadata_keys } from '../../../../../authors-note.js';
 import { world_info_depth } from '../../../../../world-info.js';
 import { inject_ids } from '../../../../../constants.js';
 import { settings } from '../settings';
 import { GenerateOptionsLite, ContextRole } from "../utils/defines";
+import { Preset, defaultPreset } from "../settings";
+import { runRegexScript, substitute_find_regex } from "../../../../regex/engine.js";
+import { wi_anchor_position } from '../../../../../world-info.js';
 
 type ExtensionPrompts = {
     value: string,
@@ -29,20 +34,23 @@ type ExtensionPrompts = {
 
 export class MessageBuilder {
     private chat: ChatMessage[];
-    public extension_prompts: Record<string, ExtensionPrompts>;
+    private extensionPrompts: Record<string, ExtensionPrompts>;
+    private preset: Preset;
 
-    constructor(chat: ChatMessage[]) {
+    constructor(chat: ChatMessage[], preset?: Preset) {
         this.chat = chat;
-        this.extension_prompts = {};
+        this.extensionPrompts = {};
+        this.preset = preset ?? settings.presets[Number(settings.currentPreset)] ?? defaultPreset;
     }
 
     async build(type: string = 'normal', dryRun: boolean = false, wiDepth = world_info_depth): Promise<ChatCompletionMessage[]> {
         const worldinfoTrigger: string[] = this.chat.slice(-wiDepth).map(x => x.mes ?? '');
         const prompt = await PromptContext.create(worldinfoTrigger, type, dryRun, settings.contextSize);
         this.#rebuildDepthInjections(prompt);
-        const historyMessages = this.#buildChatHistoryWithDepthInjection(type === 'continue');
-        const result = this.#buildMessages(prompt, historyMessages);
-        this.extension_prompts = {};
+        const historyMessages = this.#buildChatHistory();
+        const historyInjectedMessages = this.#injectDepthPromptsToHistory(historyMessages, type === 'continue');
+        const result = this.#buildMessages(prompt, historyInjectedMessages);
+        this.extensionPrompts = {};
         return result;
     }
 
@@ -92,8 +100,7 @@ export class MessageBuilder {
     }
 
     #buildMessages(prompts: PromptContext, historyMessages: ChatCompletionMessage[]): ChatCompletionMessage[] {
-        const currentGroup = settings.presets[Number(settings.currentPreset)];
-        if (!currentGroup?.prompts?.length) {
+        if (!this.preset?.prompts?.length) {
             const messages = [...historyMessages];
             const authorNoteRange = this.#insertAuthorsNoteByMetadata(messages, null);
             this.#insertWorldInfoAroundAuthorsNote(messages, prompts, authorNoteRange);
@@ -103,7 +110,7 @@ export class MessageBuilder {
         const messages: ChatCompletionMessage[] = [];
         let mainPromptRange: { start: number, end: number } | null = null;
 
-        for (const preset of currentGroup.prompts) {
+        for (const preset of this.preset.prompts) {
             if (!preset.enabled) {
                 continue;
             }
@@ -112,6 +119,7 @@ export class MessageBuilder {
 
             if (preset.internal) {
                 let content: string | string[] | ChatCompletionMessage[] = '';
+                const self = this;
                 switch (preset.internal) {
                     case 'main':
                         // main prompt 优先使用预设的
@@ -130,13 +138,13 @@ export class MessageBuilder {
                         content = prompts.scenario;
                         break;
                     case 'chatExamples':
-                        content = prompts.chatExampleArray;
+                        content = this.#buildExampleMessages(prompts);
                         break;
                     case 'worldInfoBefore':
-                        content = prompts.worldInfoCharBefore;
+                        content = this.#applyRegex(prompts.worldInfoCharBefore, { world: true });
                         break;
                     case 'worldInfoAfter':
-                        content = prompts.worldInfoCharAfter;
+                        content = this.#applyRegex(prompts.worldInfoCharAfter, { world: true });
                         break;
                     case 'chatHistory':
                         content = historyMessages;
@@ -255,9 +263,10 @@ export class MessageBuilder {
             return;
         }
 
+        const self = this;
         const noteRole = this.#normalizeRole(messages[authorNoteRange.start]?.role ?? chat_metadata[metadata_keys.role]);
-        const beforeMessages = beforeEntries.map(content => ({ role: noteRole, content } as ChatCompletionMessage));
-        const afterMessages = afterEntries.map(content => ({ role: noteRole, content } as ChatCompletionMessage));
+        const beforeMessages = beforeEntries.map(content => ({ role: noteRole, content: self.#applyRegex(content, { world: true }) } as ChatCompletionMessage));
+        const afterMessages = afterEntries.map(content => ({ role: noteRole, content: self.#applyRegex(content, { world: true }) } as ChatCompletionMessage));
 
         if (beforeMessages.length) {
             messages.splice(authorNoteRange.start, 0, ...beforeMessages);
@@ -269,20 +278,25 @@ export class MessageBuilder {
         }
     }
 
-    #buildChatHistoryWithDepthInjection(isContinue: boolean): ChatCompletionMessage[] {
-        const history: ChatCompletionMessage[] = this.chat.map(msg => ({
+    #buildChatHistory(): ChatCompletionMessage[] {
+        const self = this;
+        const history: ChatCompletionMessage[] = this.chat.map((msg, idx) => ({
             role: msg.is_user ? 'user' : msg.is_system ? 'system' : 'assistant',
-            content: String(msg.mes ?? ''),
+            content: self.#applyRegex(msg.mes ?? '', {
+                user: msg.is_user,
+                assistant: !msg.is_user && !msg.is_system,
+                depth: this.chat.length - idx - 1,
+            }),
         }));
 
-        return this.#injectDepthPromptsToHistory(history, isContinue);
+        return history;
     }
 
     #injectDepthPromptsToHistory(history: ChatCompletionMessage[], isContinue: boolean): ChatCompletionMessage[] {
         const depthBuckets = new Map<number, Map<ContextRole, string[]>>();
         let maxDepth = 0;
 
-        for (const prompt of Object.values(this.extension_prompts)) {
+        for (const prompt of Object.values(this.extensionPrompts)) {
             if (prompt.position !== extension_prompt_types.IN_CHAT) {
                 continue;
             }
@@ -522,7 +536,7 @@ export class MessageBuilder {
         role: typeof extension_prompt_roles[keyof typeof extension_prompt_roles] = extension_prompt_roles.SYSTEM,
         filter: (() => Promise<boolean> | boolean) | null = null,
     ) {
-        this.extension_prompts[key] = {
+        this.extensionPrompts[key] = {
             value: String(value),
             position: Number(position),
             depth: Number(depth),
@@ -533,9 +547,9 @@ export class MessageBuilder {
     }
 
     #removeDepthPrompts() {
-        for (const key of Object.keys(this.extension_prompts)) {
+        for (const key of Object.keys(this.extensionPrompts)) {
             if (key.startsWith(inject_ids.DEPTH_PROMPT)) {
-                delete this.extension_prompts[key];
+                delete this.extensionPrompts[key];
             }
         }
     }
@@ -544,9 +558,9 @@ export class MessageBuilder {
         const depthPrefix = inject_ids.CUSTOM_WI_DEPTH;
         const outletPrefix = inject_ids.CUSTOM_WI_OUTLET('');
 
-        for (const key of Object.keys(this.extension_prompts)) {
+        for (const key of Object.keys(this.extensionPrompts)) {
             if (key.startsWith(depthPrefix) || key.startsWith(outletPrefix)) {
-                delete this.extension_prompts[key];
+                delete this.extensionPrompts[key];
             }
         }
     }
@@ -630,5 +644,73 @@ export class MessageBuilder {
             default:
                 return messages;
         }
+    }
+
+    #applyRegex(content: string, { user, assistant, depth, world } = {} as { user?: boolean, assistant?: boolean, depth?: number, world?: boolean }): string {
+        for(const regex of this.preset.regexs) {
+            if(!regex.enabled || regex.ephemerality || !regex.request)
+                continue;
+
+            if(regex.worldInfo && world) {
+                content = runRegexScript({
+                    id: '',
+                    scriptName: '',
+                    findRegex: regex.regex,
+                    replaceString: regex.replace,
+                    trimStrings: [],
+                    placement: [],
+                    disabled: false,
+                    markdownOnly: false,
+                    promptOnly: false,
+                    runOnEdit: false,
+                    substituteRegex: substitute_find_regex.NONE,
+                    minDepth: 0,
+                    maxDepth: 0,
+                }, content);
+            } else if(((regex.userInput && user) ||
+                (regex.aiOutput && assistant)) &&
+                (regex.minDepth == null || depth == null || depth >= regex.minDepth) &&
+                (regex.maxDepth == null || depth == null || depth <= regex.maxDepth)
+            ) {
+                content = runRegexScript({
+                    id: '',
+                    scriptName: '',
+                    findRegex: regex.regex,
+                    replaceString: regex.replace,
+                    trimStrings: [],
+                    placement: [],
+                    disabled: false,
+                    markdownOnly: false,
+                    promptOnly: false,
+                    runOnEdit: false,
+                    substituteRegex: substitute_find_regex.NONE,
+                    minDepth: 0,
+                    maxDepth: 0,
+                }, content);
+            }
+        }
+
+        return content;
+    }
+
+    #buildExampleMessages(prompt: PromptContext): string[] {
+        const examples = prompt.chatExampleArray;
+        const self = this;
+
+        // Add message example WI
+        for (const example of prompt.worldInfoExamples) {
+            if (!example.content)
+                continue;
+
+            const cleanedExample = parseMesExamples(baseChatReplace(example.content), false).map(s => self.#applyRegex(s, { world: true }));
+            // Insert depending on before or after position
+            if (example.position === wi_anchor_position.before) {
+                examples.unshift(...cleanedExample);
+            } else {
+                examples.push(...cleanedExample);
+            }
+        }
+
+        return examples;
     }
 }

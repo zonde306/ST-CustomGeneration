@@ -4,7 +4,8 @@ import {
     unshallowCharacter,
     this_chid,
     chat_metadata,
-    chat
+    chat,
+    deleteLastMessage
 } from '../../../../../../script.js';
 import { settings } from '../settings';
 import { generate as runGenerate, ApiConfig } from '../functions/generate';
@@ -100,10 +101,18 @@ export class Context {
         // Occurs only if the generation is not aborted due to slash commands execution
         await eventSource.emit(event_types.GENERATION_AFTER_COMMANDS, type, options, dryRun);
 
-        const isImpersonate = type === 'impersonate';
-        if (type !== 'quiet' && type !== 'swipe' && !isImpersonate && !dryRun && this.chat.length) {
-            this.chat.length = this.chat.length - 1;
-            await eventSource.emit('ag_message_deleted', this.chat.length);
+        if (type === 'regenerate' &&
+            !dryRun &&
+            this.chat.length > 0 &&
+            !this.chat[this.chat.length - 1]?.is_user &&
+            !this.chat[this.chat.length - 1]?.is_system
+        ) {
+            if(this.isGlobal) {
+                await deleteLastMessage();
+            } else {
+                this.chat.length = this.chat.length - 1;
+                await eventSource.emit('ag_message_deleted', this.chat.length);
+            }
         }
 
         const builder = new MessageBuilder(this.chat);

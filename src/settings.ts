@@ -2,7 +2,7 @@ import { eventSource, event_types, saveSettingsDebounced } from '../../../../../
 import { extension_settings, renderExtensionTemplateAsync } from '../../../../extensions.js';
 import * as YAML from 'yaml';
 
-interface PresetPrompt {
+export interface PresetPrompt {
     // A name for this prompt. (displayed in the UI)
     name: string;
 
@@ -25,7 +25,7 @@ interface PresetPrompt {
     internal: 'main' | 'personaDescription' | 'charDescription' | 'charPersonality' | 'scenario' | 'worldInfoBefore' | 'worldInfoAfter' | 'chatExamples' | 'chatHistory' | null;
 }
 
-interface RegEx {
+export interface RegEx {
     // Script name  (displayed in the UI)
     name: string;
 
@@ -62,7 +62,7 @@ interface RegEx {
     response: boolean;
 }
 
-interface Preset {
+export interface Preset {
     // preset group name (displayed in the UI)
     name: string;
 
@@ -170,7 +170,7 @@ interface ImportPayload {
     };
 }
 
-const defaultPreset: Preset = {
+export const defaultPreset: Preset = {
     name: 'Default',
     prompts: [
         {

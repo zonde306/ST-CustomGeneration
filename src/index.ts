@@ -15,6 +15,9 @@ $(async () => {
         get globalContext() {
             return Context.global();
         },
+        async buildMessages(chat: ChatMessage[], type: string = 'normal', dryRun: boolean = false, wiDepth = 2) {
+            return await new MessageBuilder(chat).build(type, dryRun, wiDepth);
+        }
     };
     
     console.log('Custom generation initialized');

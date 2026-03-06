@@ -1,4 +1,4 @@
-import { chat, getCharacterCardFieldsLazy, CharacterCardFields, getMaxContextSize, parseMesExamples, baseChatReplace } from '../../../../../../script.js';
+import { chat, getCharacterCardFieldsLazy, CharacterCardFields, getMaxContextSize, parseMesExamples } from '../../../../../../script.js';
 import { getWorldInfoPrompt, WIPromptResult, WIGlobalScanData, wi_anchor_position } from '../../../../../world-info.js';
 import { GENERATION_TYPE_TRIGGERS } from '../../../../../constants.js';
 
@@ -68,20 +68,6 @@ export class PromptContext {
     get chatExampleArray(): string[] {
         if (this.mesExamplesArray.length == 0 && this.fields.mesExamples.trim()) {
             this.mesExamplesArray = parseMesExamples(this.fields.mesExamples, false);
-
-            // Add message example WI
-            for (const example of this.worldInfoExamples) {
-                if (!example.content)
-                    continue;
-
-                const cleanedExample = parseMesExamples(baseChatReplace(example.content), false);
-                // Insert depending on before or after position
-                if (example.position === wi_anchor_position.before) {
-                    this.mesExamplesArray.unshift(...cleanedExample);
-                } else {
-                    this.mesExamplesArray.push(...cleanedExample);
-                }
-            }
         }
 
         return this.mesExamplesArray;
