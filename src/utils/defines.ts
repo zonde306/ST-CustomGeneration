@@ -269,3 +269,10 @@ interface WorldInfoFilter {
 export interface LoreBook {
     entries: Record<string, WorldInfoEntry>;
 }
+
+export type GenerateOptionsLite = {
+    signal?: AbortSignal,
+    quietName?: string,
+};
+
+export type ContextRole = 'user' | 'system' | 'assistant';

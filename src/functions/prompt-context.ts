@@ -2,17 +2,19 @@ import { chat, getCharacterCardFieldsLazy, CharacterCardFields, getMaxContextSiz
 import { getWorldInfoPrompt, WIPromptResult, WIGlobalScanData, wi_anchor_position } from '../../../../../world-info.js';
 import { GENERATION_TYPE_TRIGGERS } from '../../../../../constants.js';
 
-export class PromptBuilder {
+export class PromptContext {
     private fields: CharacterCardFields;
     private worldInfo: WIPromptResult | null = null;
     private mesExamplesArray: string[] = [];
+    public ready: boolean;
 
     constructor() {
         this.fields = getCharacterCardFieldsLazy();
+        this.ready = false;
     }
 
     static async create(content: string[], type: string = 'normal', dryRun: boolean = false, contextSize: number = getMaxContextSize()) {
-        const getter = new PromptBuilder();
+        const getter = new PromptContext();
         await getter.scan(content, type, dryRun, contextSize);
         return getter;
     }
@@ -29,6 +31,7 @@ export class PromptBuilder {
         };
 
         this.worldInfo = await getWorldInfoPrompt(content, contextSize, dryRun, globalScanData);
+        this.ready = true;
     }
 
     /**
@@ -127,6 +130,9 @@ export class PromptBuilder {
     }
 
     get worldInfoString(): string {
+        if(!this.ready)
+            console.warn('worldInfoString called before scan');
+
         return this.worldInfo?.worldInfoString ?? '';
     }
 
@@ -134,6 +140,9 @@ export class PromptBuilder {
      * 角色定义之前
      */
     get worldInfoCharBefore(): string {
+        if(!this.ready)
+            console.warn('worldInfoCharBefore called before scan');
+
         return this.worldInfo?.worldInfoBefore ?? '';
     }
 
@@ -141,6 +150,9 @@ export class PromptBuilder {
      * 角色定义之后
      */
     get worldInfoCharAfter(): string {
+        if(!this.ready)
+            console.warn('worldInfoCharAfter called before scan');
+
         return this.worldInfo?.worldInfoAfter ?? '';
     }
 
@@ -148,6 +160,9 @@ export class PromptBuilder {
      * 示例消息之前/之后
      */
     get worldInfoExamples(): { position: typeof wi_anchor_position[keyof typeof wi_anchor_position], content: string }[] {
+        if(!this.ready)
+            console.warn('worldInfoExamples called before scan');
+
         return this.worldInfo?.worldInfoExamples ?? [];
     }
 
@@ -156,6 +171,9 @@ export class PromptBuilder {
      * 注入到 chatHistory 中
      */
     get worldInfoDepth(): { depth: number, entries: string[], role: string | number }[] {
+        if(!this.ready)
+            console.warn('worldInfoDepth called before scan');
+
         return this.worldInfo?.worldInfoDepth ?? [];
     }
 
@@ -164,6 +182,9 @@ export class PromptBuilder {
      * 由宏`{{outlet:名字}}`使用
      */
     get worldInfoOutletEntries(): Record<string, string[]> {
+        if(!this.ready)
+            console.warn('worldInfoOutletEntries called before scan');
+
         return this.worldInfo?.outletEntries ?? {};
     }
 
@@ -171,6 +192,9 @@ export class PromptBuilder {
      * 作者备注之前
      */
     get worldInfoAuthorNoteBefore(): string[] {
+        if(!this.ready)
+            console.warn('worldInfoAuthorNoteBefore called before scan');
+
         return this.worldInfo?.anBefore ?? [];
     }
 
@@ -178,6 +202,9 @@ export class PromptBuilder {
      * 作者备注之后
      */
     get worldInfoAuthorNoteAfter(): string[] {
+        if(!this.ready)
+            console.warn('worldInfoAuthorNoteAfter called before scan');
+
         return this.worldInfo?.anAfter ?? [];
     }
 

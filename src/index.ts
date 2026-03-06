@@ -1,6 +1,7 @@
 import { setupSettings } from "./settings";
 import { Context } from "./features/context";
-import { PromptBuilder } from "./functions/prompts";
+import { PromptContext } from "./functions/prompt-context";
+import { MessageBuilder } from "./functions/message-builder";
 
 // jQuery
 $(async () => {
@@ -9,7 +10,11 @@ $(async () => {
     // @ts-expect-error: 7017
     globalThis.CustomGeneration = {
         Context,
-        PromptBuilder,
+        PromptContext,
+        MessageBuilder,
+        get globalContext() {
+            return Context.global();
+        },
     };
     
     console.log('Custom generation initialized');

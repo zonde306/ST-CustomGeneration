@@ -3,7 +3,7 @@ import { oai_settings, sendOpenAIRequest, chat_completion_sources } from '../../
 import { TokenLogprobs } from '../../../../../logprobs.js';
 import { uuidv4 } from '../../../../../utils.js';
 
-interface ApiConfig {
+export interface ApiConfig {
     url: string;
     key: string;
     model: string;
