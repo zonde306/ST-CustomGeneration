@@ -1,1 +1,11 @@
-{}
+{
+	"Custom generation settings": "自定义生成",
+	"Advanced Parameters": "高级参数",
+	"Create preset": "创建预设",
+	"No scripts": "没有脚本",
+	"No prompts": "没有提示词",
+	"Triggers (comma separated)": "触发器列表(逗号分隔)",
+	"injection_position": "注入位置",
+	"In-chat depth": "聊天注入深度",
+	"In-chat order": "聊天注入顺序"
+}

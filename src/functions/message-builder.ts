@@ -47,8 +47,8 @@ export class MessageBuilder {
     async build(type: string = 'normal', dryRun: boolean = false, wiDepth = world_info_depth): Promise<ChatCompletionMessage[]> {
         const worldinfoTrigger: string[] = this.chat.slice(-wiDepth).map(x => x.mes ?? '');
         const prompt = await PromptContext.create(worldinfoTrigger, type, dryRun, settings.contextSize);
-        this.#rebuildDepthInjections(prompt);
         const historyMessages = this.#buildChatHistory();
+        this.#rebuildDepthInjections(prompt, historyMessages);
         const historyInjectedMessages = this.#injectDepthPromptsToHistory(historyMessages, type === 'continue');
         const result = this.#buildMessages(prompt, historyInjectedMessages);
         this.extensionPrompts = {};
@@ -116,7 +116,7 @@ export class MessageBuilder {
         let mainPromptRange: { start: number, end: number } | null = null;
 
         for (const preset of this.preset.prompts) {
-            if (!preset.enabled) {
+            if (!preset.enabled || preset.injectionPosition === 'inChat') {
                 continue;
             }
 
@@ -364,14 +364,116 @@ export class MessageBuilder {
         return reversedHistory.reverse();
     }
 
-    #rebuildDepthInjections(prompts: PromptContext) {
+    #rebuildDepthInjections(prompts: PromptContext, historyMessages: ChatCompletionMessage[]) {
         this.#removeDepthPrompts();
         this.#flushWIInjections();
 
+        this.#injectPresetDepthPrompts(prompts, historyMessages);
         this.#injectCharacterDepthPrompt(prompts.charDepthPrompt);
         this.#injectWorldInfoDepth(prompts.worldInfoDepth);
         this.#injectOutletEntries(prompts.worldInfoOutletEntries);
         this.#injectAuthorsNoteDepthPrompt();
+    }
+
+    #injectPresetDepthPrompts(prompts: PromptContext, historyMessages: ChatCompletionMessage[]) {
+        if (!this.preset?.prompts?.length) {
+            return;
+        }
+
+        const inChatPrompts = this.preset.prompts
+            .map((preset, index) => ({ preset, index }))
+            .filter(({ preset }) => preset.enabled && preset.injectionPosition === 'inChat')
+            .sort((a, b) => {
+                const orderA = Number.isFinite(a.preset.injectionOrder) ? Math.trunc(a.preset.injectionOrder) : 0;
+                const orderB = Number.isFinite(b.preset.injectionOrder) ? Math.trunc(b.preset.injectionOrder) : 0;
+                if (orderA !== orderB) {
+                    return orderA - orderB;
+                }
+
+                return a.index - b.index;
+            });
+
+        if (!inChatPrompts.length) {
+            return;
+        }
+
+        let sequence = 0;
+
+        const appendValue = (value: string, role: unknown, depth: number) => {
+            const text = String(value ?? '').trim();
+            if (!text) {
+                return;
+            }
+
+            const extensionRole = this.#normalizeExtensionRole(role);
+            this.#setExtensionPrompt(
+                `${inject_ids.DEPTH_PROMPT}_PRESET_${sequence++}`,
+                text,
+                extension_prompt_types.IN_CHAT,
+                depth,
+                false,
+                extensionRole,
+            );
+        };
+
+        for (const { preset } of inChatPrompts) {
+            const depth = this.#normalizeDepth(preset.injectionDepth, depth_prompt_depth_default);
+
+            let content: string | string[] | ChatCompletionMessage[] = '';
+            if (preset.internal) {
+                switch (preset.internal) {
+                    case 'main':
+                        content = preset.prompt || prompts.mainPrompt;
+                        break;
+                    case 'personaDescription':
+                        content = prompts.personaDescription;
+                        break;
+                    case 'charDescription':
+                        content = prompts.charDescription;
+                        break;
+                    case 'charPersonality':
+                        content = prompts.charPersonality;
+                        break;
+                    case 'scenario':
+                        content = prompts.scenario;
+                        break;
+                    case 'chatExamples':
+                        content = this.#buildExampleMessages(prompts);
+                        break;
+                    case 'worldInfoBefore':
+                        content = this.#applyRegex(prompts.worldInfoCharBefore, { world: true });
+                        break;
+                    case 'worldInfoAfter':
+                        content = this.#applyRegex(prompts.worldInfoCharAfter, { world: true });
+                        break;
+                    case 'chatHistory':
+                        content = historyMessages;
+                        break;
+                }
+            } else {
+                content = preset.prompt;
+            }
+
+            if (typeof content === 'string') {
+                appendValue(content, preset.role, depth);
+                continue;
+            }
+
+            if (!Array.isArray(content) || content.length === 0) {
+                continue;
+            }
+
+            if (typeof content[0] === 'string') {
+                for (const text of content as string[]) {
+                    appendValue(text, preset.role, depth);
+                }
+                continue;
+            }
+
+            for (const item of content as ChatCompletionMessage[]) {
+                appendValue(String(item.content ?? ''), item.role, depth);
+            }
+        }
     }
 
     #injectCharacterDepthPrompt(text: string) {

@@ -1,5 +1,6 @@
 import { eventSource, event_types, saveSettingsDebounced } from '../../../../../script.js';
 import { extension_settings, renderExtensionTemplateAsync } from '../../../../extensions.js';
+import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '../../../../world-info.js';
 import * as YAML from 'yaml';
 
 export interface PresetPrompt {
@@ -23,6 +24,12 @@ export interface PresetPrompt {
 
     // built-in prompts or user-defined
     internal: 'main' | 'personaDescription' | 'charDescription' | 'charPersonality' | 'scenario' | 'worldInfoBefore' | 'worldInfoAfter' | 'chatExamples' | 'chatHistory' | null;
+
+    // (for inChat injectionPosition) 0 = after the last message, 1 = before the last message, etc.
+    injectionDepth: number;
+
+    // (for inChat injectionPosition) Ordered from low/top to high/bottom, and at same order: Assistant, User, System.
+    injectionOrder: number;
 }
 
 export interface RegEx {
@@ -181,6 +188,8 @@ export const defaultPreset: Preset = {
             injectionPosition: 'relative',
             enabled: true,
             internal: 'main',
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
         },
         {
             name: 'World Info (before)',
@@ -190,6 +199,8 @@ export const defaultPreset: Preset = {
             injectionPosition: 'relative',
             enabled: true,
             internal: 'worldInfoBefore',
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
         },
         {
             name: 'Persona Description',
@@ -199,6 +210,8 @@ export const defaultPreset: Preset = {
             injectionPosition: 'relative',
             enabled: true,
             internal: 'personaDescription',
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
         },
         {
             name: 'Char Description',
@@ -208,6 +221,8 @@ export const defaultPreset: Preset = {
             injectionPosition: 'relative',
             enabled: true,
             internal: 'charDescription',
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
         },
         {
             name: 'Char Personality',
@@ -217,6 +232,8 @@ export const defaultPreset: Preset = {
             injectionPosition: 'relative',
             enabled: true,
             internal: 'charPersonality',
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
         },
         {
             name: 'Scenario',
@@ -226,6 +243,8 @@ export const defaultPreset: Preset = {
             injectionPosition: 'relative',
             enabled: true,
             internal: 'scenario',
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
         },
         {
             name: 'Enhance Definitions',
@@ -235,6 +254,8 @@ export const defaultPreset: Preset = {
             injectionPosition: 'relative',
             enabled: false,
             internal: null,
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
         },
         {
             name: 'Auxiliary Prompt',
@@ -244,6 +265,8 @@ export const defaultPreset: Preset = {
             injectionPosition: 'relative',
             enabled: true,
             internal: null,
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
         },
         {
             name: 'World Info (after)',
@@ -253,6 +276,8 @@ export const defaultPreset: Preset = {
             injectionPosition: 'relative',
             enabled: true,
             internal: 'worldInfoAfter',
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
         },
         {
             name: 'Chat Examples',
@@ -262,6 +287,8 @@ export const defaultPreset: Preset = {
             injectionPosition: 'relative',
             enabled: true,
             internal: 'chatExamples',
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
         },
         {
             name: 'Chat History',
@@ -271,6 +298,8 @@ export const defaultPreset: Preset = {
             injectionPosition: 'relative',
             enabled: true,
             internal: 'chatHistory',
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
         },
         {
             name: 'Post-History Instructions (jailbreak)',
@@ -280,6 +309,8 @@ export const defaultPreset: Preset = {
             injectionPosition: 'relative',
             enabled: true,
             internal: null,
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
         },
     ],
     regexs: [],
@@ -419,6 +450,8 @@ function normalizePrompt(input: Partial<PresetPrompt>, fallbackName: string): Pr
     const role = input.role === 'assistant' || input.role === 'user' ? input.role : 'system';
     const injectionPosition = input.injectionPosition === 'inChat' ? 'inChat' : 'relative';
     const enable = input.enabled === null ? null : Boolean(input.enabled);
+    const injectionDepth = parseNumber(input.injectionDepth, DEFAULT_DEPTH, 0, 9999, true);
+    const injectionOrder = parseNumber(input.injectionOrder, DEFAULT_WEIGHT, -1_000_000, 1_000_000, true);
 
     return {
         name: sanitizePresetName(String(input.name ?? ''), fallbackName),
@@ -430,6 +463,8 @@ function normalizePrompt(input: Partial<PresetPrompt>, fallbackName: string): Pr
         injectionPosition,
         enabled: enable,
         internal: input.internal ?? null,
+        injectionDepth,
+        injectionOrder,
     };
 }
 
@@ -808,6 +843,8 @@ function setPromptEditorEnabled(enabled: boolean) {
         '#custom_generation_prompt_name',
         '#custom_generation_prompt_role',
         '#custom_generation_prompt_injection_position',
+        '#custom_generation_prompt_injection_depth',
+        '#custom_generation_prompt_injection_order',
         '#custom_generation_prompt_triggers',
         '#custom_generation_prompt_enable',
         '#custom_generation_prompt_content',
@@ -818,6 +855,11 @@ function setPromptEditorEnabled(enabled: boolean) {
     for (const selector of selectors) {
         $(selector).prop('disabled', !enabled);
     }
+}
+
+function updatePromptInjectionControlsVisibility(position: string): void {
+    const isInChat = position === 'inChat';
+    $('#custom_generation_prompt_inchat_controls').toggle(isInChat);
 }
 
 function setRegexEditorEnabled(enabled: boolean) {
@@ -854,6 +896,9 @@ function updatePromptEditor() {
         $('#custom_generation_prompt_name').val('');
         $('#custom_generation_prompt_role').val('system');
         $('#custom_generation_prompt_injection_position').val('relative');
+        $('#custom_generation_prompt_injection_depth').val(DEFAULT_DEPTH);
+        $('#custom_generation_prompt_injection_order').val(DEFAULT_WEIGHT);
+        updatePromptInjectionControlsVisibility('relative');
         $('#custom_generation_prompt_triggers').val('');
         $('#custom_generation_prompt_enable').prop('checked', false);
         $('#custom_generation_prompt_content').val('');
@@ -865,6 +910,9 @@ function updatePromptEditor() {
     $('#custom_generation_prompt_name').val(prompt.name);
     $('#custom_generation_prompt_role').val(prompt.role);
     $('#custom_generation_prompt_injection_position').val(prompt.injectionPosition);
+    $('#custom_generation_prompt_injection_depth').val(parseNumber(prompt.injectionDepth, DEFAULT_DEPTH, 0, 9999, true));
+    $('#custom_generation_prompt_injection_order').val(parseNumber(prompt.injectionOrder, DEFAULT_WEIGHT, -1_000_000, 1_000_000, true));
+    updatePromptInjectionControlsVisibility(prompt.injectionPosition);
     $('#custom_generation_prompt_triggers').val(prompt.triggers.join(', '));
     $('#custom_generation_prompt_enable').prop('checked', prompt.enabled === true);
     $('#custom_generation_prompt_content').val(prompt.prompt);
@@ -948,6 +996,8 @@ function savePromptEditor(): void {
 
     const position = String($('#custom_generation_prompt_injection_position').val() ?? 'relative');
     prompt.injectionPosition = position === 'inChat' ? 'inChat' : 'relative';
+    prompt.injectionDepth = parseNumber($('#custom_generation_prompt_injection_depth').val(), DEFAULT_DEPTH, 0, 9999, true);
+    prompt.injectionOrder = parseNumber($('#custom_generation_prompt_injection_order').val(), DEFAULT_WEIGHT, -1_000_000, 1_000_000, true);
 
     const triggersRaw = String($('#custom_generation_prompt_triggers').val() ?? '');
     prompt.triggers = triggersRaw.split(',').map(x => x.trim()).filter(Boolean);
@@ -1503,6 +1553,15 @@ function bindEvents() {
         updateSettingsUI();
         saveSettings();
         openRegexEditor(selectedRegexIndex);
+    });
+
+    $('#custom_generation_prompt_injection_position').on('change', () => {
+        if (isUpdatingUI) {
+            return;
+        }
+
+        const position = String($('#custom_generation_prompt_injection_position').val() ?? 'relative');
+        updatePromptInjectionControlsVisibility(position);
     });
 
     $('#custom_generation_prompt_cancel').on('click', () => {

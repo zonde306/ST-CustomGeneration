@@ -1,1 +1,9 @@
-{}
+{
+	"Custom generation settings": "自定義生成",
+	"Advanced Parameters": "高級參數",
+	"Create preset": "創建預設",
+	"No scripts": "沒有腳本",
+	"No prompts": "沒有提示詞",
+	"Triggers (comma separated)": "觸發器列表(逗號分隔)",
+	"injection_position": "注入位置"
+}
