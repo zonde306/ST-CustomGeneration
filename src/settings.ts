@@ -1,6 +1,7 @@
 import { eventSource, event_types, saveSettingsDebounced } from '../../../../../script.js';
 import { extension_settings, renderExtensionTemplateAsync } from '../../../../extensions.js';
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '../../../../world-info.js';
+import { generate as runGenerate, ApiConfig } from './functions/generate';
 import * as YAML from 'yaml';
 
 export interface PresetPrompt {
@@ -348,6 +349,7 @@ let isUpdatingUI = false;
 let isEventsBound = false;
 let isSettingsLoadedListenerBound = false;
 let modelCandidates: string[] = [];
+let isConnectionActionInProgress = false;
 
 const exportSchemaVersion = '1.0.0';
 
@@ -619,6 +621,201 @@ function updateModelSelectOptions(): void {
     } else {
         modelSelect.val('');
     }
+}
+
+function setConnectionControlsBusy(busy: boolean): void {
+    isConnectionActionInProgress = busy;
+
+    const connectButton = $('#custom_generation_model_connect');
+    connectButton.toggleClass('disabled', busy);
+    connectButton.attr('aria-disabled', busy ? 'true' : 'false');
+    connectButton.css('pointer-events', busy ? 'none' : '');
+    connectButton.css('opacity', busy ? '0.6' : '');
+
+    $('#custom_generation_test_direct').prop('disabled', busy);
+    $('#custom_generation_test_generate').prop('disabled', busy);
+}
+
+function getConnectionFormValues(): { baseUrl: string; apiKey: string; model: string } {
+    return {
+        baseUrl: String($('#custom_generation_base_url').val() ?? settings.baseUrl ?? '').trim(),
+        apiKey: String($('#custom_generation_api_key').val() ?? settings.apiKey ?? '').trim(),
+        model: String($('#custom_generation_model').val() ?? settings.model ?? '').trim(),
+    };
+}
+
+function buildConnectionUrl(baseUrl: string, path: string): string {
+    const normalizedBaseUrl = baseUrl.trim().replace(/\/+$/, '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return `${normalizedBaseUrl}${normalizedPath}`;
+}
+
+function extractErrorMessage(payload: unknown): string {
+    if (typeof payload === 'string') {
+        return payload.trim();
+    }
+
+    if (!isRecord(payload)) {
+        return '';
+    }
+
+    const nestedError = payload.error;
+    if (isRecord(nestedError) && typeof nestedError.message === 'string') {
+        return nestedError.message.trim();
+    }
+
+    if (typeof payload.message === 'string') {
+        return payload.message.trim();
+    }
+
+    return '';
+}
+
+function extractCompletionText(payload: unknown): string {
+    if (!payload) {
+        return '';
+    }
+
+    if (typeof payload === 'string') {
+        return payload;
+    }
+
+    if (isRecord(payload) && Array.isArray(payload.choices) && payload.choices.length > 0) {
+        const firstChoice = payload.choices[0] as any;
+        const content = firstChoice?.message?.content ?? firstChoice?.text;
+        if (typeof content === 'string') {
+            return content;
+        }
+    }
+
+    if (isRecord(payload) && typeof payload.output_text === 'string') {
+        return payload.output_text;
+    }
+
+    return '';
+}
+
+function getPreviewText(content: string): string {
+    return content.trim().replace(/\s+/g, ' ').slice(0, 120);
+}
+
+function buildRequestHeaders(apiKey: string): Record<string, string> {
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+    };
+
+    for (const [key, value] of Object.entries(settings.includeHeaders ?? {})) {
+        const headerName = key.trim();
+        if (!headerName) {
+            continue;
+        }
+
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            headers[headerName] = String(value);
+        }
+    }
+
+    const hasAuthorizationHeader = Object.keys(headers).some(key => key.toLowerCase() === 'authorization');
+    if (apiKey && !hasAuthorizationHeader) {
+        headers.Authorization = `Bearer ${apiKey}`;
+    }
+
+    return headers;
+}
+
+function buildDirectTestBody(model: string): Record<string, unknown> {
+    const body: Record<string, unknown> = {
+        model,
+        messages: [
+            {
+                role: 'user',
+                content: 'This is a connection test. Reply with "OK" only.',
+            },
+        ],
+        stream: false,
+        max_tokens: Math.max(1, Math.min(settings.maxTokens, 64)),
+        temperature: 0,
+    };
+
+    Object.assign(body, clone(settings.includeBody));
+
+    for (const key of Object.keys(settings.excludeBody ?? {})) {
+        delete body[key];
+    }
+
+    return body;
+}
+
+async function testDirectChatCompletionsConnection(): Promise<string> {
+    const { baseUrl, apiKey, model } = getConnectionFormValues();
+    if (!baseUrl) {
+        throw new Error('Base URL is required.');
+    }
+
+    if (!model) {
+        throw new Error('Model ID is required.');
+    }
+
+    const requestUrl = buildConnectionUrl(baseUrl, '/chat/completions');
+    const response = await fetch(requestUrl, {
+        method: 'POST',
+        headers: buildRequestHeaders(apiKey),
+        body: JSON.stringify(buildDirectTestBody(model)),
+    });
+
+    const rawText = await response.text();
+    let payload: unknown = null;
+    if (rawText) {
+        try {
+            payload = JSON.parse(rawText);
+        } catch {
+            payload = rawText;
+        }
+    }
+
+    if (!response.ok) {
+        const errorMessage = extractErrorMessage(payload);
+        throw new Error(errorMessage ? `Request failed (${response.status}): ${errorMessage}` : `Request failed (${response.status}).`);
+    }
+
+    return extractCompletionText(payload);
+}
+
+async function testGenerateConnection(): Promise<string> {
+    const { baseUrl, apiKey, model } = getConnectionFormValues();
+    if (!baseUrl) {
+        throw new Error('Base URL is required.');
+    }
+
+    if (!model) {
+        throw new Error('Model ID is required.');
+    }
+
+    const apiConfig: ApiConfig = {
+        url: baseUrl,
+        key: apiKey,
+        model,
+        type: 'quiet',
+        stream: false,
+        max_context: settings.contextSize,
+        max_tokens: Math.max(1, Math.min(settings.maxTokens, 64)),
+        temperature: settings.temperature,
+        top_k: settings.topK,
+        top_p: settings.topP,
+        frequency_penalty: settings.frequencyPenalty,
+        presence_penalty: settings.presencePenalty,
+    };
+
+    const messages: ChatCompletionMessage[] = [
+        {
+            role: 'user',
+            content: 'This is a connection test. Reply with "OK" only.',
+        },
+    ];
+
+    const response = await runGenerate(messages, new AbortController(), 'custom_generation_connection_test', apiConfig, {});
+    const responseList = Array.isArray(response) ? response : [response];
+    return responseList.map(item => String(item ?? '').trim()).find(Boolean) ?? '';
 }
 
 function buildPromptRow(prompt: PresetPrompt, index: number) {
@@ -1321,17 +1518,22 @@ function bindEvents() {
     });
 
     $('#custom_generation_model_connect').on('click', async () => {
+        if (isConnectionActionInProgress) {
+            return;
+        }
+
         const status = $('#custom_generation_model_connect_status');
         status.text('Loading models...');
+        setConnectionControlsBusy(true);
 
-        const baseUrl = String($('#custom_generation_base_url').val() ?? settings.baseUrl ?? '').trim();
-        const apiKey = String($('#custom_generation_api_key').val() ?? settings.apiKey ?? '').trim();
-        const requestUrl = baseUrl ? `${baseUrl.replace(/\/$/, '')}/models` : '';
+        const { baseUrl, apiKey } = getConnectionFormValues();
+        const requestUrl = baseUrl ? buildConnectionUrl(baseUrl, '/models') : '';
 
         if (!requestUrl) {
             const message = 'Base URL is required.';
-            status.text('');
+            status.text(message);
             toastr.error(message);
+            setConnectionControlsBusy(false);
             return;
         }
 
@@ -1357,11 +1559,67 @@ function bindEvents() {
 
             modelCandidates = candidates;
             updateModelSelectOptions();
-            status.text(`Loaded ${candidates.length} models.`);
+            const message = `Loaded ${candidates.length} models.`;
+            status.text(message);
+            toastr.success(message);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error ?? 'Unknown error');
-            status.text('');
+            status.text(`Connect failed: ${message}`);
             toastr.error(message);
+        } finally {
+            setConnectionControlsBusy(false);
+        }
+    });
+
+    $('#custom_generation_test_direct').on('click', async () => {
+        if (isConnectionActionInProgress) {
+            return;
+        }
+
+        const status = $('#custom_generation_model_connect_status');
+        status.text('Testing /chat/completions...');
+        setConnectionControlsBusy(true);
+
+        try {
+            const responseText = await testDirectChatCompletionsConnection();
+            const preview = getPreviewText(responseText);
+            const message = preview
+                ? `Direct test passed: ${preview}`
+                : 'Direct test passed.';
+            status.text(message);
+            toastr.success(message);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error ?? 'Unknown error');
+            status.text(`Direct test failed: ${message}`);
+            toastr.error(message);
+        } finally {
+            setConnectionControlsBusy(false);
+        }
+    });
+
+    $('#custom_generation_test_generate').on('click', async () => {
+        if (isConnectionActionInProgress) {
+            return;
+        }
+
+        const status = $('#custom_generation_model_connect_status');
+        status.text('Testing via generate()...');
+        setConnectionControlsBusy(true);
+
+        try {
+            const responseText = await testGenerateConnection();
+            const preview = getPreviewText(responseText);
+            const message = preview
+                ? `Generate test passed: ${preview}`
+                : 'Generate test passed.';
+            status.text(message);
+            toastr.success(message);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error ?? 'Unknown error');
+            status.text(`Generate test failed: ${message}`);
+            toastr.error(message);
+        } finally {
+            setConnectionControlsBusy(false);
         }
     });
 

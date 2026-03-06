@@ -40,10 +40,21 @@
                     <select id="custom_generation_model_select" class="text_pole flex1">
                         <option value="" data-i18n="(No models loaded)">(No models loaded)</option>
                     </select>
+                    
+                </div>
+                <div class="flex-container alignItemsCenter">
                     <div id="custom_generation_model_connect" class="custom_generation_button custom_generation_button_icon" title="Connect" data-i18n="[title]Connect">
                         <i class="fa-solid fa-plug"></i>
                         <small data-i18n="Connect">Connect</small>
                     </div>
+                    <button id="custom_generation_test_direct" class="custom_generation_button custom_generation_button_icon" type="button" title="Test /chat/completions">
+                        <i class="fa-solid fa-vial-circle-check"></i>
+                        <small data-i18n="Test Message">Test</small>
+                    </button>
+                    <button id="custom_generation_test_generate" class="custom_generation_button custom_generation_button_icon" type="button" title="Test via generate()">
+                        <i class="fa-solid fa-shuffle"></i>
+                        <small data-i18n="Test Message">Generate</small>
+                    </button>
                 </div>
                 <small id="custom_generation_model_connect_status" class="text_muted"></small>
 
