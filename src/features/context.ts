@@ -5,12 +5,14 @@ import {
     this_chid,
     chat_metadata,
     chat,
-    deleteLastMessage
+    deleteLastMessage,
+    name2,
 } from '../../../../../../script.js';
-import { settings } from '../settings';
+import { settings, Preset, defaultPreset } from '../settings';
 import { generate as runGenerate, ApiConfig } from '../functions/generate';
 import { MessageBuilder } from '../functions/message-builder';
 import { ContextRole } from '../utils/defines'
+import { runRegexScript, substitute_find_regex } from "../../../../regex/engine.js";
 
 type VariableData = Record<string, any>;
 type ChatMessageEx = ChatMessage & { variables?: VariableData[] };
@@ -25,11 +27,15 @@ export class Context {
     public chat: ChatMessageEx[];
     public chat_metadata: ChatMetadataEx;
     public isGlobal: boolean;
+    public preset: Preset;
+    public api: Partial<ApiConfig>;
 
     constructor() {
         this.chat = [];
         this.chat_metadata = {};
         this.isGlobal = false;
+        this.preset = settings.presets[settings.currentPreset] ?? defaultPreset;
+        this.api = {};
     }
 
     static global(): Context {
@@ -57,12 +63,58 @@ export class Context {
     }
 
     send(content: string, role: ContextRole = 'user', name: string = name1) {
+        const mes = this.#applyRegex(content, {
+            user: role === 'user',
+            assistant: role === 'assistant',
+            request: true,
+            response: false,
+        });
+
         this.chat.push({
             is_user: role === 'user',
             is_system: role === 'system',
-            mes: content,
+            mes,
             send_date: new Date(),
             name,
+            swipe_id: 0,
+            swipes: [ mes ],
+            swipe_info: [ { send_date: new Date(), extra: {}, } ],
+            extra: {},
+            variables: [{}]
+        });
+    }
+
+    #recv(contents: string[], role: ContextRole = 'assistant', name: string = name2) {
+        if(contents.length < 1)
+            return;
+
+        const swipes : string[] = [];
+        const swipe_info: SwipeInfo[] = [];
+        const variables: VariableData[] = [];
+
+        for(const idx in contents) {
+            const mes = this.#applyRegex(contents[idx], {
+                user: role === 'user',
+                assistant: role === 'assistant',
+                request: false,
+                response: true,
+            });
+
+            swipes.push(mes);
+            swipe_info.push({ send_date: new Date(), extra: {}, });
+            variables.push({});
+        }
+
+        this.chat.push({
+            is_user: role === 'user',
+            is_system: role === 'system',
+            mes: swipes[0],
+            send_date: new Date(),
+            name,
+            swipes,
+            swipe_info,
+            variables,
+            extra: {},
         });
     }
 
@@ -115,8 +167,7 @@ export class Context {
             }
         }
 
-        const builder = new MessageBuilder(this.chat);
-        const messages = await builder.build(type, dryRun);
+        const messages = await new MessageBuilder(this.chat, this.preset).build(type, dryRun);
 
         if (dryRun) {
             await eventSource.emit('ag_generate_dry_run', { type, options, messages });
@@ -134,6 +185,7 @@ export class Context {
         await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: messages }, dryRun);
 
         const result = await runGenerate(messages, abortController, taskId, apiConfig);
+        this.#recv(Array.isArray(result) ? result : [ result ]);
         const text = Array.isArray(result) ? (result[0] ?? '') : result;
 
         return typeof text === 'string' ? text : String(text ?? '');
@@ -146,18 +198,18 @@ export class Context {
         }
 
         return {
-            url: String(settings.baseUrl ?? ''),
-            key: String(settings.apiKey ?? ''),
-            model: String(settings.model ?? ''),
+            url: this.api.url ?? settings.baseUrl ?? '',
+            key: this.api.key ?? settings.apiKey ?? '',
+            model: this.api.model ?? settings.model ?? '',
             type,
-            stream: !!settings.stream,
-            max_context: settings.contextSize,
-            max_tokens: settings.maxTokens,
-            temperature: settings.temperature,
-            top_k: settings.topK,
-            top_p: settings.topP,
-            frequency_penalty: settings.frequencyPenalty,
-            presence_penalty: settings.presencePenalty,
+            stream: this.api.stream ?? settings.stream ?? false,
+            max_context: this.api.max_context ?? settings.contextSize,
+            max_tokens: this.api.max_tokens ?? settings.maxTokens,
+            temperature: this.api.temperature ?? settings.temperature,
+            top_k: this.api.top_k ?? settings.topK,
+            top_p: this.api.top_p ?? settings.topP,
+            frequency_penalty: this.api.frequency_penalty ?? settings.frequencyPenalty,
+            presence_penalty: this.api.presence_penalty ?? settings.presencePenalty,
         };
     }
 
@@ -184,4 +236,34 @@ export class Context {
         return controller;
     }
 
+    #applyRegex(content: string, { user, assistant, request, response } = {} as { user?: boolean, assistant?: boolean, request?: boolean, response?: boolean }): string {
+        for(const regex of this.preset.regexs) {
+            if(!regex.enabled || !regex.ephemerality)
+                continue;
+
+            if(((regex.userInput && user) ||
+                (regex.aiOutput && assistant)) &&
+                ((regex.request && request) ||
+                (regex.response && response))
+            ) {
+                content = runRegexScript({
+                    id: '',
+                    scriptName: '',
+                    findRegex: regex.regex,
+                    replaceString: regex.replace,
+                    trimStrings: [],
+                    placement: [],
+                    disabled: false,
+                    markdownOnly: false,
+                    promptOnly: false,
+                    runOnEdit: false,
+                    substituteRegex: substitute_find_regex.NONE,
+                    minDepth: 0,
+                    maxDepth: 0,
+                }, content);
+            }
+        }
+
+        return content;
+    }
 }
