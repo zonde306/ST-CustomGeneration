@@ -1563,18 +1563,13 @@ export async function setupSettings() {
  */
 export function loadSettings(restore: boolean = false) {
     // @ts-ignore: 2339
-    if (!extension_settings.CustomGeneration?.settings || restore) {
-        // @ts-expect-error: 2339
-        if(!extension_settings.CustomGeneration) {
-            // @ts-expect-error: 2339
-            extension_settings.CustomGeneration = {};
-        }
+    if (!extension_settings.CustomGeneration || restore) {
         // @ts-ignore: 2339
-        extension_settings.CustomGeneration._settings = clone(defaultSettings);
+        extension_settings.CustomGeneration = clone(defaultSettings);
     }
 
     // @ts-expect-error: 2339
-    Object.assign(settings, clone(extension_settings.CustomGeneration._settings));
+    Object.assign(settings, clone(extension_settings.CustomGeneration));
 
     ensureSettingsIntegrity(true);
     updateSettingsUI();
@@ -1660,21 +1655,15 @@ export function updateSettingsUI() {
 
 export function saveSettings() {
     // @ts-ignore: 2339
-    if (!extension_settings.CustomGeneration?._settings) {
+    if (!extension_settings.CustomGeneration) {
         // @ts-ignore: 2339
-        if(!extension_settings.CustomGeneration) {
-            // @ts-ignore: 2339
-            extension_settings.CustomGeneration = { _settings: {} };
-        } else {
-            // @ts-ignore: 2339
-            extension_settings.CustomGeneration._settings = {};
-        }
+        extension_settings.CustomGeneration = {};
     }
 
     ensureSettingsIntegrity();
 
     // @ts-ignore: 2339
-    Object.assign(extension_settings.CustomGeneration._settings, clone(settings));
+    Object.assign(extension_settings.CustomGeneration, clone(settings));
     saveSettingsDebounced();
 }
 
