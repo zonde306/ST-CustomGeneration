@@ -2,7 +2,7 @@ import { setupSettings } from "./settings";
 import { Context } from "./features/context";
 import { PromptContext } from "./functions/prompt-context";
 import { MessageBuilder } from "./functions/message-builder";
-import { setup } from "./features/worldinfoUpdate";
+import { setup } from "./features/records";
 
 // jQuery
 $(async () => {
