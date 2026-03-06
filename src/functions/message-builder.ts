@@ -119,7 +119,6 @@ export class MessageBuilder {
 
             if (preset.internal) {
                 let content: string | string[] | ChatCompletionMessage[] = '';
-                const self = this;
                 switch (preset.internal) {
                     case 'main':
                         // main prompt 优先使用预设的

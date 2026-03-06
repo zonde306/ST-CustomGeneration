@@ -18,9 +18,13 @@ type VariableData = Record<string, any>;
 type ChatMessageEx = ChatMessage & { variables?: VariableData[] };
 type ChatMetadataEx = ChatMetadata & { variables?: VariableData };
 
-type GenerateOptionsLite = {
-    signal?: AbortSignal,
-    quietName?: string,
+interface GenerateOptionsLite {
+    signal?: AbortSignal;
+    quietName?: string;
+    dontCreate?: boolean;
+    allResponses?: boolean;
+    apiConfig?: Partial<ApiConfig>;
+    preset?: Preset;
 };
 
 export class Context {
@@ -62,7 +66,7 @@ export class Context {
         };
     }
 
-    send(content: string, role: ContextRole = 'user', name: string = name1) {
+    async send(content: string, role: ContextRole = 'user', name: string = name1) {
         const mes = this.#applyRegex(content, {
             user: role === 'user',
             assistant: role === 'assistant',
@@ -82,9 +86,11 @@ export class Context {
             extra: {},
             variables: [{}]
         });
+
+        await eventSource.emit('cg_message_created', this.chat.length, this.chat[this.chat.length - 1]);
     }
 
-    #recv(contents: string[], role: ContextRole = 'assistant', name: string = name2) {
+    async #recv(contents: string[], role: ContextRole = 'assistant', name: string = name2) {
         if(contents.length < 1)
             return;
 
@@ -116,6 +122,8 @@ export class Context {
             variables,
             extra: {},
         });
+
+        await eventSource.emit('cg_message_created', this.chat.length, this.chat[this.chat.length - 1]);
     }
 
     get lastMessage(): ChatMessageEx | undefined {
@@ -141,17 +149,17 @@ export class Context {
         return this.chat_metadata.variables ?? {};
     }
 
-    async generate(type: string = 'normal', options: GenerateOptionsLite = {}, dryRun: boolean = false): Promise<string> {
+    async generate(type: string = 'normal', options: GenerateOptionsLite = {}, dryRun: boolean = false): Promise<string | string[]> {
         console.log('Generate entered');
 
         // Prevent generation from shallow characters
         await unshallowCharacter(this_chid);
 
         // Occurs every time, even if the generation is aborted due to slash commands execution
-        await eventSource.emit(event_types.GENERATION_STARTED, type, options, dryRun);
+        await eventSource.emit(event_types.GENERATION_STARTED, type, { ...options, context: this }, dryRun);
 
         // Occurs only if the generation is not aborted due to slash commands execution
-        await eventSource.emit(event_types.GENERATION_AFTER_COMMANDS, type, options, dryRun);
+        await eventSource.emit(event_types.GENERATION_AFTER_COMMANDS, type, { ...options, context: this }, dryRun);
 
         if (type === 'regenerate' &&
             !dryRun &&
@@ -163,31 +171,44 @@ export class Context {
                 await deleteLastMessage();
             } else {
                 this.chat.length = this.chat.length - 1;
-                await eventSource.emit('ag_message_deleted', this.chat.length);
+                await eventSource.emit('cg_message_deleted', this.chat.length);
             }
         }
 
-        const messages = await new MessageBuilder(this.chat, this.preset).build(type, dryRun);
+        const builder = new MessageBuilder(this.chat, options.preset ?? this.preset);
+        const messages = await builder.build(type, dryRun);
 
-        if (dryRun) {
-            await eventSource.emit('ag_generate_dry_run', { type, options, messages });
+        await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun, context: this });
+
+        await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat: messages, dryRun, context: this });
+
+        await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: messages, context: this }, dryRun);
+
+        if(dryRun)
             return '';
-        }
 
         const abortController = this.#createAbortController(options.signal);
         const taskId = typeof this.variables?.taskId === 'string' ? this.variables.taskId : '';
-        const apiConfig = this.#buildApiConfig(type);
+        let apiConfig: Partial<ApiConfig> | undefined = this.#buildApiConfig(type);
 
-        await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun });
+        if(options.apiConfig) {
+            if(apiConfig)
+                Object.assign(apiConfig, options.apiConfig);
+            else
+                apiConfig = options.apiConfig;
+        }
 
-        await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat: messages, dryRun });
+        const result = await runGenerate(messages, abortController, taskId, apiConfig as ApiConfig);
 
-        await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: messages }, dryRun);
+        if(!options.dontCreate) {
+            await this.#recv(Array.isArray(result) ? result : [ result ]);
+        }
 
-        const result = await runGenerate(messages, abortController, taskId, apiConfig);
-        this.#recv(Array.isArray(result) ? result : [ result ]);
+        if(options.allResponses) {
+            return Array.isArray(result) ? result : [ result ];
+        }
+
         const text = Array.isArray(result) ? (result[0] ?? '') : result;
-
         return typeof text === 'string' ? text : String(text ?? '');
     }
 
