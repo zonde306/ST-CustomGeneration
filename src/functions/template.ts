@@ -3,13 +3,13 @@ import { PROCESSORS } from "./template-processor";
 
 export function findTemplate(decorator: string, tag: string): null | Template {
     const preset = settings.presets[settings.currentPreset];
-    let template = preset.templates.find(t => t.decorator === decorator && t.tag === tag);
-    if(!template)
-        template = preset.templates.find(t => t.decorator === decorator && t.tag === '');
-    if(!template)
+    let templates = preset.templates.filter(t => t.decorator === decorator && t.tag === tag);
+    if(templates.length < 1)
+        templates = preset.templates.filter(t => t.decorator === decorator && t.tag === '');
+    if(templates.length < 1)
         return null;
 
-    return template;
+    return _.sample(templates) as Template;
 }
 
 export function evaluateTemplate(template: Template, context: Record<string, any>): string {
