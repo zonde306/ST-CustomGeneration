@@ -4,8 +4,18 @@
 	"Create preset": "创建预设",
 	"No scripts": "没有脚本",
 	"No prompts": "没有提示词",
+	"No templates": "没有模板",
 	"Triggers (comma separated)": "触发器列表(逗号分隔)",
 	"injection_position": "注入位置",
 	"In-chat depth": "聊天注入深度",
-	"In-chat order": "聊天注入顺序"
+	"In-chat order": "聊天注入顺序",
+	"Template List": "模板列表",
+	"Template Editor": "模板编辑器",
+	"Decorator": "装饰器",
+	"Tag": "标签",
+	"Processor": "处理器",
+	"Regex": "正则",
+	"Template Content": "模板内容",
+	"Add template": "新增模板",
+	"Delete template": "删除模板"
 }

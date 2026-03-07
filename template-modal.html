@@ -1,0 +1,48 @@
+<dialog id="custom_generation_template_dialog">
+    <form class="completion_prompt_manager_popup_entry_form flex-container flexFlowColumn" method="dialog" onsubmit="return false;">
+        <div class="completion_prompt_manager_popup_header">
+            <label for="custom_generation_template_content">
+                <span data-i18n="Template Editor">Template Editor</span>
+            </label>
+        </div>
+        <div class="flex-container">
+            <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                <label for="custom_generation_template_decorator">
+                    <span data-i18n="Decorator">Decorator</span>
+                </label>
+                <select id="custom_generation_template_decorator" class="text_pole"></select>
+            </div>
+            <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                <label for="custom_generation_template_tag">
+                    <span data-i18n="Tag">Tag</span>
+                </label>
+                <input id="custom_generation_template_tag" class="text_pole" type="text" />
+            </div>
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <label for="custom_generation_template_processor">
+                <span data-i18n="Processor">Processor</span>
+            </label>
+            <select id="custom_generation_template_processor" class="text_pole"></select>
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <label for="custom_generation_template_regex">
+                <span data-i18n="Regex">Regex</span>
+            </label>
+            <textarea id="custom_generation_template_regex" class="text_pole textarea_compact" rows="3"></textarea>
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <label for="custom_generation_template_content">
+                <span data-i18n="Template Content">Template Content</span>
+            </label>
+            <textarea id="custom_generation_template_content" class="text_pole textarea_compact" rows="10"></textarea>
+        </div>
+        <div class="flex-container justifySpaceBetween marginTop5">
+            <a id="custom_generation_template_delete" class="custom_generation_button fa-solid fa-trash" title="Delete template" data-i18n="[title]Delete template"></a>
+            <div class="flex-container">
+                <button id="custom_generation_template_cancel" class="custom_generation_button" type="button" data-i18n="Cancel">Cancel</button>
+                <button id="custom_generation_template_save" class="custom_generation_button" type="button" data-i18n="Save">Save</button>
+            </div>
+        </div>
+    </form>
+</dialog>

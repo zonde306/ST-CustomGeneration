@@ -193,6 +193,19 @@
                 </div>
             </div>
             <div id="custom_generation_regex_list" class="flex-container flexFlowColumn" no-items-text="No scripts" data-i18n="[no-items-text]No scripts"></div>
+
+            <hr />
+
+            <div class="flex-container alignItemsBaseline">
+                <h3 class="margin0 flex1">
+                    <span data-i18n="Template List">Template List</span>
+                </h3>
+                <div id="custom_generation_add_template" class="custom_generation_button custom_generation_button_icon" title="Add template" data-i18n="[title]Add template">
+                    <i class="fa-solid fa-plus"></i>
+                    <small data-i18n="Add">Add</small>
+                </div>
+            </div>
+            <div id="custom_generation_template_list" class="flex-container flexFlowColumn" no-items-text="No templates" data-i18n="[no-items-text]No templates"></div>
         </div>
     </div>
 
@@ -213,7 +226,8 @@
 
     <style>
         #custom_generation_prompt_list,
-        #custom_generation_regex_list {
+        #custom_generation_regex_list,
+        #custom_generation_template_list {
             width: 100%;
             max-width: 100%;
             align-items: stretch;
@@ -221,7 +235,8 @@
         }
 
         #custom_generation_prompt_list > *,
-        #custom_generation_regex_list > * {
+        #custom_generation_regex_list > *,
+        #custom_generation_template_list > * {
             width: 100%;
             max-width: 100%;
             box-sizing: border-box;
@@ -279,7 +294,8 @@
         }
 
         #custom_generation_prompt_dialog .completion_prompt_manager_popup_entry_form,
-        #custom_generation_regex_dialog .completion_prompt_manager_popup_entry_form {
+        #custom_generation_regex_dialog .completion_prompt_manager_popup_entry_form,
+        #custom_generation_template_dialog .completion_prompt_manager_popup_entry_form {
             width: min(720px, 92vw);
             max-width: 92vw;
             box-sizing: border-box;
@@ -287,13 +303,56 @@
 
         #custom_generation_prompt_dialog .custom_generation_button,
         #custom_generation_regex_dialog .custom_generation_button,
+        #custom_generation_template_dialog .custom_generation_button,
         #custom_generation_export_dialog .custom_generation_button {
             min-width: 72px;
             white-space: nowrap;
         }
 
+        #custom_generation_settings .custom_generation_template_row {
+            align-items: stretch;
+        }
+
+        #custom_generation_settings .custom_generation_template_row_body {
+            min-width: 0;
+            gap: 8px;
+        }
+
+        #custom_generation_settings .custom_generation_template_meta {
+            min-width: 0;
+            gap: 2px;
+            justify-content: center;
+        }
+
+        #custom_generation_settings .custom_generation_template_title,
+        #custom_generation_settings .custom_generation_template_subtitle,
+        #custom_generation_settings .custom_generation_template_preview {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #custom_generation_settings .custom_generation_template_title {
+            font-weight: 600;
+        }
+
+        #custom_generation_settings .custom_generation_template_subtitle,
+        #custom_generation_settings .custom_generation_template_preview {
+            opacity: 0.85;
+            font-size: 0.9em;
+        }
+
+        #custom_generation_template_content {
+            min-height: 220px;
+        }
+
         .justifyAround {
             justify-content: space-around;
+        }
+
+        #custom_generation_settings > div {
+            margin-bottom: 5px;
         }
     </style>
 </div>

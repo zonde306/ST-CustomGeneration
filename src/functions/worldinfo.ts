@@ -8,7 +8,7 @@ import { eventSource, event_types } from '../../../../../events.js';
 import { GENERATION_TYPE_TRIGGERS } from '../../../../../constants.js';
 
 
-const KNOWN_DECORATORS = [
+export const KNOWN_DECORATORS = [
     '@@record',                 // 自动更新的记录片段
     '@@record_template',        // 记录格式定义
     '@@summary',                // 摘要

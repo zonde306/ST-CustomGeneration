@@ -4,6 +4,18 @@
 	"Create preset": "創建預設",
 	"No scripts": "沒有腳本",
 	"No prompts": "沒有提示詞",
+	"No templates": "沒有模板",
 	"Triggers (comma separated)": "觸發器列表(逗號分隔)",
-	"injection_position": "注入位置"
+	"injection_position": "注入位置",
+	"In-chat depth": "聊天注入深度",
+	"In-chat order": "聊天注入順序",
+	"Template List": "模板列表",
+	"Template Editor": "模板編輯器",
+	"Decorator": "裝飾器",
+	"Tag": "標籤",
+	"Processor": "處理器",
+	"Regex": "正則",
+	"Template Content": "模板內容",
+	"Add template": "新增模板",
+	"Delete template": "刪除模板"
 }

@@ -2,7 +2,19 @@ import { eventSource, event_types, saveSettingsDebounced } from '../../../../../
 import { extension_settings, renderExtensionTemplateAsync } from '../../../../extensions.js';
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '../../../../world-info.js';
 import { generate as runGenerate, ApiConfig } from './functions/generate';
+import { KNOWN_DECORATORS } from './functions/worldinfo';
 import * as YAML from 'yaml';
+
+// 先假设有，具体实现后续再补
+const KNOWN_PROCESSORS = [
+    "none",
+    "replace",          // 替换原文
+    "diff-patch",       // 用 diff patch 修改原文
+    "ejs",              // 执行代码
+    "var-json",         // 视为 JSON 写入到变量
+    "var-yaml",         // 视为 YAML 写入到变量
+    "var-json-patch",   // 视为 JSON patch 更新变量
+];
 
 export interface PresetPrompt {
     // A name for this prompt. (displayed in the UI)
@@ -70,6 +82,23 @@ export interface RegEx {
     response: boolean;
 }
 
+interface Template {
+    // e.g: @@record, must in KNOWN_DECORATORS lists
+    decorator: typeof KNOWN_DECORATORS[number];
+
+    // can be empty, used by (@@<decorator> <tag>)
+    tag: string;
+
+    // template content
+    content: string;
+
+    // match regexp, pass capture group 1 to the processor
+    regex: string;
+
+    // processor name, must in KNOWN_PROCESSORS lists
+    processor: typeof KNOWN_PROCESSORS[number];
+}
+
 export interface Preset {
     // preset group name (displayed in the UI)
     name: string;
@@ -79,6 +108,9 @@ export interface Preset {
 
     // preset regexs
     regexs: RegEx[];
+
+    // templates
+    templates: Template[];
 }
 
 interface Settings {
@@ -315,6 +347,15 @@ export const defaultPreset: Preset = {
         },
     ],
     regexs: [],
+    templates: [
+        {
+            decorator: '@@record',
+            tag: 'full-update',
+            content: '{{lastCharMessage}}\nUpdate the following documents based on the above content:\n{{current}}\nThen wrap the updated document with `<content>` to output the document.',
+            regex: '/<content>([\\S\\s]+?)<\\/content>/gi',
+            processor: 'replace',
+        }
+    ]
 };
 
 const defaultSettings: Settings = {
@@ -341,10 +382,13 @@ export const settings: Settings = clone(defaultSettings);
 
 let selectedPromptIndex = 0;
 let selectedRegexIndex = 0;
+let selectedTemplateIndex = 0;
 let editingPromptIndex: number | null = null;
 let editingRegexIndex: number | null = null;
+let editingTemplateIndex: number | null = null;
 let draggedPromptIndex: number | null = null;
 let draggedRegexIndex: number | null = null;
+let draggedTemplateIndex: number | null = null;
 let isUpdatingUI = false;
 let isEventsBound = false;
 let isSettingsLoadedListenerBound = false;
@@ -352,6 +396,10 @@ let modelCandidates: string[] = [];
 let isConnectionActionInProgress = false;
 
 const exportSchemaVersion = '1.0.0';
+type TemplateDecorator = Template['decorator'];
+type TemplateProcessor = Template['processor'];
+const DEFAULT_TEMPLATE_DECORATOR = (KNOWN_DECORATORS.find(x => x === '@@record') ?? KNOWN_DECORATORS[0] ?? '@@record') as TemplateDecorator;
+const DEFAULT_TEMPLATE_PROCESSOR = (KNOWN_PROCESSORS.find(x => x === 'replace') ?? KNOWN_PROCESSORS[0] ?? 'replace') as TemplateProcessor;
 
 function clone<T>(value: T): T {
     return typeof structuredClone === 'function'
@@ -487,6 +535,26 @@ function normalizeRegex(input: Partial<RegEx>, fallbackName: string): RegEx {
     };
 }
 
+function normalizeTemplate(input: Partial<Template>): Template {
+    const decoratorRaw = String(input.decorator ?? DEFAULT_TEMPLATE_DECORATOR);
+    const decorator = KNOWN_DECORATORS.includes(decoratorRaw as TemplateDecorator)
+        ? decoratorRaw as TemplateDecorator
+        : DEFAULT_TEMPLATE_DECORATOR;
+
+    const processorRaw = String(input.processor ?? DEFAULT_TEMPLATE_PROCESSOR);
+    const processor = KNOWN_PROCESSORS.includes(processorRaw as TemplateProcessor)
+        ? processorRaw as TemplateProcessor
+        : DEFAULT_TEMPLATE_PROCESSOR;
+
+    return {
+        decorator,
+        tag: String(input.tag ?? ''),
+        content: String(input.content ?? ''),
+        regex: String(input.regex ?? ''),
+        processor,
+    };
+}
+
 function normalizePreset(input: Partial<Preset>, fallbackName: string): Preset {
     const prompts = Array.isArray(input.prompts)
         ? input.prompts.map((prompt, index) => normalizePrompt(prompt, `Prompt ${index + 1}`))
@@ -496,10 +564,15 @@ function normalizePreset(input: Partial<Preset>, fallbackName: string): Preset {
         ? input.regexs.map((regex, index) => normalizeRegex(regex, `Regex ${index + 1}`))
         : [];
 
+    const templates = Array.isArray(input.templates)
+        ? input.templates.map(template => normalizeTemplate(template))
+        : [];
+
     return {
         name: sanitizePresetName(String(input.name ?? ''), fallbackName),
         prompts,
         regexs,
+        templates,
     };
 }
 
@@ -533,8 +606,10 @@ function ensureSettingsIntegrity(resetSelections: boolean = false) {
     if (resetSelections) {
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
+        selectedTemplateIndex = 0;
         editingPromptIndex = null;
         editingRegexIndex = null;
+        editingTemplateIndex = null;
     }
 }
 
@@ -697,6 +772,30 @@ function extractCompletionText(payload: unknown): string {
 
 function getPreviewText(content: string): string {
     return content.trim().replace(/\s+/g, ' ').slice(0, 120);
+}
+
+function getTemplateTagLabel(template: Pick<Template, 'tag'>): string {
+    const normalized = String(template.tag ?? '').trim();
+    return normalized || 'default';
+}
+
+function getTemplateSummary(template: Template): string {
+    return `${template.decorator} · ${getTemplateTagLabel(template)}`;
+}
+
+function getTemplateRegexPreview(template: Template): string {
+    const preview = getPreviewText(String(template.regex ?? ''));
+    return preview || '(no regex)';
+}
+
+function getTemplateContentPreview(template: Template): string {
+    const firstLine = String(template.content ?? '').split(/\r?\n/, 1)[0] ?? '';
+    const preview = getPreviewText(firstLine);
+    return preview || '(empty content)';
+}
+
+function getTemplateDeleteConfirmationText(template: Template): string {
+    return `Delete template ${template.decorator} / ${getTemplateTagLabel(template)}?`;
 }
 
 function buildRequestHeaders(apiKey: string): Record<string, string> {
@@ -1029,12 +1128,101 @@ function buildRegexRow(regex: RegEx, index: number) {
     return row;
 }
 
+function buildTemplateRow(template: Template, index: number) {
+    const row = $('<div class="custom_generation_list_row custom_generation_template_row flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
+    row.attr('draggable', 'true');
+    row.toggleClass('active', index === selectedTemplateIndex);
+
+    const left = $('<div class="flex-container alignItemsCenter flex1 custom_generation_template_row_body"></div>');
+    const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
+    const meta = $('<div class="flex-container flexFlowColumn flex1 custom_generation_template_meta"></div>');
+    const title = $('<div class="custom_generation_template_title"></div>').text(getTemplateSummary(template));
+    const subtitle = $('<div class="custom_generation_template_subtitle"></div>').text(`${template.processor} · ${getTemplateRegexPreview(template)}`);
+    const preview = $('<div class="custom_generation_template_preview"></div>').text(getTemplateContentPreview(template));
+    meta.append(title, subtitle, preview);
+    left.append(dragHandle, meta);
+
+    const actions = $('<div class="flex-container alignItemsCenter"></div>');
+    const editButton = $('<i class="menu_button fa-solid fa-pen-to-square" title="Edit" data-i18n="[title]Edit"></i>');
+    const deleteButton = $('<i class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></i>');
+    actions.append(editButton, deleteButton);
+
+    row.on('click', () => {
+        selectedTemplateIndex = index;
+        updateSettingsUI();
+    });
+
+    editButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        openTemplateEditor(index);
+    });
+
+    deleteButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        const preset = getCurrentPreset();
+        const target = preset.templates[index];
+        if (!target) {
+            return;
+        }
+
+        if (!window.confirm(getTemplateDeleteConfirmationText(target))) {
+            return;
+        }
+
+        preset.templates.splice(index, 1);
+        selectedTemplateIndex = clamp(index, 0, Math.max(0, preset.templates.length - 1));
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    row.on('dragstart', (event: JQuery.TriggeredEvent) => {
+        draggedTemplateIndex = index;
+        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
+        if (nativeEvent?.dataTransfer) {
+            nativeEvent.dataTransfer.effectAllowed = 'move';
+            nativeEvent.dataTransfer.setData('text/plain', String(index));
+        }
+    });
+
+    row.on('dragover', (event: JQuery.TriggeredEvent) => {
+        event.preventDefault();
+    });
+
+    row.on('drop', (event: JQuery.TriggeredEvent) => {
+        event.preventDefault();
+
+        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
+        const payload = Number(nativeEvent?.dataTransfer?.getData('text/plain'));
+        const sourceIndex = Number.isFinite(payload) ? Math.trunc(payload) : draggedTemplateIndex;
+        if (sourceIndex === null) {
+            return;
+        }
+
+        const preset = getCurrentPreset();
+        if (sourceIndex < 0 || sourceIndex >= preset.templates.length || index < 0 || index >= preset.templates.length) {
+            return;
+        }
+
+        moveArrayItem(preset.templates, sourceIndex, index);
+        selectedTemplateIndex = index;
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    row.on('dragend', () => {
+        draggedTemplateIndex = null;
+    });
+
+    row.append(left, actions);
+    return row;
+}
+
 function updatePresetSummary(preset: Preset) {
     const enabledPromptCount = preset.prompts.filter(x => x.enabled === true).length;
     const enabledRegexCount = preset.regexs.filter(x => x.enabled).length;
 
     $('#custom_generation_preset_summary').text(
-        `Prompts: ${preset.prompts.length} (enabled: ${enabledPromptCount}) · Regex: ${preset.regexs.length} (enabled: ${enabledRegexCount})`,
+        `Prompts: ${preset.prompts.length} (enabled: ${enabledPromptCount}) · Regex: ${preset.regexs.length} (enabled: ${enabledRegexCount}) · Templates: ${preset.templates.length}`,
     );
 }
 
@@ -1078,6 +1266,22 @@ function setRegexEditorEnabled(enabled: boolean) {
         '#custom_generation_regex_max_depth',
         '#custom_generation_regex_delete',
         '#custom_generation_regex_save',
+    ];
+
+    for (const selector of selectors) {
+        $(selector).prop('disabled', !enabled);
+    }
+}
+
+function setTemplateEditorEnabled(enabled: boolean) {
+    const selectors = [
+        '#custom_generation_template_decorator',
+        '#custom_generation_template_tag',
+        '#custom_generation_template_processor',
+        '#custom_generation_template_regex',
+        '#custom_generation_template_content',
+        '#custom_generation_template_delete',
+        '#custom_generation_template_save',
     ];
 
     for (const selector of selectors) {
@@ -1157,6 +1361,33 @@ function updateRegexEditor() {
     $('#custom_generation_regex_enable').prop('checked', regex.enabled);
     $('#custom_generation_regex_min_depth').val(regex.minDepth ?? '');
     $('#custom_generation_regex_max_depth').val(regex.maxDepth ?? '');
+
+    isUpdatingUI = false;
+}
+
+function updateTemplateEditor() {
+    const preset = getCurrentPreset();
+    const template = editingTemplateIndex === null ? null : preset.templates[editingTemplateIndex];
+
+    isUpdatingUI = true;
+
+    if (!template) {
+        setTemplateEditorEnabled(false);
+        $('#custom_generation_template_decorator').val(DEFAULT_TEMPLATE_DECORATOR);
+        $('#custom_generation_template_tag').val('');
+        $('#custom_generation_template_processor').val(DEFAULT_TEMPLATE_PROCESSOR);
+        $('#custom_generation_template_regex').val('');
+        $('#custom_generation_template_content').val('');
+        isUpdatingUI = false;
+        return;
+    }
+
+    setTemplateEditorEnabled(true);
+    $('#custom_generation_template_decorator').val(template.decorator);
+    $('#custom_generation_template_tag').val(template.tag);
+    $('#custom_generation_template_processor').val(template.processor);
+    $('#custom_generation_template_regex').val(template.regex);
+    $('#custom_generation_template_content').val(template.content);
 
     isUpdatingUI = false;
 }
@@ -1304,6 +1535,69 @@ function deleteRegexFromEditor(): void {
     saveSettings();
 }
 
+function openTemplateEditor(index: number): void {
+    const preset = getCurrentPreset();
+    if (!preset.templates[index]) {
+        return;
+    }
+
+    editingTemplateIndex = index;
+    selectedTemplateIndex = index;
+    updateTemplateEditor();
+    openDialog('#custom_generation_template_dialog');
+}
+
+function closeTemplateEditor(): void {
+    editingTemplateIndex = null;
+    closeDialog('#custom_generation_template_dialog');
+}
+
+function saveTemplateEditor(): void {
+    const preset = getCurrentPreset();
+    if (editingTemplateIndex === null) {
+        return;
+    }
+
+    const template = preset.templates[editingTemplateIndex];
+    if (!template) {
+        return;
+    }
+
+    template.decorator = normalizeTemplate({ decorator: $('#custom_generation_template_decorator').val() }).decorator;
+    template.tag = String($('#custom_generation_template_tag').val() ?? '');
+    template.processor = normalizeTemplate({ processor: $('#custom_generation_template_processor').val() }).processor;
+    template.regex = String($('#custom_generation_template_regex').val() ?? '');
+    template.content = String($('#custom_generation_template_content').val() ?? '');
+
+    selectedTemplateIndex = editingTemplateIndex;
+    closeTemplateEditor();
+    updateSettingsUI();
+    saveSettings();
+}
+
+function deleteTemplateFromEditor(): void {
+    const preset = getCurrentPreset();
+    if (editingTemplateIndex === null) {
+        return;
+    }
+
+    const template = preset.templates[editingTemplateIndex];
+    if (!template) {
+        return;
+    }
+
+    if (!window.confirm(getTemplateDeleteConfirmationText(template))) {
+        return;
+    }
+
+    const removedIndex = editingTemplateIndex;
+    preset.templates.splice(removedIndex, 1);
+    closeTemplateEditor();
+    selectedTemplateIndex = clamp(removedIndex, 0, Math.max(0, preset.templates.length - 1));
+    updateSettingsUI();
+    saveSettings();
+}
+
 function buildExportPayload(includeApiConnection: boolean): ExportPayload {
     const payload: ExportPayload = {
         version: exportSchemaVersion,
@@ -1415,8 +1709,10 @@ async function importPresetsFromFile(file: File): Promise<void> {
     settings.currentPreset = normalized.currentPreset;
     selectedPromptIndex = 0;
     selectedRegexIndex = 0;
+    selectedTemplateIndex = 0;
     editingPromptIndex = null;
     editingRegexIndex = null;
+    editingTemplateIndex = null;
 
     if (normalized.apiConnection) {
         settings.baseUrl = String(normalized.apiConnection.baseUrl ?? settings.baseUrl);
@@ -1448,6 +1744,24 @@ async function ensureModalTemplatesInjected(): Promise<void> {
 
     if (!$('#custom_generation_regex_dialog').length) {
         $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'regex-modal'));
+    }
+
+    if (!$('#custom_generation_template_dialog').length) {
+        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'template-modal'));
+    }
+
+    const decoratorSelect = $('#custom_generation_template_decorator');
+    if (decoratorSelect.length && decoratorSelect.children().length === 0) {
+        for (const decorator of KNOWN_DECORATORS) {
+            decoratorSelect.append(`<option value="${decorator}">${decorator}</option>`);
+        }
+    }
+
+    const processorSelect = $('#custom_generation_template_processor');
+    if (processorSelect.length && processorSelect.children().length === 0) {
+        for (const processor of KNOWN_PROCESSORS) {
+            processorSelect.append(`<option value="${processor}">${processor}</option>`);
+        }
     }
 }
 
@@ -1662,8 +1976,10 @@ function bindEvents() {
             : 0;
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
+        selectedTemplateIndex = 0;
         editingPromptIndex = null;
         editingRegexIndex = null;
+        editingTemplateIndex = null;
         updateSettingsUI();
         saveSettings();
     });
@@ -1681,8 +1997,10 @@ function bindEvents() {
         settings.currentPreset = settings.presets.length - 1;
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
+        selectedTemplateIndex = 0;
         editingPromptIndex = null;
         editingRegexIndex = null;
+        editingTemplateIndex = null;
         updateSettingsUI();
         saveSettings();
     });
@@ -1695,8 +2013,10 @@ function bindEvents() {
         settings.currentPreset = settings.presets.length - 1;
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
+        selectedTemplateIndex = 0;
         editingPromptIndex = null;
         editingRegexIndex = null;
+        editingTemplateIndex = null;
         updateSettingsUI();
         saveSettings();
     });
@@ -1728,8 +2048,10 @@ function bindEvents() {
         settings.currentPreset = clamp(settings.currentPreset, 0, settings.presets.length - 1);
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
+        selectedTemplateIndex = 0;
         editingPromptIndex = null;
         editingRegexIndex = null;
+        editingTemplateIndex = null;
         updateSettingsUI();
         saveSettings();
     });
@@ -1816,6 +2138,22 @@ function bindEvents() {
         openRegexEditor(selectedRegexIndex);
     });
 
+    $('#custom_generation_add_template').on('click', () => {
+        const preset = getCurrentPreset();
+        preset.templates.push(normalizeTemplate({
+            decorator: '@@record',
+            tag: '',
+            processor: 'replace',
+            regex: '',
+            content: '',
+        }));
+
+        selectedTemplateIndex = preset.templates.length - 1;
+        updateSettingsUI();
+        saveSettings();
+        openTemplateEditor(selectedTemplateIndex);
+    });
+
     $('#custom_generation_prompt_injection_position').on('change', () => {
         if (isUpdatingUI) {
             return;
@@ -1849,12 +2187,28 @@ function bindEvents() {
         deleteRegexFromEditor();
     });
 
+    $('#custom_generation_template_cancel').on('click', () => {
+        closeTemplateEditor();
+    });
+
+    $('#custom_generation_template_save').on('click', () => {
+        saveTemplateEditor();
+    });
+
+    $('#custom_generation_template_delete').on('click', () => {
+        deleteTemplateFromEditor();
+    });
+
     $('#custom_generation_prompt_dialog').on('close', () => {
         editingPromptIndex = null;
     });
 
     $('#custom_generation_regex_dialog').on('close', () => {
         editingRegexIndex = null;
+    });
+
+    $('#custom_generation_template_dialog').on('close', () => {
+        editingTemplateIndex = null;
     });
 }
 
@@ -1905,6 +2259,7 @@ export function updateSettingsUI() {
 
     selectedPromptIndex = clamp(selectedPromptIndex, 0, Math.max(0, currentPreset.prompts.length - 1));
     selectedRegexIndex = clamp(selectedRegexIndex, 0, Math.max(0, currentPreset.regexs.length - 1));
+    selectedTemplateIndex = clamp(selectedTemplateIndex, 0, Math.max(0, currentPreset.templates.length - 1));
 
     isUpdatingUI = true;
 
@@ -1952,6 +2307,16 @@ export function updateSettingsUI() {
         });
     }
 
+    const templateList = $('#custom_generation_template_list');
+    templateList.empty();
+    if (currentPreset.templates.length === 0) {
+        templateList.text(String(templateList.attr('no-items-text') ?? 'No templates'));
+    } else {
+        currentPreset.templates.forEach((template, index) => {
+            templateList.append(buildTemplateRow(template, index));
+        });
+    }
+
     updatePresetSummary(currentPreset);
 
     isUpdatingUI = false;
@@ -1969,6 +2334,14 @@ export function updateSettingsUI() {
             updateRegexEditor();
         } else {
             closeRegexEditor();
+        }
+    }
+
+    if (editingTemplateIndex !== null) {
+        if (currentPreset.templates[editingTemplateIndex]) {
+            updateTemplateEditor();
+        } else {
+            closeTemplateEditor();
         }
     }
 }
