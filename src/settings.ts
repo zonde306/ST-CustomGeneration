@@ -1137,9 +1137,9 @@ function buildTemplateRow(template: Template, index: number) {
     const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
     const meta = $('<div class="flex-container flexFlowColumn flex1 custom_generation_template_meta"></div>');
     const title = $('<div class="custom_generation_template_title"></div>').text(getTemplateSummary(template));
-    const subtitle = $('<div class="custom_generation_template_subtitle"></div>').text(`${template.processor} · ${getTemplateRegexPreview(template)}`);
-    const preview = $('<div class="custom_generation_template_preview"></div>').text(getTemplateContentPreview(template));
-    meta.append(title, subtitle, preview);
+    // const subtitle = $('<div class="custom_generation_template_subtitle"></div>').text(`${template.processor} · ${getTemplateRegexPreview(template)}`);
+    // const preview = $('<div class="custom_generation_template_preview"></div>').text(getTemplateContentPreview(template));
+    meta.append(title/*, subtitle, preview*/);
     left.append(dragHandle, meta);
 
     const actions = $('<div class="flex-container alignItemsCenter"></div>');
