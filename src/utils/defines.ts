@@ -276,3 +276,10 @@ export type GenerateOptionsLite = {
 };
 
 export type ContextRole = 'user' | 'system' | 'assistant';
+
+export interface WorldInfoLoaded {
+    globalLore: WorldInfoEntry[];
+    characterLore: WorldInfoEntry[];
+    chatLore: WorldInfoEntry[];
+    personaLore: WorldInfoEntry[];
+}

@@ -3,8 +3,9 @@ import { getActivatedEntries, DecoratorParser } from '../functions/worldinfo';
 import { chat } from '../../../../../../script.js';
 import { world_info_depth } from '../../../../../world-info.js';
 import { Context } from './context';
-import { WorldInfoEntry } from '../utils/defines.js';
+import { WorldInfoEntry, WorldInfoLoaded } from '../utils/defines.js';
 import { eventTypes } from '../utils/events';
+import { applyPatch } from 'diff';
 
 async function onGenerateEnded() {
     const triggers = chat.slice(-world_info_depth);
@@ -18,61 +19,122 @@ async function onGenerateEnded() {
             continue;
 
         const ctx = new Context(triggers);
+        const record = getRecord(entry) ?? parser.cleanContent;
         const data = {
             prompt: `\
 Based on the above, update the following data documents:
 
-<document>
-${getRecord(entry) ?? parser.cleanContent}
+<document file="${entry.world}/${entry.uid}-${entry.comment}.txt">
+${record}
 </document>
 
-You need to use the \`<document>\` tag to output the updates to the above document.\
+You need to use the \`<patch>\` tag to output the updates to the above document.
+Please strictly use the **unified diff** format (git diff -U3 style) to output your changes.
+It must contain at least 2-3 lines of context.
+Use relative paths for file paths, for example:
+<patch>
+--- ${entry.world}/${entry.uid}-${entry.comment}.txt
++++ ${entry.world}/${entry.uid}-${entry.comment}.txt
+@@ -10,6 +10,7 @@
+ function hello() {
+   console.log("old");
++  console.log("LLM added this line");
+ }
+</patch>
+Do not add any markdown code block descriptions or extra text; only output the pure patch content.\
 `,
             context: ctx,
-            decorators: parser,
+            parsed: parser,
             entry,
         };
 
         await eventSource.emit(eventTypes.RECORD_UPDATING, data);
-
         await ctx.send(data.prompt);
 
         tasks.push({
             context: ctx,
             awaitee: ctx.generate(),
-            world: entry.world,
-            uid: entry.uid,
+            entry,
+            parsed: parser,
         });
-        console.log(`update record ${entry.world}/${entry.uid}`);
+
+        console.debug(`updating record: ${entry.world}/${entry.uid}-${entry.comment} `, record);
     }
 
     const results = await Promise.allSettled(tasks.map(x => x.awaitee));
     for(const [i, result] of results.entries()) {
         if(result.status === 'fulfilled') {
-            const { world, uid } = tasks[i];
+            const { entry, parsed } = tasks[i];
             let content = result.value;
             content = Array.isArray(content) ? content[0] : content;
-            const match = content.match(/<document>([\s\S]+?)<\/document>/);
+            // @ts-expect-error: always string
+            const match = content.match(/<patch>([\s\S]+?)<\/patch>/);
             if(match) {
                 const data = {
-                    world,
-                    uid,
+                    world: entry.world,
+                    uid: entry.uid,
+                    comment: entry.comment,
                     content: match[1],
+                    original: parsed.cleanContent,
                 };
                 await eventSource.emit(eventTypes.RECORD_UPDATED, data);
-                updateRecord(data.world, data.uid, data.content);
-                
-                console.log(`update record ${world}/${uid} done`);
+                const patched = applyPatch(data.original, data.content);
+
+                if(patched) {
+                    updateRecord(data.world, data.uid, patched);
+                    console.log(`record ${entry.world}/${entry.uid}-${entry.comment} updated `, patched);
+                } else {
+                    console.error(`update record ${entry.world}/${entry.uid}-${entry.comment} failed: invalid patch `, data.content);
+                }
             } else {
-                console.error(`update record ${world}/${uid} failed: no response `, content);
+                console.error(`update record ${entry.world}/${entry.uid}-${entry.comment} failed: no response found `, content);
             }
         } else {
-            console.error(`update record ${tasks[i].world}/${tasks[i].uid} error `, result.reason);
+            console.error(`update record ${tasks[i].entry.world}/${tasks[i].entry.uid}-${tasks[i].entry.comment} error `, result.reason);
         }
     }
 }
 
-function getRecord(entry: WorldInfoEntry) {
+async function onWorldinfoLoaded(data: WorldInfoLoaded) {
+    function updateContent(entry: WorldInfoEntry) {
+        const record = getRecord(entry);
+        if(record) {
+            return { ...entry, content: record } as WorldInfoEntry;
+        }
+        return null;
+    }
+
+    for(const idx in data.characterLore) {
+        const entry = updateContent(data.characterLore[idx]);
+        if (entry) {
+            data.characterLore[idx] = entry;
+            console.debug(`update character lore ${entry.world}/${entry.uid}-${entry.comment} to `, entry.content);
+        }
+    }
+    for(const idx in data.chatLore) {
+        const entry = updateContent(data.chatLore[idx]);
+        if (entry) {
+            data.chatLore[idx] = entry;
+            console.debug(`update chat lore ${entry.world}/${entry.uid}-${entry.comment} to `, entry.content);
+        }
+    }
+    for(const idx in data.globalLore) {
+        const entry = updateContent(data.globalLore[idx]);
+        if (entry) {
+            data.globalLore[idx] = entry;
+            console.debug(`update global lore ${entry.world}/${entry.uid}-${entry.comment} to `, entry.content);
+        }
+    }
+    for(const idx in data.personaLore) {
+        const entry = updateContent(data.personaLore[idx]);
+        if (entry) {
+            data.personaLore[idx] = entry;
+            console.debug(`update persona lore ${entry.world}/${entry.uid}-${entry.comment} to `, entry.content);
+        }
+    }
+}
+
+function getRecord(entry: WorldInfoEntry): string | undefined {
     // @ts-expect-error: 2339
     const message = chat.findLast(mes => mes.swipe_info?.[mes.swipe_id ?? 0]?.records?.[`${entry.world}`]?.[`${entry.uid}`]);
     // @ts-expect-error: 2339
@@ -86,4 +148,5 @@ function updateRecord(world: string, uid: number, content: string) {
 
 export async function setup() {
     eventSource.on(event_types.GENERATION_ENDED, onGenerateEnded);
+    eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldinfoLoaded);
 }
