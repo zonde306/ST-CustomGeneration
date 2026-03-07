@@ -34,7 +34,7 @@ ${record}
 
 You need to use the \`<patch>\` tag to output the updates to the above document.
 Please strictly use the **unified diff** format (git diff -U3 style) to output your changes.
-It must contain at least 2-3 lines of context.
+It must contain at least 3-4 lines of context.
 Use relative paths for file paths, for example:
 
 <patch>
@@ -73,7 +73,7 @@ Do not add any markdown code block descriptions or extra text; only output the p
                 await eventSource.emit(eventTypes.RECORD_UPDATED, data);
 
                 try {
-                    const patched = applyPatch(data.source, data.patch, { fuzzFactor: 2 });
+                    const patched = applyPatch(data.source, data.patch, { fuzzFactor: 100 });
 
                     if(patched) {
                         updateRecord(data.world, data.uid, patched);
