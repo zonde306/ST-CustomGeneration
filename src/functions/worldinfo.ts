@@ -294,14 +294,14 @@ interface WorldInfoScanResult {
         loopCount: number;
     };
     new: {
-        all: WorldInfoEntry[];
+        all: Map<string, WorldInfoEntry>;
         successful: WorldInfoEntry[];
     };
     activated: {
-        entries: WorldInfoEntry[];
+        entries: Map<string, WorldInfoEntry>;
         text: string;
     };
-    sortedEntries: WorldInfoEntry[];
+    sortedEntries: Map<string, WorldInfoEntry>;
     recursionDelay: {
         availableLevels: number[];
         currentLevel: number;
@@ -326,7 +326,7 @@ export async function getActivatedEntries(triggerWords: string[], type: string =
     };
 
     return new Promise((resolve, reject) => {
-        eventSource.once(event_types.WORLDINFO_SCAN_DONE, (data: WorldInfoScanResult) => resolve(data.activated.entries));
+        eventSource.once(event_types.WORLDINFO_SCAN_DONE, (data: WorldInfoScanResult) => resolve(Array.from(data.activated.entries.values())));
         getWorldInfoPrompt(triggerWords, getMaxContextSize(), dryRun, globalScanData).catch(reject);
     });
 }

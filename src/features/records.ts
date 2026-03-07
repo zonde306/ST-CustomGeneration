@@ -10,7 +10,6 @@ import { applyPatch } from 'diff';
 async function onGenerateEnded() {
     const triggers = chat.slice(-world_info_depth);
     const activatedEntries = await getActivatedEntries(triggers.map(x => x.mes ?? ''));
-
     const tasks = [];
 
     for(const entry of activatedEntries) {
