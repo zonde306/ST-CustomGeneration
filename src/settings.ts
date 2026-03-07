@@ -1753,14 +1753,14 @@ async function ensureModalTemplatesInjected(): Promise<void> {
     const decoratorSelect = $('#custom_generation_template_decorator');
     if (decoratorSelect.length && decoratorSelect.children().length === 0) {
         for (const decorator of KNOWN_DECORATORS) {
-            decoratorSelect.append(`<option value="${decorator}">${decorator}</option>`);
+            decoratorSelect.append(`<option value="${decorator}" data-i18n="cg-${decorator}">${decorator}</option>`);
         }
     }
 
     const processorSelect = $('#custom_generation_template_processor');
     if (processorSelect.length && processorSelect.children().length === 0) {
         for (const processor of KNOWN_PROCESSORS) {
-            processorSelect.append(`<option value="${processor}">${processor}</option>`);
+            processorSelect.append(`<option value="${processor}" data-i18n="cg-${processor}">${processor}</option>`);
         }
     }
 }

@@ -29,13 +29,23 @@
             <label for="custom_generation_template_regex">
                 <span data-i18n="Regex">Regex</span>
             </label>
-            <textarea id="custom_generation_template_regex" class="text_pole textarea_compact" rows="3"></textarea>
+            <input id="custom_generation_template_regex" class="text_pole textarea_compact" rows="3" />
+            <small class="text_muted" data-i18n="cg_template_regex_help">e.g: /([\s\S]*)/gi</small>
         </div>
         <div class="completion_prompt_manager_popup_entry_form_control">
             <label for="custom_generation_template_content">
                 <span data-i18n="Template Content">Template Content</span>
             </label>
             <textarea id="custom_generation_template_content" class="text_pole textarea_compact" rows="10"></textarea>
+            <small class="text_muted" data-i18n="cg_template_content_help">
+                <ul>
+                    <li data-i18n="cg_template_content_help_1">Use {{original}} to reference the original text.</li>
+                    <li data-i18n="cg_template_content_help_2">Use {{current}} to reference the last processed text.</li>
+                    <li data-i18n="cg_template_content_help_3">Use {{lastCharMessage}} and <strong>{{lastUserMessage}}</strong> to reference the last message text.</li>
+                    <li data-i18n="cg_template_content_help_4">Use {{entry:*}} to reference the current WI entry attributes.</li>
+                    <li data-i18n="cg_template_content_help_5">And all SillyTavern macros are available.</li>
+                </ul>
+            </small>
         </div>
         <div class="flex-container justifySpaceBetween marginTop5">
             <a id="custom_generation_template_delete" class="custom_generation_button fa-solid fa-trash" title="Delete template" data-i18n="[title]Delete template"></a>
