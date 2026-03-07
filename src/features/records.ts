@@ -21,6 +21,13 @@ async function onGenerateEnded() {
             continue;
 
         const ctx = new Context(triggers);
+        ctx.filters = {
+            worldInfoDepth: false,
+            authorsNoteDepth: false,
+            presetDepth: false,
+            charDepth: false,
+        };
+
         const record = getRecord(entry) || parser.cleanContent;
         if(!record.trim()) {
             console.warn(`record ${entry.world}/${entry.uid}-${entry.comment} cannot be empty`);
