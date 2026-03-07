@@ -64,7 +64,17 @@ export async function getWorldInfoEntry(name: string, uid: string | number | Reg
 
     // @ts-expect-error: 2769
     const entry = Object.values(lorebook.entries).find(e => e.uid === uid || e.comment === uid || e.comment.match(uid));
-    return entry ?? null;
+    if(!entry)
+        return null;
+
+    const clone = { ...entry };
+    // modify in place
+    clone.uid = Number(entry.uid);
+    const [ decorators, content ] = parseDecorators(entry.content);
+    clone.decorators = decorators;
+    clone.content = content;
+    clone.world = lore;
+    return clone;
 }
 
 /**
