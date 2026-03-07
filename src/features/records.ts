@@ -26,9 +26,11 @@ async function onGenerateEnded() {
 
         const data = {
             prompt: `\
-Based on the above, update the following data documents (${entry.world}/${entry.uid}-${entry.comment}.txt):
+Based on the above, update the following data documents:
 
+\`\`\`${entry.world}/${entry.uid}-${entry.comment}.txt
 ${record}
+\`\`\`
 
 You need to use the \`<patch>\` tag to output the updates to the above document.
 Please strictly use the **unified diff** format (git diff -U3 style) to output your changes.
@@ -55,21 +57,7 @@ Do not add any markdown code block descriptions or extra text; only output the p
         await eventSource.emit(eventTypes.RECORD_UPDATING, data);
         await ctx.send(data.prompt);
 
-        tasks.push({
-            context: ctx,
-            awaitee: ctx.generate(),
-            entry,
-            record,
-        });
-
-        console.debug(`updating record: ${entry.world}/${entry.uid}-${entry.comment} `, record);
-    }
-
-    const results = await Promise.allSettled(tasks.map(x => x.awaitee));
-    for(const [i, result] of results.entries()) {
-        if(result.status === 'fulfilled') {
-            const { entry, record } = tasks[i];
-            let content = result.value;
+        ctx.generate().then(async(content) => {
             content = Array.isArray(content) ? content[0] : content;
             // @ts-expect-error: always string
             const match = content.match(/<patch>([\s\S]+?)<\/patch>/);
@@ -78,24 +66,37 @@ Do not add any markdown code block descriptions or extra text; only output the p
                     world: entry.world,
                     uid: entry.uid,
                     comment: entry.comment,
-                    content: match[1],
-                    original: record,
+                    patch: match[1],
+                    source: record,
                 };
-                await eventSource.emit(eventTypes.RECORD_UPDATED, data);
-                const patched = applyPatch(data.original, data.content);
 
-                if(patched) {
-                    updateRecord(data.world, data.uid, patched);
-                    console.log(`record ${entry.world}/${entry.uid}-${entry.comment} updated `, patched);
-                } else {
-                    console.error(`update record ${entry.world}/${entry.uid}-${entry.comment} failed: invalid patch `, data.content);
+                await eventSource.emit(eventTypes.RECORD_UPDATED, data);
+
+                try {
+                    const patched = applyPatch(data.source, data.patch, { fuzzFactor: 2 });
+
+                    if(patched) {
+                        updateRecord(data.world, data.uid, patched);
+                        console.log(`record ${entry.world}/${entry.uid}-${entry.comment} updated `, patched);
+                    } else {
+                        console.error(`update record ${entry.world}/${entry.uid}-${entry.comment} failed: invalid patch `, data.patch);
+                    }
+                } catch (err) {
+                    console.error(`update record ${entry.world}/${entry.uid}-${entry.comment} failed: error applying patch `, data.patch, err);
                 }
             } else {
                 console.error(`update record ${entry.world}/${entry.uid}-${entry.comment} failed: no response found `, content);
             }
-        } else {
-            console.error(`update record ${tasks[i].entry.world}/${tasks[i].entry.uid}-${tasks[i].entry.comment} error `, result.reason);
-        }
+        });
+
+        tasks.push({
+            context: ctx,
+            awaitee: ctx.generate(),
+            entry,
+            record,
+        });
+
+        console.debug(`updating record: ${entry.world}/${entry.uid}-${entry.comment} `, record);
     }
 }
 
