@@ -3,18 +3,10 @@ import { extension_settings, renderExtensionTemplateAsync } from '../../../../ex
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '../../../../world-info.js';
 import { generate as runGenerate, ApiConfig } from './functions/generate';
 import { KNOWN_DECORATORS } from './functions/worldinfo';
+import { PROCESSORS } from './functions/template-processor';
 import * as YAML from 'yaml';
 
-// 先假设有，具体实现后续再补
-const KNOWN_PROCESSORS = [
-    "none",
-    "replace",          // 替换原文
-    "diff-patch",       // 用 diff patch 修改原文
-    "ejs",              // 执行代码
-    "var-json",         // 视为 JSON 写入到变量
-    "var-yaml",         // 视为 YAML 写入到变量
-    "var-json-patch",   // 视为 JSON patch 更新变量
-];
+const KNOWN_PROCESSORS = Object.keys(PROCESSORS);
 
 export interface PresetPrompt {
     // A name for this prompt. (displayed in the UI)
@@ -82,7 +74,7 @@ export interface RegEx {
     response: boolean;
 }
 
-interface Template {
+export interface Template {
     // e.g: @@record, must in KNOWN_DECORATORS lists
     decorator: typeof KNOWN_DECORATORS[number];
 
@@ -96,7 +88,7 @@ interface Template {
     regex: string;
 
     // processor name, must in KNOWN_PROCESSORS lists
-    processor: typeof KNOWN_PROCESSORS[number];
+    processor: keyof typeof PROCESSORS;
 }
 
 export interface Preset {
@@ -399,7 +391,7 @@ const exportSchemaVersion = '1.0.0';
 type TemplateDecorator = Template['decorator'];
 type TemplateProcessor = Template['processor'];
 const DEFAULT_TEMPLATE_DECORATOR = (KNOWN_DECORATORS.find(x => x === '@@record') ?? KNOWN_DECORATORS[0] ?? '@@record') as TemplateDecorator;
-const DEFAULT_TEMPLATE_PROCESSOR = (KNOWN_PROCESSORS.find(x => x === 'replace') ?? KNOWN_PROCESSORS[0] ?? 'replace') as TemplateProcessor;
+const DEFAULT_TEMPLATE_PROCESSOR = (KNOWN_PROCESSORS.find(x => x === 'none') ?? KNOWN_PROCESSORS[0] ?? 'none') as TemplateProcessor;
 
 function clone<T>(value: T): T {
     return typeof structuredClone === 'function'

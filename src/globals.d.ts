@@ -1,9 +1,4 @@
 /// <reference path="../../../../../global.d.ts" />
-
-// globals.d.ts
-/** @type {import('lodash').LoDashStatic} */
-declare const _: any;
-/** @type {import('jquery').JQueryStatic} */
-declare const $: any;
-/** @type {import('toastr').Toastr} */
-declare const toastr: any;
+/// <reference types="jquery" />
+/// <reference types="lodash" />
+/// <reference types="toastr" />

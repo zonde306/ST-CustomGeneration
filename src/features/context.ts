@@ -15,6 +15,7 @@ import { MessageBuilder, PromptFilter } from '../functions/message-builder';
 import { ContextRole } from '../utils/defines'
 import { runRegexScript, substitute_find_regex } from "../../../../regex/engine.js";
 import { eventTypes } from '../utils/events';
+import { DynamicMacroValue } from '../../../../../macros/engine/MacroEnv.types.js';
 
 type VariableData = Record<string, any>;
 type ChatMessageEx = ChatMessage & { variables?: VariableData[] };
@@ -36,6 +37,7 @@ interface MacroOverride {
     char?: string;
     original?: string;
     group?: string;
+    macros?: Record<string, DynamicMacroValue>;
 };
 
 export class Context {
@@ -217,6 +219,7 @@ export class Context {
                 dynamicMacros: {
                     lastUserMessage: () => this.chat.findLast(m => m.is_user)?.mes ?? '',
                     lastCharMessage: () => this.chat.findLast(m => !m.is_user && !m.is_system)?.mes ?? '',
+                    ...(this.macroOverride.macros ?? {}),
                 },
             });
         }
@@ -367,5 +370,13 @@ export class Context {
         }
 
         return content;
+    }
+
+    async sendTemplate(content: string, macros: Record<string, DynamicMacroValue>, role: ContextRole = 'user', name: string = name1) {
+        if(!this.macroOverride.macros)
+            this.macroOverride.macros = {};
+        Object.assign(this.macroOverride.macros, macros);
+
+        await this.send(content, role, name);
     }
 }

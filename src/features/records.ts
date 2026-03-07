@@ -5,7 +5,7 @@ import { world_info_depth } from '../../../../../world-info.js';
 import { Context } from './context';
 import { WorldInfoEntry, WorldInfoLoaded } from '../utils/defines.js';
 import { eventTypes } from '../utils/events';
-import { applyPatch } from 'diff';
+import { findTemplate, evaluateTemplate, processTemplate } from '../functions/template';
 
 async function onGenerateEnded() {
     const triggers = chat.slice(-world_info_depth);
@@ -17,10 +17,19 @@ async function onGenerateEnded() {
             continue;
 
         const parser = new DecoratorParser(entry);
-        if(!parser.decorators.includes("@@record") && !entry.comment.includes("@@record"))
+        const idx = parser.decorators.indexOf("@@record");
+        if(idx < 0 && !entry.comment.includes("@@record"))
             continue;
 
+        const template = findTemplate("@@record", parser.arguments[idx] ?? '');
+        if(!template) {
+            console.warn(`record ${entry.world}/${entry.uid}-${entry.comment} cannot find template`);
+            continue;
+        }
+
         const ctx = new Context(triggers);
+
+        // Avoid being distracted by other prompts
         ctx.filters = {
             worldInfoDepth: false,
             authorsNoteDepth: false,
@@ -28,37 +37,20 @@ async function onGenerateEnded() {
             charDepth: false,
         };
 
-        const record = getRecord(entry) || parser.cleanContent;
-        if(!record.trim()) {
+        const recorded = getRecorded(entry) || parser.cleanContent;
+        if(!recorded.trim()) {
             console.warn(`record ${entry.world}/${entry.uid}-${entry.comment} cannot be empty`);
             continue;
         }
 
         const data = {
-            prompt: `\
-Based on the above, update the following data documents:
-
-\`\`\`${entry.world}/${entry.uid}-${entry.comment}.txt
-${record}
-\`\`\`
-
-You need to use the \`<patch>\` tag to output the updates to the above document.
-Please strictly use the **unified diff** format (git diff -U3 style) to output your changes.
-It must contain at least 2-3 lines of context.
-Use relative paths for file paths, for example:
-
-<patch>
---- ${entry.world}/${entry.uid}-${entry.comment}.txt
-+++ ${entry.world}/${entry.uid}-${entry.comment}.txt
-@@ -10,6 +10,7 @@
- function hello() {
-   console.log("old");
-+  console.log("LLM added this line");
- }
-</patch>
-
-Do not add any markdown code block descriptions or extra text; only output the pure patch content.\
-`,
+            prompt: evaluateTemplate(template, {
+                entry,
+                original: parser.cleanContent,
+                current: recorded,
+                lastCharMessage: chat.find(m => !m.is_system && !m.is_user),
+                lastUserMessage: chat.find(m => m.is_user),
+            }),
             context: ctx,
             parsed: parser,
             entry,
@@ -67,45 +59,28 @@ Do not add any markdown code block descriptions or extra text; only output the p
         await eventSource.emit(eventTypes.RECORD_UPDATING, data);
         await ctx.send(data.prompt);
 
-        ctx.generate().then(async(content) => {
-            content = Array.isArray(content) ? content[0] : content;
-            // @ts-expect-error: always string
-            const match = content.match(/<patch>([\s\S]+?)<\/patch>/);
-            if(match) {
-                const data = {
-                    world: entry.world,
-                    uid: entry.uid,
-                    comment: entry.comment,
-                    patch: match[1],
-                    source: record,
-                };
+        ctx.generate().then(async(response) => {
+            const content = (Array.isArray(response) ? response[0] : response) as string;
+            const data = {
+                current: await processTemplate(template, content),
+                last: recorded,
+                original: parser.cleanContent,
+            };
 
+            if (data.current) {
                 await eventSource.emit(eventTypes.RECORD_UPDATED, data);
-
-                try {
-                    const patched = applyPatch(data.source, data.patch, { fuzzFactor: 100 });
-
-                    if(patched) {
-                        updateRecord(data.world, data.uid, patched);
-                        console.log(`record ${entry.world}/${entry.uid}-${entry.comment} updated `, patched);
-                    } else {
-                        console.error(`update record ${entry.world}/${entry.uid}-${entry.comment} failed: invalid patch `, data.patch);
-                    }
-                } catch (err) {
-                    console.error(`update record ${entry.world}/${entry.uid}-${entry.comment} failed: error applying patch `, data.patch, err);
-                }
-            } else {
-                console.error(`update record ${entry.world}/${entry.uid}-${entry.comment} failed: no response found `, content);
+                setRecord(entry.world, entry.uid, data.current);
+                console.debug(`updated record: ${entry.world}/${entry.uid}-${entry.comment} `, data);
             }
         });
 
-        console.debug(`updating record: ${entry.world}/${entry.uid}-${entry.comment} `, record);
+        console.debug(`updating record: ${entry.world}/${entry.uid}-${entry.comment} `, recorded);
     }
 }
 
 async function onWorldinfoLoaded(data: WorldInfoLoaded) {
     function updateContent(entry: WorldInfoEntry): WorldInfoEntry | null {
-        const record = getRecord(entry);
+        const record = getRecorded(entry);
         if(record) {
             return { ...entry, content: record } as WorldInfoEntry;
         }
@@ -142,17 +117,19 @@ async function onWorldinfoLoaded(data: WorldInfoLoaded) {
     }
 }
 
-function getRecord(entry: WorldInfoEntry): string | undefined {
+function getRecorded(entry: WorldInfoEntry): string | undefined {
     // @ts-expect-error: 2339
     const message = chat.findLast(mes => mes.swipe_info?.[mes.swipe_id ?? 0]?.records?.[`${entry.world}`]?.[`${entry.uid}`]);
     // @ts-expect-error: 2339
     return message?.swipe_info?.[message.swipe_id ?? 0]?.records?.[`${entry.world}`]?.[`${entry.uid}`];
 }
 
-function updateRecord(world: string, uid: number, content: string) {
+function setRecord(world: string, uid: number, content: string) {
     const last = chat[chat.length - 1];
     _.set(last, ['swipe_info', last.swipe_id ?? 0, 'records', world, uid], content);
 }
+
+
 
 export async function setup() {
     eventSource.on(event_types.GENERATION_ENDED, onGenerateEnded);
