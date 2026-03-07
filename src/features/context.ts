@@ -214,6 +214,10 @@ export class Context {
                 name2Override: this.macroOverride.char,
                 original: this.macroOverride.original,
                 groupOverride: this.macroOverride.group,
+                dynamicMacros: {
+                    lastUserMessage: () => this.chat.findLast(m => m.is_user)?.mes ?? '',
+                    lastCharMessage: () => this.chat.findLast(m => !m.is_user && !m.is_system)?.mes ?? '',
+                },
             });
         }
 
