@@ -14,7 +14,7 @@ async function onGenerateEnded() {
 
     for(const entry of activatedEntries) {
         const parser = new DecoratorParser(entry);
-        if(parser.decorators.length < 1 || !parser.decorators.includes("@@record"))
+        if(!parser.decorators.includes("@@record") && !entry.comment.includes("@@record"))
             continue;
 
         const ctx = new Context(triggers);
