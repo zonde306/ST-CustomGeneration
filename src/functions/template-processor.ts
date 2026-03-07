@@ -26,7 +26,7 @@ async function diffPatchProcessor(_cur: RegExpExecArray, _org: string): Promise<
     try {
         return applyPatch(_org, _cur[1], { fuzzFactor: 999 }) || '';
     } catch (err) {
-        console.error(`apply diff patch failed: ${err}`);
+        console.error(`apply diff patch failed: `, err, _cur[1]);
         return '';
     }
 }
@@ -43,7 +43,7 @@ async function ejsProcessor(_cur: RegExpExecArray, _org: string): Promise<string
     try {
         return ejs.evalTemplate(_cur[0], ctx) as string;
     } catch (err) {
-        console.error(`eval ejs template failed: ${err}`);
+        console.error(`eval ejs template failed: `, err, _cur[0]);
         return '';
     }
 }
@@ -53,7 +53,7 @@ async function varYamlProcessor(_cur: RegExpExecArray, _org: string): Promise<st
     try {
         doc = YAML.parse(_cur[1]);
     } catch(e) {
-        console.error(`parse YAML failed: ${e}`);
+        console.error(`parse YAML failed: `, e);
         return '';
     }
     
@@ -81,7 +81,7 @@ async function varJsonProcessor(_cur: RegExpExecArray, _org: string): Promise<st
     try {
         doc = JSON.parse(jsonrepair(_cur[1]));
     } catch(e) {
-        console.error(`parse JSON failed: ${e}`);
+        console.error(`parse JSON failed: `, e);
         return '';
     }
 
@@ -109,7 +109,7 @@ async function varJsonPatchProcessor(_cur: RegExpExecArray, _org: string): Promi
     try {
         doc = JSON.parse(jsonrepair(_cur[1]));
     } catch(e) {
-        console.error(`parse JSON failed: ${e}`);
+        console.error(`parse JSON failed: `, e);
         return '';
     }
     
