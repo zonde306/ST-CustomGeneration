@@ -10,7 +10,6 @@ import { applyPatch } from 'diff';
 async function onGenerateEnded() {
     const triggers = chat.slice(-world_info_depth);
     const activatedEntries = await getActivatedEntries(triggers.map(x => x.mes ?? ''));
-    const tasks = [];
 
     for(const entry of activatedEntries) {
         const parser = new DecoratorParser(entry);
@@ -34,7 +33,7 @@ ${record}
 
 You need to use the \`<patch>\` tag to output the updates to the above document.
 Please strictly use the **unified diff** format (git diff -U3 style) to output your changes.
-It must contain at least 3-4 lines of context.
+It must contain at least 2-3 lines of context.
 Use relative paths for file paths, for example:
 
 <patch>
@@ -87,13 +86,6 @@ Do not add any markdown code block descriptions or extra text; only output the p
             } else {
                 console.error(`update record ${entry.world}/${entry.uid}-${entry.comment} failed: no response found `, content);
             }
-        });
-
-        tasks.push({
-            context: ctx,
-            awaitee: ctx.generate(),
-            entry,
-            record,
         });
 
         console.debug(`updating record: ${entry.world}/${entry.uid}-${entry.comment} `, record);
