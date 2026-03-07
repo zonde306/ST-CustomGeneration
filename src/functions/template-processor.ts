@@ -11,6 +11,7 @@ export const PROCESSORS = {
     "var-yaml": varYamlProcessor,
     "var-json": varJsonProcessor,
     "var-json-patch": varJsonPatchProcessor,
+    "append-message": appendMessageProcessor,
 };
 
 async function noneProcessor(_cur: RegExpExecArray, _org: string): Promise<string> {
@@ -129,6 +130,18 @@ async function varJsonPatchProcessor(_cur: RegExpExecArray, _org: string): Promi
     message.variables[message.swipe_id ?? 0] = result;
     
     return JSON.stringify(result);
+}
+
+async function appendMessageProcessor(_cur: RegExpExecArray, _org: string): Promise<string> {
+    const message = chat[chat.length - 1];
+    message.mes += "\n" + _cur[1];
+    if(!message.swipes)
+        message.swipes = [];
+    if(!message.swipes[message.swipe_id ?? 0])
+        message.swipes[message.swipe_id ?? 0] = '';
+
+    message.swipes[message.swipe_id ?? 0] += "\n" + _cur[1];
+    return '';
 }
 
 
