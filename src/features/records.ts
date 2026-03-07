@@ -129,8 +129,6 @@ function setRecord(world: string, uid: number, content: string) {
     _.set(last, ['swipe_info', last.swipe_id ?? 0, 'records', world, uid], content);
 }
 
-
-
 export async function setup() {
     eventSource.on(event_types.GENERATION_ENDED, onGenerateEnded);
     eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldinfoLoaded);

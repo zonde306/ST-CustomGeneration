@@ -775,6 +775,7 @@ function getTemplateSummary(template: Template): string {
     return `${template.decorator} · ${getTemplateTagLabel(template)}`;
 }
 
+/*
 function getTemplateRegexPreview(template: Template): string {
     const preview = getPreviewText(String(template.regex ?? ''));
     return preview || '(no regex)';
@@ -785,6 +786,7 @@ function getTemplateContentPreview(template: Template): string {
     const preview = getPreviewText(firstLine);
     return preview || '(empty content)';
 }
+*/
 
 function getTemplateDeleteConfirmationText(template: Template): string {
     return `Delete template ${template.decorator} / ${getTemplateTagLabel(template)}?`;
@@ -1555,8 +1557,10 @@ function saveTemplateEditor(): void {
         return;
     }
 
+    // @ts-expect-error
     template.decorator = normalizeTemplate({ decorator: $('#custom_generation_template_decorator').val() }).decorator;
     template.tag = String($('#custom_generation_template_tag').val() ?? '');
+    // @ts-expect-error
     template.processor = normalizeTemplate({ processor: $('#custom_generation_template_processor').val() }).processor;
     template.regex = String($('#custom_generation_template_regex').val() ?? '');
     template.content = String($('#custom_generation_template_content').val() ?? '');

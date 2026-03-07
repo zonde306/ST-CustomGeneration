@@ -286,19 +286,19 @@ export function jsonPatch(doc: object, patches: JsonPatch): object {
             }
 
             case 'move': {
-                const valueToMove = _.get(newDoc, fromPath);
+                const valueToMove = _.get(newDoc, fromPath!);
                 if (_.isUndefined(valueToMove)) {
                     toastr.error(`Cannot move from a non-existent path: "${patch.from}"`, 'JSON Patch');
                     break;
                 }
                 // Important: remove *before* setting, in case the destination is a child of the source.
-                _.unset(newDoc, fromPath);
+                _.unset(newDoc, fromPath!);
                 _.set(newDoc, lodashPath, valueToMove);
                 break;
             }
 
             case 'copy': {
-                const valueToCopy = _.get(newDoc, fromPath);
+                const valueToCopy = _.get(newDoc, fromPath!);
                 if (_.isUndefined(valueToCopy)) {
                     toastr.error(`Cannot copy from a non-existent path: "${patch.from}"`, 'JSON Patch');
                     break;
