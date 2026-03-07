@@ -48,6 +48,26 @@ export async function loadWorldInfoEntries(name?: string): Promise<WorldInfoEntr
 }
 
 /**
+ * Get a WI entry by name and uid
+ * @param name WI name
+ * @param uid entry uid
+ * @returns WI entry or null if not found
+ */
+export async function getWorldInfoEntry(name: string, uid: string | number | RegExp): Promise<WorldInfoEntry | null> {
+    // @ts-expect-error
+    const lore = (name || characters[this_chid]?.data?.extensions?.world || power_user.persona_description_lorebook || chat_metadata[METADATA_KEY] || '') as string;
+    const lorebook = await loadWorldInfo(lore) as LoreBook;
+    if (!lorebook) {
+        console.error(`lorebook not found: ${lore} (${name})`);
+        return null;
+    }
+
+    // @ts-expect-error: 2769
+    const entry = Object.values(lorebook.entries).find(e => e.uid === uid || e.comment === uid || e.comment.match(uid));
+    return entry ?? null;
+}
+
+/**
  * Get all enabled WI entries in the current context and sort them
  * @param char includes character Primary Lorebook
  * @param global includes Active World(s) for all chats

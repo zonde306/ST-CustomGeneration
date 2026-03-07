@@ -1,5 +1,5 @@
 import { eventSource, event_types } from '../../../../../events.js';
-import { getActivatedEntries, DecoratorParser } from '../functions/worldinfo';
+import { getActivatedEntries, DecoratorParser, getWorldInfoEntry } from '../functions/worldinfo';
 import { chat } from '../../../../../../script.js';
 import { world_info_depth } from '../../../../../world-info.js';
 import { Context } from './context';
@@ -11,7 +11,11 @@ async function onGenerateEnded() {
     const triggers = chat.slice(-world_info_depth);
     const activatedEntries = await getActivatedEntries(triggers.map(x => x.mes ?? ''));
 
-    for(const entry of activatedEntries) {
+    for(const ent of activatedEntries) {
+        const entry = await getWorldInfoEntry(ent.world, ent.uid);
+        if(entry == null)
+            continue;
+
         const parser = new DecoratorParser(entry);
         if(!parser.decorators.includes("@@record") && !entry.comment.includes("@@record"))
             continue;
