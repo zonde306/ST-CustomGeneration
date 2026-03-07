@@ -43,6 +43,11 @@ export interface PromptFilter {
     worldInfoBefore?: boolean | string | string[] | ChatCompletionMessage[];
     worldInfoAfter?: boolean | string | string[] | ChatCompletionMessage[];
     chatHistory?: boolean | string | string[] | ChatCompletionMessage[];
+    worldInfoDepth?: boolean;
+    authorsNoteDepth?: boolean;
+    presetDepth?: boolean;
+    charDepth?: boolean;
+    worldInfoOutlet?: boolean;
 }
 
 export class MessageBuilder {
@@ -123,6 +128,7 @@ export class MessageBuilder {
             const messages = [...historyMessages];
             const authorNoteRange = this.#insertAuthorsNoteByMetadata(messages, null);
             this.#insertWorldInfoAroundAuthorsNote(messages, prompts, authorNoteRange);
+            this.#assignOutletMacros(messages);
             return this.#postprocessMessages(messages);
         }
 
@@ -192,6 +198,7 @@ export class MessageBuilder {
 
         const authorNoteRange = this.#insertAuthorsNoteByMetadata(messages, mainPromptRange);
         this.#insertWorldInfoAroundAuthorsNote(messages, prompts, authorNoteRange);
+        this.#assignOutletMacros(messages);
         return this.#postprocessMessages(messages);
     }
 
@@ -390,11 +397,20 @@ export class MessageBuilder {
         this.#removeDepthPrompts();
         this.#flushWIInjections();
 
-        this.#injectPresetDepthPrompts(prompts, historyMessages);
-        this.#injectCharacterDepthPrompt(prompts.charDepthPrompt);
-        this.#injectWorldInfoDepth(prompts.worldInfoDepth);
-        this.#injectOutletEntries(prompts.worldInfoOutletEntries);
-        this.#injectAuthorsNoteDepthPrompt();
+        if(this.filters.presetDepth !== false)
+            this.#injectPresetDepthPrompts(prompts, historyMessages);
+
+        if(this.filters.charDepth !== false)
+            this.#injectCharacterDepthPrompt(prompts.charDepthPrompt);
+
+        if(this.filters.worldInfoDepth !== false)
+            this.#injectWorldInfoDepth(prompts.worldInfoDepth);
+
+        if(this.filters.worldInfoOutlet !== false)
+            this.#injectOutletEntries(prompts.worldInfoOutletEntries);
+
+        if(this.filters.authorsNoteDepth !== false)
+            this.#injectAuthorsNoteDepthPrompt();
     }
 
     #injectPresetDepthPrompts(prompts: PromptContext, historyMessages: ChatCompletionMessage[]) {
@@ -840,5 +856,19 @@ export class MessageBuilder {
         }
 
         return examples;
+    }
+
+    getOutletPrompt(key: string): string {
+        const value = this.extensionPrompts[inject_ids.CUSTOM_WI_OUTLET(key)]?.value;
+        return value || '';
+    }
+
+    #assignOutletMacros(history: ChatCompletionMessage[]) {
+        const self = this;
+        for(const message of history) {
+            if(message.content.includes('{{outlet::')) {
+                message.content = message.content.replace(/\{\{outlet::(.+?)\}\}/gi, (_, key: string) => self.getOutletPrompt(key));
+            }
+        }
     }
 }
