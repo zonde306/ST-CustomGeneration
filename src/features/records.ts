@@ -26,11 +26,9 @@ async function onGenerateEnded() {
 
         const data = {
             prompt: `\
-Based on the above, update the following data documents:
+Based on the above, update the following data documents (${entry.world}/${entry.uid}-${entry.comment}.txt):
 
-<document file="${entry.world}/${entry.uid}-${entry.comment}.txt">
 ${record}
-</document>
 
 You need to use the \`<patch>\` tag to output the updates to the above document.
 Please strictly use the **unified diff** format (git diff -U3 style) to output your changes.
