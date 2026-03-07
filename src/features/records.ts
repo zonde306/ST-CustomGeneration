@@ -19,7 +19,12 @@ async function onGenerateEnded() {
             continue;
 
         const ctx = new Context(triggers);
-        const record = getRecord(entry) ?? parser.cleanContent;
+        const record = getRecord(entry) || parser.cleanContent;
+        if(!record.trim()) {
+            console.warn(`record ${entry.world}/${entry.uid}-${entry.comment} cannot be empty`);
+            continue;
+        }
+
         const data = {
             prompt: `\
 Based on the above, update the following data documents:
@@ -32,6 +37,7 @@ You need to use the \`<patch>\` tag to output the updates to the above document.
 Please strictly use the **unified diff** format (git diff -U3 style) to output your changes.
 It must contain at least 2-3 lines of context.
 Use relative paths for file paths, for example:
+
 <patch>
 --- ${entry.world}/${entry.uid}-${entry.comment}.txt
 +++ ${entry.world}/${entry.uid}-${entry.comment}.txt
@@ -41,6 +47,7 @@ Use relative paths for file paths, for example:
 +  console.log("LLM added this line");
  }
 </patch>
+
 Do not add any markdown code block descriptions or extra text; only output the pure patch content.\
 `,
             context: ctx,
@@ -55,7 +62,7 @@ Do not add any markdown code block descriptions or extra text; only output the p
             context: ctx,
             awaitee: ctx.generate(),
             entry,
-            parsed: parser,
+            record,
         });
 
         console.debug(`updating record: ${entry.world}/${entry.uid}-${entry.comment} `, record);
@@ -64,7 +71,7 @@ Do not add any markdown code block descriptions or extra text; only output the p
     const results = await Promise.allSettled(tasks.map(x => x.awaitee));
     for(const [i, result] of results.entries()) {
         if(result.status === 'fulfilled') {
-            const { entry, parsed } = tasks[i];
+            const { entry, record } = tasks[i];
             let content = result.value;
             content = Array.isArray(content) ? content[0] : content;
             // @ts-expect-error: always string
@@ -75,7 +82,7 @@ Do not add any markdown code block descriptions or extra text; only output the p
                     uid: entry.uid,
                     comment: entry.comment,
                     content: match[1],
-                    original: parsed.cleanContent,
+                    original: record,
                 };
                 await eventSource.emit(eventTypes.RECORD_UPDATED, data);
                 const patched = applyPatch(data.original, data.content);
@@ -96,7 +103,7 @@ Do not add any markdown code block descriptions or extra text; only output the p
 }
 
 async function onWorldinfoLoaded(data: WorldInfoLoaded) {
-    function updateContent(entry: WorldInfoEntry) {
+    function updateContent(entry: WorldInfoEntry): WorldInfoEntry | null {
         const record = getRecord(entry);
         if(record) {
             return { ...entry, content: record } as WorldInfoEntry;
@@ -138,7 +145,7 @@ function getRecord(entry: WorldInfoEntry): string | undefined {
     // @ts-expect-error: 2339
     const message = chat.findLast(mes => mes.swipe_info?.[mes.swipe_id ?? 0]?.records?.[`${entry.world}`]?.[`${entry.uid}`]);
     // @ts-expect-error: 2339
-    return message?.swipe_info?.[mes.swipe_id ?? 0]?.records?.[`${entry.world}`]?.[`${entry.uid}`];
+    return message?.swipe_info?.[message.swipe_id ?? 0]?.records?.[`${entry.world}`]?.[`${entry.uid}`];
 }
 
 function updateRecord(world: string, uid: number, content: string) {
