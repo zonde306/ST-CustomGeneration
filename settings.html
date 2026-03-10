@@ -102,6 +102,11 @@
                         </label>
                         <input id="custom_generation_presence_penalty" class="text_pole" type="number" min="-2" max="2" step="0.01" />
 
+                        <label class="checkbox_label marginTop5" for="custom_generation_stream">
+                            <input id="custom_generation_stream" type="checkbox" />
+                            <span data-i18n="Streaming">Streaming</span>
+                        </label>
+
                         <label for="custom_generation_include_headers_yaml">
                             <small data-i18n="Include Request Headers">Request Headers (YAML)</small>
                         </label>
@@ -156,8 +161,8 @@
                     <span data-i18n="openaipresets">Presets</span>
                 </h3>
             </div>
+            <select id="custom_generation_preset_select" class="text_pole flex1"></select>
             <div class="flex-container marginTop5">
-                <select id="custom_generation_preset_select" class="text_pole flex1"></select>
                 <i id="custom_generation_preset_new" class="custom_generation_button fa-solid fa-file-circle-plus" title="Create preset" data-i18n="[title]Create preset"></i>
                 <i id="custom_generation_preset_duplicate" class="custom_generation_button fa-solid fa-clone" title="Duplicate preset" data-i18n="[title]Save preset as"></i>
                 <i id="custom_generation_preset_rename" class="custom_generation_button fa-solid fa-pencil" title="Rename preset" data-i18n="[title]Rename current preset"></i>

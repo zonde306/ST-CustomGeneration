@@ -1819,6 +1819,11 @@ function bindEvents() {
         saveSettings();
     });
 
+    $('#custom_generation_stream').on('change', () => {
+        settings.stream = Boolean($('#custom_generation_stream').prop('checked'));
+        saveSettings();
+    });
+
     $('#custom_generation_model_select').on('change', () => {
         const value = String($('#custom_generation_model_select').val() ?? '').trim();
         if (!value) {
@@ -2269,6 +2274,7 @@ export function updateSettingsUI() {
     $('#custom_generation_top_p').val(settings.topP);
     $('#custom_generation_frequency_penalty').val(settings.frequencyPenalty);
     $('#custom_generation_presence_penalty').val(settings.presencePenalty);
+    $('#custom_generation_stream').prop('checked', settings.stream);
     $('#custom_generation_prompt_post_processing').val(settings.promptPostProcessing);
     $('#custom_generation_include_headers_yaml').val(stringifyYamlRecord(settings.includeHeaders));
     $('#custom_generation_include_body_yaml').val(stringifyYamlRecord(settings.includeBody));
