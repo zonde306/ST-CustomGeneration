@@ -27,7 +27,7 @@ interface GenerateOptionsLite {
     dontCreate?: boolean;
     allResponses?: boolean;
     apiConfig?: Partial<ApiConfig>;
-    preset?: Preset;
+    preset?: string;
     streaming?: boolean;
     context?: Context;
 };
@@ -44,7 +44,7 @@ export class Context {
     public chat: ChatMessageEx[];
     public chat_metadata: ChatMetadataEx;
     public isGlobal: boolean;
-    public presetOverride?: Preset;
+    public presetOverride?: string;
     public apiOverride: Partial<ApiConfig>;
     public macroOverride: MacroOverride;
     public filters: PromptFilter;
@@ -174,6 +174,13 @@ export class Context {
         return this.chat_metadata.variables ?? {};
     }
 
+    get currentPreset(): Preset {
+        let preset = settings.presets[settings.currentPreset] ?? defaultPreset;
+        if(typeof this.presetOverride === 'string')
+            preset = settings.presets.find(p => p.name === this.presetOverride) ?? preset;
+        return preset;
+    }
+
     async generate(type: string = 'normal', options: GenerateOptionsLite = {}, dryRun: boolean = false): Promise<string | string[] | AsyncGenerator<{ swipe: number, text: string } | string>> {
         console.log('Generate entered');
 
@@ -198,7 +205,7 @@ export class Context {
                 await deleteLastMessage();
             } else {
                 this.chat.length = this.chat.length - 1;
-                await eventSource.emit('cg_message_deleted', this.chat.length);
+                await eventSource.emit(eventTypes.MESSAGE_DELETED, this.chat.length);
             }
         }
 
@@ -206,7 +213,11 @@ export class Context {
             this.send('Continue');
         }
 
-        const builder = new MessageBuilder(this.chat, options.preset ?? this.presetOverride);
+        let preset : Preset | undefined = this.currentPreset;
+        if(options.preset)
+            preset = settings.presets.find(p => p.name === options.preset);
+
+        const builder = new MessageBuilder(this.chat, preset);
         builder.filters = this.filters;
         const messages = await builder.build(type, dryRun);
 
@@ -340,9 +351,8 @@ export class Context {
         return controller;
     }
 
-    #applyRegex(content: string, { user, assistant, request, response } = {} as { user?: boolean, assistant?: boolean, request?: boolean, response?: boolean }): string {
-        const preset = this.presetOverride ?? settings.presets[settings.currentPreset] ?? defaultPreset;
-        for(const regex of preset.regexs) {
+    #applyRegex(content: string, { user, assistant, request, response, preset } = {} as { user?: boolean, assistant?: boolean, request?: boolean, response?: boolean, preset?: Preset }): string {
+        for(const regex of preset?.regexs ?? this.currentPreset.regexs) {
             if(!regex.enabled || !regex.ephemerality)
                 continue;
 

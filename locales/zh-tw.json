@@ -17,5 +17,12 @@
 	"Regex": "正則",
 	"Template Content": "模板內容",
 	"Add template": "新增模板",
-	"Delete template": "刪除模板"
+	"Delete template": "刪除模板",
+	"Linked Card Presets": "卡片預設綁定",
+	"Embed card presets help": "選擇要綁定到此角色卡的預設。之後可從卡片匯入這些預設。",
+	"No presets": "沒有預設",
+	"Link to Preset": "綁定預設",
+	"Import Card Preset": "匯入卡片預設",
+	"Import linked presets confirmation": "是否從該角色卡匯入已綁定的預設？同名預設將被覆蓋。",
+	"No linked presets": "該角色卡沒有已綁定的預設。"
 }

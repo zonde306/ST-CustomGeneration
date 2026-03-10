@@ -1,0 +1,87 @@
+<dialog id="custom_generation_embed_card_dialog">
+    <form class="completion_prompt_manager_popup_entry_form flex-container flexFlowColumn" method="dialog" onsubmit="return false;">
+        <div class="completion_prompt_manager_popup_header">
+            <label for="custom_generation_embed_card_list">
+                <span data-i18n="Linked Card Presets">Linked Card Presets</span>
+            </label>
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <small class="text_muted" data-i18n="Embed card presets help">Select presets to link to this character card. Linked presets can be imported later.</small>
+        </div>
+        <div id="custom_generation_embed_card_list" class="flex-container flexFlowColumn" no-items-text="No presets" data-i18n="[no-items-text]No presets"></div>
+        <div class="flex-container justifySpaceBetween marginTop5">
+            <div></div>
+            <div class="flex-container">
+                <button id="custom_generation_embed_card_cancel" class="custom_generation_button" type="button" data-i18n="Cancel">Cancel</button>
+                <button id="custom_generation_embed_card_save" class="custom_generation_button" type="button" data-i18n="Save">Save</button>
+            </div>
+        </div>
+    </form>
+    <style>
+        #custom_generation_embed_card_dialog .completion_prompt_manager_popup_entry_form {
+            width: min(640px, 92vw);
+            max-width: 92vw;
+            box-sizing: border-box;
+        }
+
+        #custom_generation_embed_card_list {
+            width: 100%;
+            max-width: 100%;
+            align-items: stretch;
+            gap: 6px;
+        }
+
+        #custom_generation_embed_card_list > * {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .cg_embed_card_row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--SmartThemeBorderColor);
+            border-radius: 5px;
+            padding: 4px 6px;
+        }
+
+        .cg_embed_card_name {
+            min-width: 0;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .cg_embed_card_badge {
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+
+        .custom_generation_button {
+            color: var(--SmartThemeBodyColor);
+            filter: grayscale(0.5);
+            background-color: var(--SmartThemeBlurTintColor);
+            border: 1px solid var(--SmartThemeBorderColor);
+            border-radius: 5px;
+            padding: 3px 8px;
+            cursor: pointer;
+            margin: 5px 0;
+            transition: var(--animation-duration-2x);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            text-align: center;
+            min-width: 72px;
+            width: auto;
+            text-decoration: none;
+        }
+
+        .custom_generation_button:hover,
+        .custom_generation_button:active {
+            background-color: var(--white30a);
+        }
+    </style>
+</dialog>
