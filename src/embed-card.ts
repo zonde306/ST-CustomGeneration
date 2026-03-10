@@ -2,6 +2,10 @@ import { characters, this_chid, saveCharacterDebounced } from "../../../../../sc
 import { Preset, settings, saveSettings, updateSettingsUI } from './settings'
 import { eventSource, event_types } from "../../../../events.js";
 import { renderExtensionTemplateAsync } from '../../../../extensions.js';
+import { v1CharData } from "../../../../char-data.js";
+import { power_user } from "../../../../power-user.js";
+import { accountStorage } from "../../../../util/AccountStorage.js";
+import { callGenericPopup, POPUP_TYPE } from "../../../../popup.js";
 
 let isEmbedCardEventsBound = false;
 
@@ -18,6 +22,8 @@ function createSelectOption() {
         select.append(`<option id="cg-card-link" data-i18n="Link to Preset">Link to Preset</option>`);
         select.append(`<option id="cg-card-import" data-i18n="Import Card Preset">Import Card Preset</option>`);
     }
+
+    window.setTimeout(checkEmbeddedPreset, 1000);
 }
 
 async function selectEventHandler(e: JQuery.ChangeEvent<HTMLElement>) {
@@ -178,18 +184,27 @@ async function popupLinkedToCard(chid?: number) {
 function setLinkedToCard(presets: Preset[], chid?: number) {
     const currentChid = chid ?? this_chid;
     const character = characters[Number(currentChid)];
-    if(!character)
+    if(!character) {
+        console.error(`Character ${currentChid} not found`);
         return;
+    }
 
     // @ts-expect-error: 2339
     character.data.extensions.cg_embed_presets = presets;
+
+    const jsonData = JSON.parse(character.json_data) as v1CharData;
+    // @ts-expect-error: 2339
+    jsonData.data.extensions.cg_embed_presets = presets;
+    character.json_data = JSON.stringify(jsonData);
 }
 
 async function importCardPreset(chid?: number) {
     const currentChid = chid ?? this_chid;
     const character = characters[Number(currentChid)];
-    if(!character)
+    if(!character) {
+        console.error(`Character ${currentChid} not found`);
         return;
+    }
 
     // @ts-expect-error: 2339
     const linkedPresets = normalizeLinkedPresets(character.data.extensions.cg_embed_presets);
@@ -198,7 +213,7 @@ async function importCardPreset(chid?: number) {
         return;
     }
 
-    if (!window.confirm(t('Import linked presets confirmation', 'Import linked presets from this character card? Existing presets with the same name will be overwritten.'))) {
+    if (!await popupImportCardPreset()) {
         return;
     }
 
@@ -214,4 +229,45 @@ async function importCardPreset(chid?: number) {
 
     updateSettingsUI();
     saveSettings();
+}
+
+async function checkEmbeddedPreset(chid?: number) {
+    const currentChid = chid ?? this_chid;
+    const character = characters[Number(currentChid)];
+    if(!character) {
+        console.error(`Character ${currentChid} not found`);
+        return;
+    }
+
+    // @ts-expect-error: 2339
+    const embedded = character.data.extensions.cg_embed_presets as Preset[];
+    if(!embedded || embedded.length < 1)
+        return;
+
+    // Only show the alert once per character
+    const checkKey = `AlertCG_${character.avatar}`;
+    const names = new Set<string>(embedded.map(preset => preset.name));
+    if (!accountStorage.getItem(checkKey) && settings.presets.some(preset => names.has(preset.name))) {
+        accountStorage.setItem(checkKey, 'true');
+
+        if (power_user.world_import_dialog) {
+            if(await popupImportCardPreset()) {
+                importCardPreset(Number(currentChid));
+            }
+        }
+    }
+}
+
+async function popupImportCardPreset(): Promise<string | number | boolean | null> {
+    return new Promise((resolve) => {
+        const html = `<h3>This character has an embedded Preset.</h3>
+        <h3>Would you like to import it now?</h3>
+        <div class="m-b-1">If you want to import it later, select "Import Card Preset" in the "More..." dropdown menu on the character panel.</div>`;
+        const checkResult = (value: string | number | boolean | null) => {
+            if (value) {
+                resolve(value);
+            }
+        };
+        callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: 'Yes' }).then(checkResult);
+    });
 }
