@@ -196,6 +196,17 @@ function setLinkedToCard(presets: Preset[], chid?: number) {
     // @ts-expect-error: 2339
     jsonData.data.extensions.cg_embed_presets = presets;
     character.json_data = JSON.stringify(jsonData);
+
+    const form = $('#form_create').get(0);
+    if(form) {
+        const input = $(form).find("[name=json_data]");
+        if(input) {
+            const data = JSON.parse(input.val() as string) as v1CharData;
+            // @ts-expect-error: 2339
+            data.data.extensions.cg_embed_presets = presets;
+            input.val(JSON.stringify(data));
+        }
+    }
 }
 
 async function importCardPreset(chid?: number) {
