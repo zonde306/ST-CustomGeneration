@@ -6,6 +6,7 @@ import { Context } from './context';
 import { WorldInfoEntry, WorldInfoLoaded } from '../utils/defines.js';
 import { eventTypes } from '../utils/events';
 import { findTemplate, evaluateTemplate, processTemplate } from '../functions/template';
+import { Template } from '../settings';
 
 async function onGenerateEnded() {
     const triggers = chat.slice(-world_info_depth);
@@ -58,24 +59,35 @@ async function onGenerateEnded() {
 
         await eventSource.emit(eventTypes.RECORD_UPDATING, data);
         await ctx.send(data.prompt);
-
-        ctx.generate().then(async(response) => {
-            const content = (Array.isArray(response) ? response[0] : response) as string;
-            const data = {
-                current: await processTemplate(template, content),
-                last: recorded,
-                original: parser.cleanContent,
-            };
-
-            if (data.current) {
-                await eventSource.emit(eventTypes.RECORD_UPDATED, data);
-                setRecord(entry.world, entry.uid, data.current);
-                console.debug(`updated record: ${entry.world}/${entry.uid}-${entry.comment} `, data);
-            }
-        });
+        
+        // run in background
+        executeWithRetry(ctx, template, entry, recorded, parser.cleanContent);
 
         console.debug(`updating record: ${entry.world}/${entry.uid}-${entry.comment} `, recorded);
     }
+}
+
+async function executeWithRetry(ctx: Context, template: Template, entry: WorldInfoEntry, recorded: string, original: string) {
+    for(let i = 0; i < 3; i++) {
+        const response = await ctx.generate('quiet', { dontCreate: true });
+        const content = (Array.isArray(response) ? response[0] : response) as string;
+        const data = {
+            current: await processTemplate(template, content),
+            last: recorded,
+            original: original,
+        };
+
+        if (data.current) {
+            await eventSource.emit(eventTypes.RECORD_UPDATED, data);
+            setRecord(entry.world, entry.uid, data.current);
+            console.debug(`updated record: ${entry.world}/${entry.uid}-${entry.comment} `, data);
+            return true;
+        } else {
+            console.warn(`failed to update record: ${entry.world}/${entry.uid}-${entry.comment}, retry ${i + 1} of 3`, data);
+        }
+    }
+
+    return false;
 }
 
 async function onWorldinfoLoaded(data: WorldInfoLoaded) {
