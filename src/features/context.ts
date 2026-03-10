@@ -8,6 +8,7 @@ import {
     deleteLastMessage,
     name2,
     substituteParams,
+    refreshSwipeButtons,
 } from '../../../../../../script.js';
 import { settings, Preset, defaultPreset } from '../settings';
 import { generate as runGenerate, ApiConfig } from '../functions/generate';
@@ -388,5 +389,30 @@ export class Context {
         Object.assign(this.macroOverride.macros, macros);
 
         await this.send(content, role, name);
+    }
+
+    hideMessages(start: number, end: number, unhide: boolean = false, nameFitler: string | null = null) {
+        if(isNaN(start)) return;
+        if(!end) end = start;
+        const hide = !unhide;
+
+        for(let msgId = start; msgId <= end; msgId++) {
+            const message = this.chat[msgId];
+            if(!message) continue;
+            if(nameFitler && message.name !== nameFitler) continue;
+
+            message.is_system = hide;
+
+            if(this.isGlobal) {
+                const messageBlock = $(`.mes[mesid="${msgId}"]`);
+                if(!messageBlock.length) continue;
+                messageBlock.attr('is_system', String(hide));
+            }
+        }
+
+        if(this.isGlobal) {
+            // Reload swipes. Useful when a last message is hidden.
+            refreshSwipeButtons();
+        }
     }
 }
