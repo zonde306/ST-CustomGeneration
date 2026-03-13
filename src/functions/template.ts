@@ -1,33 +1,27 @@
 import { settings, Template } from "../settings";
-import { PROCESSORS } from "./template-processor";
 
 export function findTemplate(decorator: string, tag: string): null | Template {
     const preset = settings.presets[settings.currentPreset];
-    let templates = preset.templates.filter(t => t.decorator === decorator && t.tag === tag);
-    if(templates.length < 1)
-        templates = preset.templates.filter(t => t.decorator === decorator && t.tag === '');
-    if(templates.length < 1)
+    if (!preset) {
         return null;
+    }
 
-    return _.sample(templates) as Template;
+    const primaryKey = `${decorator}:${tag ?? ''}`;
+    const fallbackKey = `${decorator}:`;
+    const direct = preset.templates?.[primaryKey] ?? null;
+    if (direct) {
+        return direct;
+    }
+
+    const fallback = preset.templates?.[fallbackKey] ?? null;
+    return fallback ?? null;
 }
 
 export function evaluateTemplate(template: Template, context: Record<string, any>): string {
-    return template.content.replace(/\{\{(.+?)\}\}/gi, (original: string, match: string) => {
+    const promptText = template.prompts.map(prompt => prompt.prompt).join('\n\n');
+    return promptText.replace(/\{\{(.+?)\}\}/gi, (original: string, match: string) => {
         return _.get(context, match.replace(/:+/g, '.')) ?? original;
     });
-}
-
-export async function processTemplate(template: Template, content: string): Promise<string> {
-    const exec = parseRegexString(template.regex).exec(content);
-    if(!exec)
-        return content;
-
-    const callee = PROCESSORS[template.processor];
-    if(!callee)
-        return content;
-
-    return await callee(exec, content);
 }
 
 function parseRegexString(str: string) {

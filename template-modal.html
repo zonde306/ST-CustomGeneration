@@ -1,7 +1,7 @@
 <dialog id="custom_generation_template_dialog">
     <form class="completion_prompt_manager_popup_entry_form flex-container flexFlowColumn" method="dialog" onsubmit="return false;">
         <div class="completion_prompt_manager_popup_header">
-            <label for="custom_generation_template_content">
+            <label for="custom_generation_template_prompt_list">
                 <span data-i18n="Template Editor">Template Editor</span>
             </label>
         </div>
@@ -20,33 +20,22 @@
             </div>
         </div>
         <div class="completion_prompt_manager_popup_entry_form_control">
-            <label for="custom_generation_template_processor">
-                <span data-i18n="Processor">Processor</span>
-            </label>
-            <select id="custom_generation_template_processor" class="text_pole"></select>
-        </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
             <label for="custom_generation_template_regex">
                 <span data-i18n="Regex">Regex</span>
             </label>
             <input id="custom_generation_template_regex" class="text_pole textarea_compact" rows="3" />
             <small class="text_muted" data-i18n="cg_template_regex_help">e.g: /([\s\S]*)/gi</small>
         </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label for="custom_generation_template_content">
-                <span data-i18n="Template Content">Template Content</span>
-            </label>
-            <textarea id="custom_generation_template_content" class="text_pole textarea_compact" rows="10"></textarea>
-            <small class="text_muted" data-i18n="cg_template_content_help">
-                <ul>
-                    <li data-i18n="cg_template_content_help_1">Use {{original}} to reference the original text.</li>
-                    <li data-i18n="cg_template_content_help_2">Use {{current}} to reference the last processed text.</li>
-                    <li data-i18n="cg_template_content_help_3">Use {{lastCharMessage}} and <strong>{{lastUserMessage}}</strong> to reference the last message text.</li>
-                    <li data-i18n="cg_template_content_help_4">Use {{entry.xxx}} to reference the current WI entry attributes.</li>
-                    <li data-i18n="cg_template_content_help_5">And all SillyTavern macros are available.</li>
-                </ul>
-            </small>
+        <div class="flex-container alignItemsBaseline">
+            <h3 class="margin0 flex1">
+                <span data-i18n="Prompts">Prompts</span>
+            </h3>
+            <div id="custom_generation_template_add_prompt" class="custom_generation_button custom_generation_button_icon" title="Add prompt" data-i18n="[title]New prompt">
+                <i class="fa-solid fa-plus"></i>
+                <small data-i18n="Add">Add</small>
+            </div>
         </div>
+        <div id="custom_generation_template_prompt_list" class="flex-container flexFlowColumn" no-items-text="No prompts" data-i18n="[no-items-text]No prompts"></div>
         <div class="flex-container justifySpaceBetween marginTop5">
             <a id="custom_generation_template_delete" class="custom_generation_button fa-solid fa-trash" title="Delete template" data-i18n="[title]Delete template"></a>
             <div class="flex-container">

@@ -29,14 +29,15 @@ function createSelectOption() {
 async function selectEventHandler(e: JQuery.ChangeEvent<HTMLElement>) {
     const select = e.target as HTMLSelectElement;
     const target = $(select.options[select.selectedIndex]).attr('id');
-    $(select).val("default");
 
     switch(target) {
         case "cg-card-link":
             popupLinkedToCard();
+            $(select).val("default");
             break;
         case "cg-card-import":
             importCardPreset();
+            $(select).val("default");
             break;
     }
 }
@@ -130,7 +131,7 @@ async function ensureEmbedCardModalInjected(): Promise<void> {
             }
         });
 
-        const linkedPresets = settings.presets.filter(preset => linkedNames.has(preset.name));
+        const linkedPresets = Object.values(settings.presets ?? {}).filter(preset => linkedNames.has(preset.name));
         setLinkedToCard(linkedPresets, chid);
         saveCharacterDebounced();
         closeDialog('#custom_generation_embed_card_dialog');
@@ -145,7 +146,7 @@ function buildEmbedCardRow(preset: Preset, linkedNames: Set<string>) {
 
     const name = $('<div class="cg_embed_card_name"></div>').text(preset.name || 'Preset');
     const meta = $('<div class="cg_embed_card_badge text_muted"></div>');
-    meta.text(`${preset.prompts.length}P · ${preset.regexs.length}R · ${preset.templates.length}T`);
+    meta.text(`${preset.prompts.length}P · ${preset.regexs.length}R · ${Object.keys(preset.templates ?? {}).length}T`);
 
     row.append(checkbox, name, meta);
     return row;
@@ -166,10 +167,10 @@ async function popupLinkedToCard(chid?: number) {
     const list = $('#custom_generation_embed_card_list');
     list.empty();
 
-    if (settings.presets.length === 0) {
+    if (Object.keys(settings.presets ?? {}).length === 0) {
         list.text(String(list.attr('no-items-text') ?? 'No presets'));
     } else {
-        settings.presets.forEach(preset => {
+        Object.values(settings.presets ?? {}).forEach(preset => {
             list.append(buildEmbedCardRow(preset, linkedNames));
         });
     }
@@ -227,13 +228,13 @@ async function importCardPreset(chid?: number) {
     }
 
     for(const preset of linkedPresets) {
-        const exist = settings.presets.findIndex(p => p.name === preset.name);
-        if(exist < 0) {
-            settings.presets.push(preset);
+        const exist = settings.presets[preset.name];
+        if(!exist) {
+            settings.presets[preset.name] = preset;
             continue;
         }
 
-        settings.presets.splice(exist, 1, preset);
+        settings.presets[preset.name] = preset;
     }
 
     updateSettingsUI();
@@ -256,7 +257,7 @@ async function checkEmbeddedPreset(chid?: number) {
     // Only show the alert once per character
     const checkKey = `AlertCG_${character.avatar}`;
     const names = new Set<string>(embedded.map(preset => preset.name));
-    if (!accountStorage.getItem(checkKey) && settings.presets.some(preset => names.has(preset.name))) {
+    if (!accountStorage.getItem(checkKey) && Object.values(settings.presets ?? {}).some(preset => names.has(preset.name))) {
         accountStorage.setItem(checkKey, 'true');
 
         if (power_user.world_import_dialog) {

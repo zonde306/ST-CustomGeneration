@@ -3,10 +3,7 @@ import { extension_settings, renderExtensionTemplateAsync } from '../../../../ex
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '../../../../world-info.js';
 import { generate as runGenerate, ApiConfig } from './functions/generate';
 import { KNOWN_DECORATORS } from './functions/worldinfo';
-import { PROCESSORS } from './functions/template-processor';
 import * as YAML from 'yaml';
-
-const KNOWN_PROCESSORS = Object.keys(PROCESSORS);
 
 export interface PresetPrompt {
     // A name for this prompt. (displayed in the UI)
@@ -81,14 +78,11 @@ export interface Template {
     // can be empty, used by (@@<decorator> <tag>)
     tag: string;
 
-    // template content
-    content: string;
+    // template prompts
+    prompts: PresetPrompt[];
 
-    // match regexp, pass capture group 1 to the processor
+    // match regexp, pass capture group 1 to the handler
     regex: string;
-
-    // processor name, must in KNOWN_PROCESSORS lists
-    processor: keyof typeof PROCESSORS;
 }
 
 export interface Preset {
@@ -102,7 +96,7 @@ export interface Preset {
     regexs: RegEx[];
 
     // templates
-    templates: Template[];
+    templates: Record<string, Template>;
 }
 
 interface Settings {
@@ -153,10 +147,10 @@ interface Settings {
     promptPostProcessing: 'none' | 'merge' | 'semi' | 'strict' | 'single';
 
     // openai presets, cannot be empty
-    presets: Preset[];
+    presets: Record<string, Preset>;
 
     // default preset (current active preset)
-    currentPreset: number;
+    currentPreset: string;
 }
 
 interface ExportPayload {
@@ -339,15 +333,26 @@ export const defaultPreset: Preset = {
         },
     ],
     regexs: [],
-    templates: [
-        {
+    templates: {
+        '@@record:full-update': {
             decorator: '@@record',
             tag: 'full-update',
-            content: '{{lastCharMessage}}\nUpdate the following documents based on the above content:\n{{current}}\nThen wrap the updated document with `<content>` to output the document.',
+            prompts: [
+                {
+                    name: 'Template Prompt',
+                    role: 'user',
+                    triggers: [],
+                    prompt: '{{lastCharMessage}}\nUpdate the following documents based on the above content:\n{{current}}\nThen wrap the updated document with `<content>` to output the document.',
+                    injectionPosition: 'relative',
+                    enabled: true,
+                    internal: null,
+                    injectionDepth: DEFAULT_DEPTH,
+                    injectionOrder: DEFAULT_WEIGHT,
+                },
+            ],
             regex: '/<content>([\\S\\s]+?)<\\/content>/gi',
-            processor: 'replace',
-        }
-    ]
+        },
+    },
 };
 
 const defaultSettings: Settings = {
@@ -362,8 +367,10 @@ const defaultSettings: Settings = {
     presencePenalty: 0,
     frequencyPenalty: 0,
     promptPostProcessing: 'none',
-    presets: [defaultPreset],
-    currentPreset: 0,
+    presets: {
+        [defaultPreset.name]: defaultPreset,
+    },
+    currentPreset: defaultPreset.name,
     stream: false,
     includeHeaders: {},
     includeBody: {},
@@ -375,12 +382,16 @@ export const settings: Settings = clone(defaultSettings);
 let selectedPromptIndex = 0;
 let selectedRegexIndex = 0;
 let selectedTemplateIndex = 0;
+let selectedTemplatePromptIndex = 0;
 let editingPromptIndex: number | null = null;
 let editingRegexIndex: number | null = null;
 let editingTemplateIndex: number | null = null;
+let editingTemplatePromptIndex: number | null = null;
 let draggedPromptIndex: number | null = null;
 let draggedRegexIndex: number | null = null;
 let draggedTemplateIndex: number | null = null;
+let draggedTemplatePromptIndex: number | null = null;
+let promptEditorTarget: 'preset' | 'template' = 'preset';
 let isUpdatingUI = false;
 let isEventsBound = false;
 let isSettingsLoadedListenerBound = false;
@@ -389,9 +400,7 @@ let isConnectionActionInProgress = false;
 
 const exportSchemaVersion = '1.0.0';
 type TemplateDecorator = Template['decorator'];
-type TemplateProcessor = Template['processor'];
 const DEFAULT_TEMPLATE_DECORATOR = (KNOWN_DECORATORS.find(x => x === '@@record') ?? KNOWN_DECORATORS[0] ?? '@@record') as TemplateDecorator;
-const DEFAULT_TEMPLATE_PROCESSOR = (KNOWN_PROCESSORS.find(x => x === 'none') ?? KNOWN_PROCESSORS[0] ?? 'none') as TemplateProcessor;
 
 function clone<T>(value: T): T {
     return typeof structuredClone === 'function'
@@ -475,7 +484,7 @@ function stringifyYamlRecord(value: Record<string, unknown>): string {
 
 function uniquePresetName(baseName: string): string {
     const base = sanitizePresetName(baseName, 'Preset');
-    const existing = new Set(settings.presets.map(x => x.name));
+    const existing = new Set(Object.keys(settings.presets ?? {}));
     if (!existing.has(base)) {
         return base;
     }
@@ -527,24 +536,106 @@ function normalizeRegex(input: Partial<RegEx>, fallbackName: string): RegEx {
     };
 }
 
+function buildTemplateMap(templates: Template[]): Record<string, Template> {
+    const map: Record<string, Template> = {};
+    for (const template of templates) {
+        const key = getTemplateKey(template);
+        map[key] = template;
+    }
+    return map;
+}
+
+function normalizeTemplatePrompts(raw: unknown): PresetPrompt[] {
+    if (Array.isArray(raw)) {
+        return raw.map((prompt, index) => normalizePrompt(
+            isRecord(prompt) ? prompt as Partial<PresetPrompt> : {},
+            `Template Prompt ${index + 1}`,
+        ));
+    }
+
+    if (raw !== undefined && raw !== null) {
+        const content = String(raw ?? '');
+        return [normalizePrompt({
+            name: 'Template Prompt',
+            role: 'user',
+            triggers: [],
+            prompt: content,
+            injectionPosition: 'relative',
+            enabled: true,
+            internal: null,
+        }, 'Template Prompt')];
+    }
+
+    return [];
+}
+
 function normalizeTemplate(input: Partial<Template>): Template {
     const decoratorRaw = String(input.decorator ?? DEFAULT_TEMPLATE_DECORATOR);
     const decorator = KNOWN_DECORATORS.includes(decoratorRaw as TemplateDecorator)
         ? decoratorRaw as TemplateDecorator
         : DEFAULT_TEMPLATE_DECORATOR;
 
-    const processorRaw = String(input.processor ?? DEFAULT_TEMPLATE_PROCESSOR);
-    const processor = KNOWN_PROCESSORS.includes(processorRaw as TemplateProcessor)
-        ? processorRaw as TemplateProcessor
-        : DEFAULT_TEMPLATE_PROCESSOR;
+    const legacyContent = (input as { content?: unknown }).content;
+    const prompts = normalizeTemplatePrompts((input as { prompts?: unknown }).prompts ?? legacyContent);
 
     return {
         decorator,
         tag: String(input.tag ?? ''),
-        content: String(input.content ?? ''),
+        prompts,
         regex: String(input.regex ?? ''),
-        processor,
     };
+}
+
+function getTemplateKey(template: Template): string {
+    return `${template.decorator}:${String(template.tag ?? '')}`;
+}
+
+function normalizeTemplates(raw: unknown): Record<string, Template> {
+    const templates: Template[] = [];
+    if (Array.isArray(raw)) {
+        raw.forEach(item => {
+            templates.push(normalizeTemplate(isRecord(item) ? item as Partial<Template> : {}));
+        });
+    } else if (isRecord(raw)) {
+        Object.values(raw).forEach(value => {
+            if (Array.isArray(value)) {
+                value.forEach(item => {
+                    templates.push(normalizeTemplate(isRecord(item) ? item as Partial<Template> : {}));
+                });
+                return;
+            }
+
+            if (isRecord(value)) {
+                templates.push(normalizeTemplate(value as Partial<Template>));
+            }
+        });
+    }
+
+    return buildTemplateMap(templates);
+}
+
+type TemplateEntry = { key: string; template: Template };
+
+function getTemplateEntries(preset: Preset): TemplateEntry[] {
+    const entries: TemplateEntry[] = [];
+    Object.entries(preset.templates ?? {}).forEach(([key, template]) => {
+        if (!template) {
+            return;
+        }
+        entries.push({ key, template });
+    });
+    return entries;
+}
+
+function getTemplateCount(preset: Preset): number {
+    return getTemplateEntries(preset).length;
+}
+
+function getEditingTemplate(): Template | null {
+    const preset = getCurrentPreset();
+    const entries = getTemplateEntries(preset);
+    const entry = editingTemplateIndex === null ? null : entries[editingTemplateIndex] ?? null;
+    return entry?.template ?? null;
 }
 
 function normalizePreset(input: Partial<Preset>, fallbackName: string): Preset {
@@ -556,9 +647,7 @@ function normalizePreset(input: Partial<Preset>, fallbackName: string): Preset {
         ? input.regexs.map((regex, index) => normalizeRegex(regex, `Regex ${index + 1}`))
         : [];
 
-    const templates = Array.isArray(input.templates)
-        ? input.templates.map(template => normalizeTemplate(template))
-        : [];
+    const templates = normalizeTemplates((input as { templates?: unknown }).templates);
 
     return {
         name: sanitizePresetName(String(input.name ?? ''), fallbackName),
@@ -566,6 +655,86 @@ function normalizePreset(input: Partial<Preset>, fallbackName: string): Preset {
         regexs,
         templates,
     };
+}
+
+function normalizePresetList(raw: unknown): Preset[] {
+    if (!Array.isArray(raw)) {
+        return [];
+    }
+
+    return raw.map((preset, index) => normalizePreset(
+        isRecord(preset) ? preset as Partial<Preset> : {},
+        `Preset ${index + 1}`,
+    ));
+}
+
+function normalizePresetMap(raw: unknown): Record<string, Preset> {
+    const result: Record<string, Preset> = {};
+
+    if (Array.isArray(raw)) {
+        const presets = normalizePresetList(raw);
+        presets.forEach(preset => {
+            const key = sanitizePresetName(preset.name, 'Preset');
+            preset.name = key;
+            result[key] = preset;
+        });
+        return result;
+    }
+
+    if (!isRecord(raw)) {
+        return result;
+    }
+
+    Object.entries(raw).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+            const list = normalizePresetList(value);
+            if (list.length > 0) {
+                const normalizedKey = sanitizePresetName(key, 'Preset');
+                const preset = list[0];
+                preset.name = normalizedKey;
+                result[normalizedKey] = preset;
+            }
+            return;
+        }
+
+        if (isRecord(value)) {
+            const preset = normalizePreset(value as Partial<Preset>, sanitizePresetName(key, 'Preset'));
+            result[preset.name] = preset;
+        }
+    });
+
+    return result;
+}
+
+function getPresetGroups(): Preset[] {
+    const groups: Preset[] = [];
+    Object.values(settings.presets ?? {}).forEach(preset => {
+        if (preset) {
+            groups.push(preset);
+        }
+    });
+    return groups;
+}
+
+function getPresetKeys(): string[] {
+    return Object.keys(settings.presets ?? {});
+}
+
+function ensureCurrentPresetKey(): string {
+    const keys = getPresetKeys();
+    if (keys.length === 0) {
+        settings.presets = {
+            [defaultPreset.name]: clone(defaultPreset),
+        };
+        return defaultPreset.name;
+    }
+
+    const current = String(settings.currentPreset ?? '').trim();
+    if (current && settings.presets[current]) {
+        return current;
+    }
+
+    return keys[0];
 }
 
 function ensureSettingsIntegrity(resetSelections: boolean = false) {
@@ -584,35 +753,37 @@ function ensureSettingsIntegrity(resetSelections: boolean = false) {
     settings.excludeBody = normalizeRecord(settings.excludeBody);
     settings.promptPostProcessing = parsePromptPostProcessing(settings.promptPostProcessing);
 
-    const normalizedPresets = Array.isArray(settings.presets)
-        ? settings.presets.map((preset, index) => normalizePreset(preset, `Preset ${index + 1}`))
-        : [];
+    settings.presets = normalizePresetMap(settings.presets);
+    if (Object.keys(settings.presets).length === 0) {
+        settings.presets = {
+            [defaultPreset.name]: clone(defaultPreset),
+        };
+    }
 
-    settings.presets = normalizedPresets.length > 0 ? normalizedPresets : [clone(defaultPreset)];
-
-    const maxPresetIndex = settings.presets.length - 1;
-    settings.currentPreset = Number.isFinite(settings.currentPreset)
-        ? clamp(Math.trunc(settings.currentPreset), 0, maxPresetIndex)
-        : 0;
+    settings.currentPreset = ensureCurrentPresetKey();
 
     if (resetSelections) {
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
         selectedTemplateIndex = 0;
+        selectedTemplatePromptIndex = 0;
         editingPromptIndex = null;
         editingRegexIndex = null;
         editingTemplateIndex = null;
+        editingTemplatePromptIndex = null;
     }
 }
 
 function getCurrentPreset(): Preset {
-    if (!settings.presets.length) {
-        settings.presets = [clone(defaultPreset)];
-        settings.currentPreset = 0;
+    const key = ensureCurrentPresetKey();
+    settings.currentPreset = key;
+    let preset = settings.presets[key];
+    if (!preset) {
+        preset = clone(defaultPreset);
+        settings.presets[key] = preset;
     }
 
-    settings.currentPreset = clamp(settings.currentPreset, 0, settings.presets.length - 1);
-    return settings.presets[settings.currentPreset];
+    return preset;
 }
 
 function moveArrayItem<T>(array: T[], fromIndex: number, toIndex: number): void {
@@ -782,8 +953,8 @@ function getTemplateRegexPreview(template: Template): string {
 }
 
 function getTemplateContentPreview(template: Template): string {
-    const firstLine = String(template.content ?? '').split(/\r?\n/, 1)[0] ?? '';
-    const preview = getPreviewText(firstLine);
+    const firstLine = template.prompts.find(prompt => prompt.prompt)?.prompt ?? '';
+    const preview = getPreviewText(String(firstLine));
     return preview || '(empty content)';
 }
 */
@@ -1018,6 +1189,110 @@ function buildPromptRow(prompt: PresetPrompt, index: number) {
     return row;
 }
 
+function buildTemplatePromptRow(prompt: PresetPrompt, index: number) {
+    const row = $('<div class="custom_generation_list_row flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
+    row.attr('draggable', 'true');
+    row.toggleClass('active', index === selectedTemplatePromptIndex);
+
+    const left = $('<div class="flex-container alignItemsCenter flex1"></div>');
+    const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
+    const toggle = $('<input type="checkbox" />').prop('checked', prompt.enabled === true);
+    const name = $('<div class="flex1"></div>').text(prompt.name || `Prompt ${index + 1}`);
+
+    left.append(dragHandle, toggle, name);
+
+    const actions = $('<div class="flex-container alignItemsCenter"></div>');
+    const editButton = $('<i class="menu_button fa-solid fa-pen-to-square" title="Edit" data-i18n="[title]Edit"></i>');
+    const deleteButton = $('<i class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></i>');
+    actions.append(editButton, deleteButton);
+
+    row.on('click', () => {
+        selectedTemplatePromptIndex = index;
+        updateSettingsUI();
+    });
+
+    toggle.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+    });
+
+    toggle.on('change', () => {
+        const template = getEditingTemplate();
+        const target = template?.prompts[index];
+        if (!target) {
+            return;
+        }
+
+        target.enabled = Boolean(toggle.prop('checked'));
+        selectedTemplatePromptIndex = index;
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    editButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        openTemplatePromptEditor(index);
+    });
+
+    deleteButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        const template = getEditingTemplate();
+        const target = template?.prompts[index];
+        if (!target) {
+            return;
+        }
+
+        if (!window.confirm(`Delete prompt "${target.name}"?`)) {
+            return;
+        }
+
+        template.prompts.splice(index, 1);
+        selectedTemplatePromptIndex = clamp(index, 0, Math.max(0, template.prompts.length - 1));
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    row.on('dragstart', (event: JQuery.TriggeredEvent) => {
+        draggedTemplatePromptIndex = index;
+        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
+        if (nativeEvent?.dataTransfer) {
+            nativeEvent.dataTransfer.effectAllowed = 'move';
+            nativeEvent.dataTransfer.setData('text/plain', String(index));
+        }
+    });
+
+    row.on('dragover', (event: JQuery.TriggeredEvent) => {
+        event.preventDefault();
+    });
+
+    row.on('drop', (event: JQuery.TriggeredEvent) => {
+        event.preventDefault();
+
+        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
+        const payload = Number(nativeEvent?.dataTransfer?.getData('text/plain'));
+        const sourceIndex = Number.isFinite(payload) ? Math.trunc(payload) : draggedTemplatePromptIndex;
+        if (sourceIndex === null) {
+            return;
+        }
+
+        const template = getEditingTemplate();
+        if (!template || sourceIndex < 0 || sourceIndex >= template.prompts.length || index < 0 || index >= template.prompts.length) {
+            return;
+        }
+
+        moveArrayItem(template.prompts, sourceIndex, index);
+        selectedTemplatePromptIndex = index;
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    row.on('dragend', () => {
+        draggedTemplatePromptIndex = null;
+    });
+
+    row.append(left, actions);
+    return row;
+}
+
 function buildRegexRow(regex: RegEx, index: number) {
     const row = $('<div class="custom_generation_list_row flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
     row.attr('draggable', 'true');
@@ -1122,7 +1397,8 @@ function buildRegexRow(regex: RegEx, index: number) {
     return row;
 }
 
-function buildTemplateRow(template: Template, index: number) {
+function buildTemplateRow(entry: TemplateEntry, index: number) {
+    const template = entry.template;
     const row = $('<div class="custom_generation_list_row custom_generation_template_row flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
     row.attr('draggable', 'true');
     row.toggleClass('active', index === selectedTemplateIndex);
@@ -1131,7 +1407,7 @@ function buildTemplateRow(template: Template, index: number) {
     const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
     const meta = $('<div class="flex-container flexFlowColumn flex1 custom_generation_template_meta"></div>');
     const title = $('<div class="custom_generation_template_title"></div>').text(getTemplateSummary(template));
-    // const subtitle = $('<div class="custom_generation_template_subtitle"></div>').text(`${template.processor} · ${getTemplateRegexPreview(template)}`);
+    // const subtitle = $('<div class="custom_generation_template_subtitle"></div>').text(getTemplateRegexPreview(template));
     // const preview = $('<div class="custom_generation_template_preview"></div>').text(getTemplateContentPreview(template));
     meta.append(title/*, subtitle, preview*/);
     left.append(dragHandle, meta);
@@ -1154,17 +1430,18 @@ function buildTemplateRow(template: Template, index: number) {
     deleteButton.on('click', (event: JQuery.TriggeredEvent) => {
         event.stopPropagation();
         const preset = getCurrentPreset();
-        const target = preset.templates[index];
+        const entries = getTemplateEntries(preset);
+        const target = entries[index];
         if (!target) {
             return;
         }
 
-        if (!window.confirm(getTemplateDeleteConfirmationText(target))) {
+        if (!window.confirm(getTemplateDeleteConfirmationText(target.template))) {
             return;
         }
 
-        preset.templates.splice(index, 1);
-        selectedTemplateIndex = clamp(index, 0, Math.max(0, preset.templates.length - 1));
+        delete preset.templates[target.key];
+        selectedTemplateIndex = clamp(index, 0, Math.max(0, getTemplateCount(preset) - 1));
         updateSettingsUI();
         saveSettings();
     });
@@ -1193,11 +1470,29 @@ function buildTemplateRow(template: Template, index: number) {
         }
 
         const preset = getCurrentPreset();
-        if (sourceIndex < 0 || sourceIndex >= preset.templates.length || index < 0 || index >= preset.templates.length) {
+        const entries = getTemplateEntries(preset);
+        const sourceEntry = entries[sourceIndex];
+        const targetEntry = entries[index];
+        if (!sourceEntry || !targetEntry) {
             return;
         }
 
-        moveArrayItem(preset.templates, sourceIndex, index);
+        const keys = Object.keys(preset.templates ?? {});
+        if (sourceEntry.key === targetEntry.key || sourceIndex === index) {
+            return;
+        }
+
+        const sourceTemplate = preset.templates[sourceEntry.key];
+        const targetTemplate = preset.templates[targetEntry.key];
+        if (!sourceTemplate || !targetTemplate) {
+            return;
+        }
+
+        delete preset.templates[sourceEntry.key];
+        delete preset.templates[targetEntry.key];
+        preset.templates[targetEntry.key] = sourceTemplate;
+        preset.templates[sourceEntry.key] = targetTemplate;
+
         selectedTemplateIndex = index;
         updateSettingsUI();
         saveSettings();
@@ -1214,9 +1509,10 @@ function buildTemplateRow(template: Template, index: number) {
 function updatePresetSummary(preset: Preset) {
     const enabledPromptCount = preset.prompts.filter(x => x.enabled === true).length;
     const enabledRegexCount = preset.regexs.filter(x => x.enabled).length;
+    const templateCount = getTemplateCount(preset);
 
     $('#custom_generation_preset_summary').text(
-        `Prompts: ${preset.prompts.length} (enabled: ${enabledPromptCount}) · Regex: ${preset.regexs.length} (enabled: ${enabledRegexCount}) · Templates: ${preset.templates.length}`,
+        `Prompts: ${preset.prompts.length} (enabled: ${enabledPromptCount}) · Regex: ${preset.regexs.length} (enabled: ${enabledRegexCount}) · Templates: ${templateCount}`,
     );
 }
 
@@ -1271,9 +1567,7 @@ function setTemplateEditorEnabled(enabled: boolean) {
     const selectors = [
         '#custom_generation_template_decorator',
         '#custom_generation_template_tag',
-        '#custom_generation_template_processor',
         '#custom_generation_template_regex',
-        '#custom_generation_template_content',
         '#custom_generation_template_delete',
         '#custom_generation_template_save',
     ];
@@ -1281,11 +1575,45 @@ function setTemplateEditorEnabled(enabled: boolean) {
     for (const selector of selectors) {
         $(selector).prop('disabled', !enabled);
     }
+
+    $('#custom_generation_template_add_prompt').prop('disabled', !enabled);
+}
+
+function updateTemplatePromptList(template: Template | null) {
+    const list = $('#custom_generation_template_prompt_list');
+    if (!list.length) {
+        return;
+    }
+
+    list.empty();
+
+    if (!template) {
+        list.text(String(list.attr('no-items-text') ?? 'No prompts'));
+        return;
+    }
+
+    if (!template.prompts.length) {
+        list.text(String(list.attr('no-items-text') ?? 'No prompts'));
+        return;
+    }
+
+    template.prompts.forEach((prompt, index) => {
+        list.append(buildTemplatePromptRow(prompt, index));
+    });
 }
 
 function updatePromptEditor() {
     const preset = getCurrentPreset();
-    const prompt = editingPromptIndex === null ? null : preset.prompts[editingPromptIndex];
+    let prompt: PresetPrompt | null = null;
+
+    if (promptEditorTarget === 'template') {
+        const template = getEditingTemplate();
+        prompt = template && editingTemplatePromptIndex !== null
+            ? template.prompts[editingTemplatePromptIndex] ?? null
+            : null;
+    } else {
+        prompt = editingPromptIndex === null ? null : preset.prompts[editingPromptIndex] ?? null;
+    }
 
     isUpdatingUI = true;
 
@@ -1361,27 +1689,28 @@ function updateRegexEditor() {
 
 function updateTemplateEditor() {
     const preset = getCurrentPreset();
-    const template = editingTemplateIndex === null ? null : preset.templates[editingTemplateIndex];
+    const entries = getTemplateEntries(preset);
+    const templateEntry = editingTemplateIndex === null ? null : entries[editingTemplateIndex] ?? null;
 
     isUpdatingUI = true;
 
-    if (!template) {
+    if (!templateEntry) {
         setTemplateEditorEnabled(false);
         $('#custom_generation_template_decorator').val(DEFAULT_TEMPLATE_DECORATOR);
         $('#custom_generation_template_tag').val('');
-        $('#custom_generation_template_processor').val(DEFAULT_TEMPLATE_PROCESSOR);
         $('#custom_generation_template_regex').val('');
-        $('#custom_generation_template_content').val('');
+        updateTemplatePromptList(null);
         isUpdatingUI = false;
         return;
     }
 
+    const template = templateEntry.template;
     setTemplateEditorEnabled(true);
     $('#custom_generation_template_decorator').val(template.decorator);
     $('#custom_generation_template_tag').val(template.tag);
-    $('#custom_generation_template_processor').val(template.processor);
     $('#custom_generation_template_regex').val(template.regex);
-    $('#custom_generation_template_content').val(template.content);
+    selectedTemplatePromptIndex = clamp(selectedTemplatePromptIndex, 0, Math.max(0, template.prompts.length - 1));
+    updateTemplatePromptList(template);
 
     isUpdatingUI = false;
 }
@@ -1392,6 +1721,7 @@ function openPromptEditor(index: number): void {
         return;
     }
 
+    promptEditorTarget = 'preset';
     editingPromptIndex = index;
     selectedPromptIndex = index;
     updatePromptEditor();
@@ -1400,11 +1730,47 @@ function openPromptEditor(index: number): void {
 
 function closePromptEditor(): void {
     editingPromptIndex = null;
+    editingTemplatePromptIndex = null;
+    promptEditorTarget = 'preset';
     closeDialog('#custom_generation_prompt_dialog');
 }
 
 function savePromptEditor(): void {
     const preset = getCurrentPreset();
+    if (promptEditorTarget === 'template') {
+        if (editingTemplatePromptIndex === null) {
+            return;
+        }
+
+        const template = getEditingTemplate();
+        const prompt = template?.prompts[editingTemplatePromptIndex];
+        if (!template || !prompt) {
+            return;
+        }
+
+        prompt.name = sanitizePresetName(String($('#custom_generation_prompt_name').val() ?? ''), `Prompt ${editingTemplatePromptIndex + 1}`);
+
+        const role = String($('#custom_generation_prompt_role').val() ?? 'system');
+        prompt.role = role === 'assistant' || role === 'user' ? role : 'system';
+
+        const position = String($('#custom_generation_prompt_injection_position').val() ?? 'relative');
+        prompt.injectionPosition = position === 'inChat' ? 'inChat' : 'relative';
+        prompt.injectionDepth = parseNumber($('#custom_generation_prompt_injection_depth').val(), DEFAULT_DEPTH, 0, 9999, true);
+        prompt.injectionOrder = parseNumber($('#custom_generation_prompt_injection_order').val(), DEFAULT_WEIGHT, -1_000_000, 1_000_000, true);
+
+        const triggersRaw = String($('#custom_generation_prompt_triggers').val() ?? '');
+        prompt.triggers = triggersRaw.split(',').map(x => x.trim()).filter(Boolean);
+
+        prompt.enabled = Boolean($('#custom_generation_prompt_enable').prop('checked'));
+        prompt.prompt = String($('#custom_generation_prompt_content').val() ?? '');
+
+        selectedTemplatePromptIndex = editingTemplatePromptIndex;
+        closePromptEditor();
+        updateSettingsUI();
+        saveSettings();
+        return;
+    }
+
     if (editingPromptIndex === null) {
         return;
     }
@@ -1438,6 +1804,30 @@ function savePromptEditor(): void {
 
 function deletePromptFromEditor(): void {
     const preset = getCurrentPreset();
+    if (promptEditorTarget === 'template') {
+        if (editingTemplatePromptIndex === null) {
+            return;
+        }
+
+        const template = getEditingTemplate();
+        const prompt = template?.prompts[editingTemplatePromptIndex];
+        if (!template || !prompt) {
+            return;
+        }
+
+        if (!window.confirm(`Delete prompt "${prompt.name}"?`)) {
+            return;
+        }
+
+        const removedIndex = editingTemplatePromptIndex;
+        template.prompts.splice(removedIndex, 1);
+        closePromptEditor();
+        selectedTemplatePromptIndex = clamp(removedIndex, 0, Math.max(0, template.prompts.length - 1));
+        updateSettingsUI();
+        saveSettings();
+        return;
+    }
+
     if (editingPromptIndex === null) {
         return;
     }
@@ -1469,6 +1859,19 @@ function openRegexEditor(index: number): void {
     selectedRegexIndex = index;
     updateRegexEditor();
     openDialog('#custom_generation_regex_dialog');
+}
+
+function openTemplatePromptEditor(index: number): void {
+    const template = getEditingTemplate();
+    if (!template || !template.prompts[index]) {
+        return;
+    }
+
+    promptEditorTarget = 'template';
+    editingTemplatePromptIndex = index;
+    selectedTemplatePromptIndex = index;
+    updatePromptEditor();
+    openDialog('#custom_generation_prompt_dialog');
 }
 
 function closeRegexEditor(): void {
@@ -1531,39 +1934,55 @@ function deleteRegexFromEditor(): void {
 
 function openTemplateEditor(index: number): void {
     const preset = getCurrentPreset();
-    if (!preset.templates[index]) {
+    const entries = getTemplateEntries(preset);
+    if (!entries[index]) {
         return;
     }
 
     editingTemplateIndex = index;
     selectedTemplateIndex = index;
+    selectedTemplatePromptIndex = 0;
+    editingTemplatePromptIndex = null;
+    promptEditorTarget = 'template';
     updateTemplateEditor();
     openDialog('#custom_generation_template_dialog');
 }
 
 function closeTemplateEditor(): void {
     editingTemplateIndex = null;
+    selectedTemplatePromptIndex = 0;
+    editingTemplatePromptIndex = null;
+    promptEditorTarget = 'preset';
     closeDialog('#custom_generation_template_dialog');
 }
 
 function saveTemplateEditor(): void {
     const preset = getCurrentPreset();
+    const entries = getTemplateEntries(preset);
     if (editingTemplateIndex === null) {
         return;
     }
 
-    const template = preset.templates[editingTemplateIndex];
-    if (!template) {
+    const entry = entries[editingTemplateIndex];
+    if (!entry) {
         return;
     }
 
-    // @ts-expect-error
-    template.decorator = normalizeTemplate({ decorator: $('#custom_generation_template_decorator').val() }).decorator;
-    template.tag = String($('#custom_generation_template_tag').val() ?? '');
-    // @ts-expect-error
-    template.processor = normalizeTemplate({ processor: $('#custom_generation_template_processor').val() }).processor;
-    template.regex = String($('#custom_generation_template_regex').val() ?? '');
-    template.content = String($('#custom_generation_template_content').val() ?? '');
+    const nextTemplate = normalizeTemplate({
+        decorator: $('#custom_generation_template_decorator').val() as Template['decorator'],
+        tag: String($('#custom_generation_template_tag').val() ?? ''),
+        regex: String($('#custom_generation_template_regex').val() ?? ''),
+        prompts: entry.template.prompts,
+    });
+
+    const previousKey = entry.key;
+    const nextKey = getTemplateKey(nextTemplate);
+
+    if (previousKey !== nextKey) {
+        delete preset.templates[previousKey];
+    }
+
+    preset.templates[nextKey] = nextTemplate;
 
     selectedTemplateIndex = editingTemplateIndex;
     closeTemplateEditor();
@@ -1573,23 +1992,26 @@ function saveTemplateEditor(): void {
 
 function deleteTemplateFromEditor(): void {
     const preset = getCurrentPreset();
+    const entries = getTemplateEntries(preset);
     if (editingTemplateIndex === null) {
         return;
     }
 
-    const template = preset.templates[editingTemplateIndex];
-    if (!template) {
+    const entry = entries[editingTemplateIndex];
+    if (!entry) {
         return;
     }
 
-    if (!window.confirm(getTemplateDeleteConfirmationText(template))) {
+    if (!window.confirm(getTemplateDeleteConfirmationText(entry.template))) {
         return;
     }
+
+    delete preset.templates[entry.key];
 
     const removedIndex = editingTemplateIndex;
-    preset.templates.splice(removedIndex, 1);
     closeTemplateEditor();
-    selectedTemplateIndex = clamp(removedIndex, 0, Math.max(0, preset.templates.length - 1));
+    const remainingCount = getTemplateCount(preset);
+    selectedTemplateIndex = clamp(removedIndex, 0, Math.max(0, remainingCount - 1));
     updateSettingsUI();
     saveSettings();
 }
@@ -1597,8 +2019,8 @@ function deleteTemplateFromEditor(): void {
 function buildExportPayload(includeApiConnection: boolean): ExportPayload {
     const payload: ExportPayload = {
         version: exportSchemaVersion,
-        presets: clone(settings.presets),
-        currentPreset: settings.currentPreset,
+        presets: clone(getPresetGroups()),
+        currentPreset: 0,
     };
 
     if (includeApiConnection) {
@@ -1700,15 +2122,21 @@ async function importPresetsFromFile(file: File): Promise<void> {
     const normalized = parseImportPayload(parsed);
 
     const previousApiKey = settings.apiKey;
+    const presetMap = normalizePresetMap(normalized.presets);
+    const mapKeys = Object.keys(presetMap);
 
-    settings.presets = normalized.presets;
-    settings.currentPreset = normalized.currentPreset;
+    settings.presets = mapKeys.length > 0
+        ? presetMap
+        : { [defaultPreset.name]: clone(defaultPreset) };
+    settings.currentPreset = mapKeys[normalized.currentPreset] ?? mapKeys[0] ?? defaultPreset.name;
     selectedPromptIndex = 0;
     selectedRegexIndex = 0;
     selectedTemplateIndex = 0;
+    selectedTemplatePromptIndex = 0;
     editingPromptIndex = null;
     editingRegexIndex = null;
     editingTemplateIndex = null;
+    editingTemplatePromptIndex = null;
 
     if (normalized.apiConnection) {
         settings.baseUrl = String(normalized.apiConnection.baseUrl ?? settings.baseUrl);
@@ -1750,13 +2178,6 @@ async function ensureModalTemplatesInjected(): Promise<void> {
     if (decoratorSelect.length && decoratorSelect.children().length === 0) {
         for (const decorator of KNOWN_DECORATORS) {
             decoratorSelect.append(`<option value="${decorator}" data-i18n="cg-${decorator}">${decorator}</option>`);
-        }
-    }
-
-    const processorSelect = $('#custom_generation_template_processor');
-    if (processorSelect.length && processorSelect.children().length === 0) {
-        for (const processor of KNOWN_PROCESSORS) {
-            processorSelect.append(`<option value="${processor}" data-i18n="cg-${processor}">${processor}</option>`);
         }
     }
 }
@@ -1971,16 +2392,18 @@ function bindEvents() {
     }
 
     $('#custom_generation_preset_select').on('change', () => {
-        const parsed = Number($('#custom_generation_preset_select').val());
-        settings.currentPreset = Number.isFinite(parsed)
-            ? clamp(Math.trunc(parsed), 0, Math.max(0, settings.presets.length - 1))
-            : 0;
+        const key = String($('#custom_generation_preset_select').val() ?? '').trim();
+        settings.currentPreset = key && settings.presets[key]
+            ? key
+            : ensureCurrentPresetKey();
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
         selectedTemplateIndex = 0;
+        selectedTemplatePromptIndex = 0;
         editingPromptIndex = null;
         editingRegexIndex = null;
         editingTemplateIndex = null;
+        editingTemplatePromptIndex = null;
         updateSettingsUI();
         saveSettings();
     });
@@ -1994,14 +2417,16 @@ function bindEvents() {
 
         const preset = clone(defaultPreset);
         preset.name = uniquePresetName(name);
-        settings.presets.push(preset);
-        settings.currentPreset = settings.presets.length - 1;
+        settings.presets[preset.name] = preset;
+        settings.currentPreset = preset.name;
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
         selectedTemplateIndex = 0;
+        selectedTemplatePromptIndex = 0;
         editingPromptIndex = null;
         editingRegexIndex = null;
         editingTemplateIndex = null;
+        editingTemplatePromptIndex = null;
         updateSettingsUI();
         saveSettings();
     });
@@ -2010,49 +2435,67 @@ function bindEvents() {
         const current = getCurrentPreset();
         const duplicated = clone(current);
         duplicated.name = uniquePresetName(`${current.name} Copy`);
-        settings.presets.push(duplicated);
-        settings.currentPreset = settings.presets.length - 1;
+        settings.presets[duplicated.name] = duplicated;
+        settings.currentPreset = duplicated.name;
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
         selectedTemplateIndex = 0;
+        selectedTemplatePromptIndex = 0;
         editingPromptIndex = null;
         editingRegexIndex = null;
         editingTemplateIndex = null;
+        editingTemplatePromptIndex = null;
         updateSettingsUI();
         saveSettings();
     });
 
     $('#custom_generation_preset_rename').on('click', () => {
+        const currentKey = ensureCurrentPresetKey();
         const current = getCurrentPreset();
         const name = window.prompt('Rename preset', current.name);
         if (name === null) {
             return;
         }
 
-        current.name = sanitizePresetName(name, current.name);
+        const nextName = sanitizePresetName(name, current.name);
+        if (nextName === currentKey) {
+            current.name = nextName;
+            updateSettingsUI();
+            saveSettings();
+            return;
+        }
+
+        current.name = nextName;
+        delete settings.presets[currentKey];
+        settings.presets[nextName] = current;
+        settings.currentPreset = nextName;
         updateSettingsUI();
         saveSettings();
     });
 
     $('#custom_generation_preset_delete').on('click', () => {
-        if (settings.presets.length <= 1) {
+        const keys = Object.keys(settings.presets ?? {});
+        if (keys.length <= 1) {
             window.alert('At least one preset must remain.');
             return;
         }
 
+        const currentKey = ensureCurrentPresetKey();
         const current = getCurrentPreset();
         if (!window.confirm(`Delete preset "${current.name}"?`)) {
             return;
         }
 
-        settings.presets.splice(settings.currentPreset, 1);
-        settings.currentPreset = clamp(settings.currentPreset, 0, settings.presets.length - 1);
+        delete settings.presets[currentKey];
+        settings.currentPreset = ensureCurrentPresetKey();
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
         selectedTemplateIndex = 0;
+        selectedTemplatePromptIndex = 0;
         editingPromptIndex = null;
         editingRegexIndex = null;
         editingTemplateIndex = null;
+        editingTemplatePromptIndex = null;
         updateSettingsUI();
         saveSettings();
     });
@@ -2141,15 +2584,16 @@ function bindEvents() {
 
     $('#custom_generation_add_template').on('click', () => {
         const preset = getCurrentPreset();
-        preset.templates.push(normalizeTemplate({
+        const nextTemplate = normalizeTemplate({
             decorator: '@@record',
             tag: '',
-            processor: 'replace',
             regex: '',
-            content: '',
-        }));
+            prompts: normalizeTemplatePrompts(''),
+        });
+        const key = getTemplateKey(nextTemplate);
+        preset.templates[key] = nextTemplate;
 
-        selectedTemplateIndex = preset.templates.length - 1;
+        selectedTemplateIndex = getTemplateCount(preset) - 1;
         updateSettingsUI();
         saveSettings();
         openTemplateEditor(selectedTemplateIndex);
@@ -2200,8 +2644,32 @@ function bindEvents() {
         deleteTemplateFromEditor();
     });
 
+    $('#custom_generation_template_add_prompt').on('click', () => {
+        const template = getEditingTemplate();
+        if (!template) {
+            return;
+        }
+
+        template.prompts.push(normalizePrompt({
+            name: `Prompt ${template.prompts.length + 1}`,
+            role: 'user',
+            triggers: [],
+            prompt: '',
+            injectionPosition: 'relative',
+            enabled: true,
+            internal: null,
+        }, `Prompt ${template.prompts.length + 1}`));
+
+        selectedTemplatePromptIndex = template.prompts.length - 1;
+        updateSettingsUI();
+        saveSettings();
+        openTemplatePromptEditor(selectedTemplatePromptIndex);
+    });
+
     $('#custom_generation_prompt_dialog').on('close', () => {
         editingPromptIndex = null;
+        editingTemplatePromptIndex = null;
+        promptEditorTarget = 'preset';
     });
 
     $('#custom_generation_regex_dialog').on('close', () => {
@@ -2210,6 +2678,9 @@ function bindEvents() {
 
     $('#custom_generation_template_dialog').on('close', () => {
         editingTemplateIndex = null;
+        selectedTemplatePromptIndex = 0;
+        editingTemplatePromptIndex = null;
+        promptEditorTarget = 'preset';
     });
 }
 
@@ -2260,7 +2731,7 @@ export function updateSettingsUI() {
 
     selectedPromptIndex = clamp(selectedPromptIndex, 0, Math.max(0, currentPreset.prompts.length - 1));
     selectedRegexIndex = clamp(selectedRegexIndex, 0, Math.max(0, currentPreset.regexs.length - 1));
-    selectedTemplateIndex = clamp(selectedTemplateIndex, 0, Math.max(0, currentPreset.templates.length - 1));
+    selectedTemplateIndex = clamp(selectedTemplateIndex, 0, Math.max(0, getTemplateCount(currentPreset) - 1));
 
     isUpdatingUI = true;
 
@@ -2284,8 +2755,8 @@ export function updateSettingsUI() {
 
     const presetSelect = $('#custom_generation_preset_select');
     presetSelect.empty();
-    settings.presets.forEach((preset, index) => {
-        presetSelect.append(`<option value="${index}">${preset.name}</option>`);
+    getPresetKeys().forEach((presetKey) => {
+        presetSelect.append(`<option value="${presetKey}">${presetKey}</option>`);
     });
     presetSelect.val(String(settings.currentPreset));
 
@@ -2311,11 +2782,12 @@ export function updateSettingsUI() {
 
     const templateList = $('#custom_generation_template_list');
     templateList.empty();
-    if (currentPreset.templates.length === 0) {
+    const templateEntries = getTemplateEntries(currentPreset);
+    if (templateEntries.length === 0) {
         templateList.text(String(templateList.attr('no-items-text') ?? 'No templates'));
     } else {
-        currentPreset.templates.forEach((template, index) => {
-            templateList.append(buildTemplateRow(template, index));
+        templateEntries.forEach((entry, index) => {
+            templateList.append(buildTemplateRow(entry, index));
         });
     }
 
@@ -2340,7 +2812,8 @@ export function updateSettingsUI() {
     }
 
     if (editingTemplateIndex !== null) {
-        if (currentPreset.templates[editingTemplateIndex]) {
+        const templateEntries = getTemplateEntries(currentPreset);
+        if (templateEntries[editingTemplateIndex]) {
             updateTemplateEditor();
         } else {
             closeTemplateEditor();

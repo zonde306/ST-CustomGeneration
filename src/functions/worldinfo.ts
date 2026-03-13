@@ -9,14 +9,16 @@ import { GENERATION_TYPE_TRIGGERS } from '../../../../../constants.js';
 
 
 export const KNOWN_DECORATORS = [
-    '@@record',                 // 自动更新的记录片段
-    '@@record_template',        // 记录格式定义
-    '@@summary',                // 摘要
-    '@@planning',               // 计划片段
-    '@@variable',               // 将记录转换为变量
-    '@@prompt_image',           // 生成图片
-    '@@prompt_video',           // 生成视频
-    '@@prompt_audio',           // 生成音频
+    '@@replace',             // Full-Text Replacement Update
+    '@@replace_diff',        // Diff-based Text Updates
+    '@@variables_json',      // JSON-based Variables Updates (Merge)
+    '@@variables_yaml',      // Yaml-based Variables Updates (Merge)
+    '@@variables_jsonpatch', // JSON-Patch-based Variables Updates (Merge)
+    '@@evaluate_ejs',        // Execute EJS code without replacing the content.
+    '@@replace_ejs',         // Execute EJS code and replace the content.
+    '@@summary',             // Summarize the current output.
+    '@@summary_replace',     // Summarize the current output and replace its content.
+    '@@summary_truncate',    // Summarize all output and truncate the content.
 ];
 
 /**

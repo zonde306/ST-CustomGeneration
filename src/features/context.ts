@@ -22,7 +22,7 @@ type VariableData = Record<string, any>;
 type ChatMessageEx = ChatMessage & { variables?: VariableData[] };
 type ChatMetadataEx = ChatMetadata & { variables?: VariableData };
 
-interface GenerateOptionsLite {
+export interface GenerateOptionsLite {
     signal?: AbortSignal;
     quietName?: string;
     dontCreate?: boolean;
@@ -178,7 +178,7 @@ export class Context {
     get currentPreset(): Preset {
         let preset = settings.presets[settings.currentPreset] ?? defaultPreset;
         if(typeof this.presetOverride === 'string')
-            preset = settings.presets.find(p => p.name === this.presetOverride) ?? preset;
+            preset = settings.presets[this.presetOverride] ?? preset;
         return preset;
     }
 
@@ -216,7 +216,7 @@ export class Context {
 
         let preset : Preset | undefined = this.currentPreset;
         if(options.preset)
-            preset = settings.presets.find(p => p.name === options.preset);
+            preset = settings.presets[options.preset];
 
         const builder = new MessageBuilder(this.chat, preset);
         builder.filters = this.filters;
