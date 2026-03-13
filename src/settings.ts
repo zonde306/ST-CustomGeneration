@@ -174,6 +174,26 @@ interface ExportPayload {
     };
 }
 
+type ListExportKind = 'prompt' | 'regex' | 'template';
+
+type ListExportItem = {
+    id: string;
+    label: string;
+    checked: boolean;
+    data: PresetPrompt | RegEx | Template;
+};
+
+type ListExportDialogState = {
+    kind: ListExportKind | null;
+    items: ListExportItem[];
+};
+
+interface ListExportPayload {
+    version: string;
+    kind: ListExportKind;
+    items: Array<PresetPrompt | RegEx | Template>;
+}
+
 interface ImportPayload {
     version?: unknown;
     presets?: unknown;
@@ -399,6 +419,11 @@ let modelCandidates: string[] = [];
 let isConnectionActionInProgress = false;
 
 const exportSchemaVersion = '1.0.0';
+const listExportSchemaVersion = '1.0.0';
+const listExportDialogState: ListExportDialogState = {
+    kind: null,
+    items: [],
+};
 type TemplateDecorator = Template['decorator'];
 const DEFAULT_TEMPLATE_DECORATOR = (KNOWN_DECORATORS.find(x => x === '@@record') ?? KNOWN_DECORATORS[0] ?? '@@record') as TemplateDecorator;
 
@@ -567,6 +592,56 @@ function normalizeTemplatePrompts(raw: unknown): PresetPrompt[] {
     }
 
     return [];
+}
+
+function normalizeListExportPrompt(raw: unknown, index: number): PresetPrompt {
+    return normalizePrompt(isRecord(raw) ? raw as Partial<PresetPrompt> : {}, `Prompt ${index + 1}`);
+}
+
+function normalizeListExportRegex(raw: unknown, index: number): RegEx {
+    return normalizeRegex(isRecord(raw) ? raw as Partial<RegEx> : {}, `Regex ${index + 1}`);
+}
+
+function normalizeListExportTemplate(raw: unknown): Template {
+    return normalizeTemplate(isRecord(raw) ? raw as Partial<Template> : {});
+}
+
+function normalizeListExportPayload(raw: unknown): { kind: ListExportKind; items: Array<PresetPrompt | RegEx | Template> } {
+    if (!isRecord(raw)) {
+        throw new Error('Invalid JSON payload.');
+    }
+
+    const kind = String(raw.kind ?? '').trim();
+    if (kind !== 'prompt' && kind !== 'regex' && kind !== 'template') {
+        throw new Error('Invalid import format: kind is required.');
+    }
+
+    if (!Array.isArray(raw.items)) {
+        throw new Error('Invalid import format: items is required.');
+    }
+
+    if (raw.items.length === 0) {
+        throw new Error('Invalid import format: items cannot be empty.');
+    }
+
+    if (kind === 'prompt') {
+        return {
+            kind,
+            items: raw.items.map((item, index) => normalizeListExportPrompt(item, index)),
+        };
+    }
+
+    if (kind === 'regex') {
+        return {
+            kind,
+            items: raw.items.map((item, index) => normalizeListExportRegex(item, index)),
+        };
+    }
+
+    return {
+        kind,
+        items: raw.items.map(item => normalizeListExportTemplate(item)),
+    };
 }
 
 function normalizeTemplate(input: Partial<Template>): Template {
@@ -946,6 +1021,215 @@ function getTemplateSummary(template: Template): string {
     return `${template.decorator} · ${getTemplateTagLabel(template)}`;
 }
 
+function buildPromptDisplayName(prompt: PresetPrompt, index: number): string {
+    return prompt.name || `Prompt ${index + 1}`;
+}
+
+function buildRegexDisplayName(regex: RegEx, index: number): string {
+    return regex.name || `Regex ${index + 1}`;
+}
+
+function buildTemplateDisplayName(template: Template): string {
+    return getTemplateSummary(template);
+}
+
+function openListExportDialog(kind: ListExportKind, items: ListExportItem[], title: string): void {
+    listExportDialogState.kind = kind;
+    listExportDialogState.items = items;
+    const titleEl = $('#custom_generation_list_export_title');
+    if (titleEl.length) {
+        titleEl.text(title);
+    }
+
+    const container = $('#custom_generation_list_export_items');
+    container.empty();
+    items.forEach(item => {
+        const row = $('<label class="checkbox_label"></label>');
+        const checkbox = $('<input type="checkbox" />').prop('checked', item.checked);
+        checkbox.on('change', () => {
+            item.checked = Boolean(checkbox.prop('checked'));
+        });
+        row.append(checkbox, $('<span></span>').text(item.label));
+        container.append(row);
+    });
+
+    openDialog('#custom_generation_list_export_dialog');
+}
+
+function closeListExportDialog(): void {
+    closeDialog('#custom_generation_list_export_dialog');
+    listExportDialogState.kind = null;
+    listExportDialogState.items = [];
+}
+
+function buildListExportPayload(kind: ListExportKind, items: ListExportItem[]): ListExportPayload {
+    return {
+        version: listExportSchemaVersion,
+        kind,
+        items: items.map(item => item.data),
+    };
+}
+
+function downloadListExportPayload(kind: ListExportKind, payload: ListExportPayload): void {
+    const content = JSON.stringify(payload, null, 2);
+    const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const filenameSuffix = kind === 'prompt' ? 'prompts' : kind === 'regex' ? 'regex' : 'templates';
+
+    link.href = url;
+    link.download = `st-custom-generation-${filenameSuffix}-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+}
+
+function confirmListExport(): void {
+    const kind = listExportDialogState.kind;
+    if (!kind) {
+        return;
+    }
+
+    const selected = listExportDialogState.items.filter(item => item.checked);
+    if (selected.length === 0) {
+        window.alert('Please select at least one item to export.');
+        return;
+    }
+
+    const payload = buildListExportPayload(kind, selected);
+    closeListExportDialog();
+    downloadListExportPayload(kind, payload);
+}
+
+function buildPromptExportItems(prompts: PresetPrompt[]): ListExportItem[] {
+    return prompts.map((prompt, index) => ({
+        id: `prompt-${index}`,
+        label: buildPromptDisplayName(prompt, index),
+        checked: true,
+        data: clone(prompt),
+    }));
+}
+
+function buildRegexExportItems(regexs: RegEx[]): ListExportItem[] {
+    return regexs.map((regex, index) => ({
+        id: `regex-${index}`,
+        label: buildRegexDisplayName(regex, index),
+        checked: true,
+        data: clone(regex),
+    }));
+}
+
+function buildTemplateExportItems(entries: TemplateEntry[]): ListExportItem[] {
+    return entries.map((entry, index) => ({
+        id: `template-${entry.key}`,
+        label: buildTemplateDisplayName(entry.template),
+        checked: true,
+        data: clone(entry.template),
+    }));
+}
+
+function openPromptExportDialogForPreset(): void {
+    const preset = getCurrentPreset();
+    if (preset.prompts.length === 0) {
+        window.alert('No prompts to export.');
+        return;
+    }
+
+    const items = buildPromptExportItems(preset.prompts);
+    openListExportDialog('prompt', items, 'Export Prompts');
+}
+
+function openPromptExportDialogForSingle(index: number): void {
+    const preset = getCurrentPreset();
+    const prompt = preset.prompts[index];
+    if (!prompt) {
+        return;
+    }
+
+    const items = buildPromptExportItems([prompt]);
+    openListExportDialog('prompt', items, 'Export Prompt');
+}
+
+function openRegexExportDialogForPreset(): void {
+    const preset = getCurrentPreset();
+    if (preset.regexs.length === 0) {
+        window.alert('No regex scripts to export.');
+        return;
+    }
+
+    const items = buildRegexExportItems(preset.regexs);
+    openListExportDialog('regex', items, 'Export Regex');
+}
+
+function openRegexExportDialogForSingle(index: number): void {
+    const preset = getCurrentPreset();
+    const regex = preset.regexs[index];
+    if (!regex) {
+        return;
+    }
+
+    const items = buildRegexExportItems([regex]);
+    openListExportDialog('regex', items, 'Export Regex');
+}
+
+function openTemplateExportDialogForPreset(): void {
+    const preset = getCurrentPreset();
+    const entries = getTemplateEntries(preset);
+    if (entries.length === 0) {
+        window.alert('No templates to export.');
+        return;
+    }
+
+    const items = buildTemplateExportItems(entries);
+    openListExportDialog('template', items, 'Export Templates');
+}
+
+function openTemplateExportDialogForSingle(index: number): void {
+    const preset = getCurrentPreset();
+    const entries = getTemplateEntries(preset);
+    const entry = entries[index];
+    if (!entry) {
+        return;
+    }
+
+    const items = buildTemplateExportItems([entry]);
+    openListExportDialog('template', items, 'Export Template');
+}
+
+async function importListFromFile(kind: ListExportKind, file: File): Promise<void> {
+    const text = await file.text();
+    let parsed: unknown;
+
+    try {
+        parsed = JSON.parse(text);
+    } catch {
+        throw new Error('Invalid JSON file.');
+    }
+
+    const normalized = normalizeListExportPayload(parsed);
+    if (normalized.kind !== kind) {
+        throw new Error(`Import type mismatch: expected ${kind}.`);
+    }
+
+    const preset = getCurrentPreset();
+    if (kind === 'prompt') {
+        preset.prompts = preset.prompts.concat(normalized.items as PresetPrompt[]);
+        selectedPromptIndex = clamp(preset.prompts.length - 1, 0, Math.max(0, preset.prompts.length - 1));
+    } else if (kind === 'regex') {
+        preset.regexs = preset.regexs.concat(normalized.items as RegEx[]);
+        selectedRegexIndex = clamp(preset.regexs.length - 1, 0, Math.max(0, preset.regexs.length - 1));
+    } else {
+        const templateList = normalized.items as Template[];
+        const templateMap = buildTemplateMap(templateList);
+        Object.assign(preset.templates, templateMap);
+        selectedTemplateIndex = clamp(getTemplateCount(preset) - 1, 0, Math.max(0, getTemplateCount(preset) - 1));
+    }
+
+    updateSettingsUI();
+    saveSettings();
+}
+
 /*
 function getTemplateRegexPreview(template: Template): string {
     const preview = getPreviewText(String(template.regex ?? ''));
@@ -1093,14 +1377,15 @@ function buildPromptRow(prompt: PresetPrompt, index: number) {
     const left = $('<div class="flex-container alignItemsCenter flex1"></div>');
     const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
     const toggle = $('<input type="checkbox" />').prop('checked', prompt.enabled === true);
-    const name = $('<div class="flex1"></div>').text(prompt.name || `Prompt ${index + 1}`);
+    const name = $('<div class="flex1"></div>').text(buildPromptDisplayName(prompt, index));
 
     left.append(dragHandle, toggle, name);
 
     const actions = $('<div class="flex-container alignItemsCenter"></div>');
     const editButton = $('<i class="menu_button fa-solid fa-pen-to-square" title="Edit" data-i18n="[title]Edit"></i>');
+    const exportButton = $('<i class="menu_button fa-solid fa-file-export" title="Export" data-i18n="[title]Export"></i>');
     const deleteButton = $('<i class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></i>');
-    actions.append(editButton, deleteButton);
+    actions.append(editButton, exportButton, deleteButton);
 
     row.on('click', () => {
         selectedPromptIndex = index;
@@ -1127,6 +1412,11 @@ function buildPromptRow(prompt: PresetPrompt, index: number) {
     editButton.on('click', (event: JQuery.TriggeredEvent) => {
         event.stopPropagation();
         openPromptEditor(index);
+    });
+
+    exportButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        openPromptExportDialogForSingle(index);
     });
 
     deleteButton.on('click', (event: JQuery.TriggeredEvent) => {
@@ -1301,14 +1591,15 @@ function buildRegexRow(regex: RegEx, index: number) {
     const left = $('<div class="flex-container alignItemsCenter flex1"></div>');
     const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
     const toggle = $('<input type="checkbox" />').prop('checked', regex.enabled);
-    const name = $('<div class="flex1"></div>').text(regex.name || `Regex ${index + 1}`);
+    const name = $('<div class="flex1"></div>').text(buildRegexDisplayName(regex, index));
 
     left.append(dragHandle, toggle, name);
 
     const actions = $('<div class="flex-container alignItemsCenter"></div>');
     const editButton = $('<i class="menu_button fa-solid fa-pen-to-square" title="Edit" data-i18n="[title]Edit"></i>');
+    const exportButton = $('<i class="menu_button fa-solid fa-file-export" title="Export" data-i18n="[title]Export"></i>');
     const deleteButton = $('<i class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></i>');
-    actions.append(editButton, deleteButton);
+    actions.append(editButton, exportButton, deleteButton);
 
     row.on('click', () => {
         selectedRegexIndex = index;
@@ -1335,6 +1626,11 @@ function buildRegexRow(regex: RegEx, index: number) {
     editButton.on('click', (event: JQuery.TriggeredEvent) => {
         event.stopPropagation();
         openRegexEditor(index);
+    });
+
+    exportButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        openRegexExportDialogForSingle(index);
     });
 
     deleteButton.on('click', (event: JQuery.TriggeredEvent) => {
@@ -1414,8 +1710,9 @@ function buildTemplateRow(entry: TemplateEntry, index: number) {
 
     const actions = $('<div class="flex-container alignItemsCenter"></div>');
     const editButton = $('<i class="menu_button fa-solid fa-pen-to-square" title="Edit" data-i18n="[title]Edit"></i>');
+    const exportButton = $('<i class="menu_button fa-solid fa-file-export" title="Export" data-i18n="[title]Export"></i>');
     const deleteButton = $('<i class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></i>');
-    actions.append(editButton, deleteButton);
+    actions.append(editButton, exportButton, deleteButton);
 
     row.on('click', () => {
         selectedTemplateIndex = index;
@@ -1425,6 +1722,11 @@ function buildTemplateRow(entry: TemplateEntry, index: number) {
     editButton.on('click', (event: JQuery.TriggeredEvent) => {
         event.stopPropagation();
         openTemplateEditor(index);
+    });
+
+    exportButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        openTemplateExportDialogForSingle(index);
     });
 
     deleteButton.on('click', (event: JQuery.TriggeredEvent) => {
@@ -2539,6 +2841,110 @@ function bindEvents() {
 
     $('#custom_generation_export_confirm').on('click', () => {
         confirmExport();
+    });
+
+    $('#custom_generation_list_export_cancel').on('click', () => {
+        closeListExportDialog();
+    });
+
+    $('#custom_generation_list_export_confirm').on('click', () => {
+        confirmListExport();
+    });
+
+    $('#custom_generation_import_prompt').on('click', () => {
+        const input = document.getElementById('custom_generation_prompt_import_input');
+        if (!(input instanceof HTMLInputElement)) {
+            return;
+        }
+
+        input.value = '';
+        input.click();
+    });
+
+    $('#custom_generation_prompt_import_input').on('change', async () => {
+        const input = document.getElementById('custom_generation_prompt_import_input');
+        if (!(input instanceof HTMLInputElement) || !input.files || input.files.length === 0) {
+            return;
+        }
+
+        const file = input.files[0];
+        try {
+            await importListFromFile('prompt', file);
+            window.alert('Prompts imported successfully.');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error ?? 'Unknown import error');
+            window.alert(`Import failed: ${message}`);
+        } finally {
+            input.value = '';
+        }
+    });
+
+    $('#custom_generation_export_prompt').on('click', () => {
+        openPromptExportDialogForPreset();
+    });
+
+    $('#custom_generation_import_regex').on('click', () => {
+        const input = document.getElementById('custom_generation_regex_import_input');
+        if (!(input instanceof HTMLInputElement)) {
+            return;
+        }
+
+        input.value = '';
+        input.click();
+    });
+
+    $('#custom_generation_regex_import_input').on('change', async () => {
+        const input = document.getElementById('custom_generation_regex_import_input');
+        if (!(input instanceof HTMLInputElement) || !input.files || input.files.length === 0) {
+            return;
+        }
+
+        const file = input.files[0];
+        try {
+            await importListFromFile('regex', file);
+            window.alert('Regex scripts imported successfully.');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error ?? 'Unknown import error');
+            window.alert(`Import failed: ${message}`);
+        } finally {
+            input.value = '';
+        }
+    });
+
+    $('#custom_generation_export_regex').on('click', () => {
+        openRegexExportDialogForPreset();
+    });
+
+    $('#custom_generation_import_template').on('click', () => {
+        const input = document.getElementById('custom_generation_template_import_input');
+        if (!(input instanceof HTMLInputElement)) {
+            return;
+        }
+
+        input.value = '';
+        input.click();
+    });
+
+    $('#custom_generation_template_import_input').on('change', async () => {
+        const input = document.getElementById('custom_generation_template_import_input');
+        if (!(input instanceof HTMLInputElement) || !input.files || input.files.length === 0) {
+            return;
+        }
+
+        const file = input.files[0];
+        try {
+            await importListFromFile('template', file);
+            window.alert('Templates imported successfully.');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error ?? 'Unknown import error');
+            window.alert(`Import failed: ${message}`);
+        } finally {
+            input.value = '';
+        }
+    });
+
+    $('#custom_generation_export_template').on('click', () => {
+        openTemplateExportDialogForPreset();
     });
 
     $('#custom_generation_add_prompt').on('click', () => {

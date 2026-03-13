@@ -19,6 +19,8 @@ export const KNOWN_DECORATORS = [
     '@@summary',             // Summarize the current output.
     '@@summary_replace',     // Summarize the current output and replace its content.
     '@@summary_truncate',    // Summarize all output and truncate the content.
+    '@@append_output',       // Append the result to the output.
+    '@@append_output_ejs',   // Process the results using EJS and append them to the output.
 ];
 
 /**
