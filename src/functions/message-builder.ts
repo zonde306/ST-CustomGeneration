@@ -23,6 +23,7 @@ import { GenerateOptionsLite, ContextRole } from "../utils/defines";
 import { Preset, defaultPreset } from "../settings";
 import { runRegexScript, substitute_find_regex } from "../../../../regex/engine.js";
 import { wi_anchor_position } from '../../../../../world-info.js';
+import { DynamicMacroValue } from '../../../../../macros/engine/MacroEnv.types.js';
 
 interface ExtensionPrompts {
     value: string,
@@ -50,17 +51,27 @@ export interface PromptFilter {
     worldInfoOutlet?: boolean;
 }
 
+export interface MacroOverride {
+    user?: string;
+    char?: string;
+    original?: string;
+    group?: string;
+    macros?: Record<string, DynamicMacroValue>;
+};
+
 export class MessageBuilder {
     private chat: ChatMessage[];
     private extensionPrompts: Record<string, ExtensionPrompts>;
     private preset: Preset;
     public filters: PromptFilter;
+    public macroOverride: MacroOverride;
 
     constructor(chat: ChatMessage[], preset?: Preset) {
         this.chat = chat;
         this.extensionPrompts = {};
         this.preset = preset ?? settings.presets[Number(settings.currentPreset)] ?? defaultPreset;
         this.filters = {};
+        this.macroOverride = {};
     }
 
     async build(type: string = 'normal', dryRun: boolean = false, wiDepth = world_info_depth): Promise<ChatCompletionMessage[]> {
@@ -85,10 +96,6 @@ export class MessageBuilder {
         await eventSource.emit(event_types.GENERATION_AFTER_COMMANDS, type, options, dryRun);
 
         const messages = await this.build(type, dryRun);
-
-        for(const message of messages) {
-            message.content = substituteParams(message.content);
-        }
 
         await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun });
         await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat: messages, dryRun });
@@ -265,7 +272,7 @@ export class MessageBuilder {
         const role = this.#normalizeRole(chat_metadata[metadata_keys.role]);
         const noteMessage: ChatCompletionMessage = {
             role,
-            content: prompt,
+            content: this.#evaluateMacros(prompt),
         };
 
         const insertIndex = position === 2
@@ -298,8 +305,8 @@ export class MessageBuilder {
 
         const self = this;
         const noteRole = this.#normalizeRole(messages[authorNoteRange.start]?.role ?? chat_metadata[metadata_keys.role]);
-        const beforeMessages = beforeEntries.map(content => ({ role: noteRole, content: self.#applyRegex(content, { world: true }) } as ChatCompletionMessage));
-        const afterMessages = afterEntries.map(content => ({ role: noteRole, content: self.#applyRegex(content, { world: true }) } as ChatCompletionMessage));
+        const beforeMessages = beforeEntries.map(content => ({ role: noteRole, content: this.#evaluateMacros(self.#applyRegex(content, { world: true })) } as ChatCompletionMessage));
+        const afterMessages = afterEntries.map(content => ({ role: noteRole, content: this.#evaluateMacros(self.#applyRegex(content, { world: true })) } as ChatCompletionMessage));
 
         if (beforeMessages.length) {
             messages.splice(authorNoteRange.start, 0, ...beforeMessages);
@@ -377,7 +384,7 @@ export class MessageBuilder {
                     continue;
                 }
 
-                roleMessages.push({ role, content: text });
+                roleMessages.push({ role, content: this.#evaluateMacros(text) });
             }
 
             if (!roleMessages.length) {
@@ -860,7 +867,9 @@ export class MessageBuilder {
 
     getOutletPrompt(key: string): string {
         const value = this.extensionPrompts[inject_ids.CUSTOM_WI_OUTLET(key)]?.value;
-        return value || '';
+        if(value)
+            return this.#evaluateMacros(value);
+        return '';
     }
 
     #assignOutletMacros(history: ChatCompletionMessage[]) {
@@ -870,5 +879,22 @@ export class MessageBuilder {
                 message.content = message.content.replace(/\{\{outlet::(.+?)\}\}/gi, (_, key: string) => self.getOutletPrompt(key));
             }
         }
+    }
+
+    #evaluateMacros(content: string): string {
+        return substituteParams(
+            content,
+            {
+                name1Override: this.macroOverride.user,
+                name2Override: this.macroOverride.char,
+                original: this.macroOverride.original,
+                groupOverride: this.macroOverride.group,
+                dynamicMacros: {
+                    lastUserMessage: () => this.chat.findLast(m => m.is_user)?.mes ?? '',
+                    lastCharMessage: () => this.chat.findLast(m => !m.is_user && !m.is_system)?.mes ?? '',
+                    ...(this.macroOverride.macros ?? {}),
+                },
+            }
+        );
     }
 }

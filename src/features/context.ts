@@ -12,11 +12,10 @@ import {
 } from '../../../../../../script.js';
 import { settings, Preset, defaultPreset } from '../settings';
 import { generate as runGenerate, ApiConfig } from '../functions/generate';
-import { MessageBuilder, PromptFilter } from '../functions/message-builder';
+import { MessageBuilder, PromptFilter, MacroOverride } from '../functions/message-builder';
 import { ContextRole } from '../utils/defines'
 import { runRegexScript, substitute_find_regex } from "../../../../regex/engine.js";
 import { eventTypes } from '../utils/events';
-import { DynamicMacroValue } from '../../../../../macros/engine/MacroEnv.types.js';
 
 type VariableData = Record<string, any>;
 type ChatMessageEx = ChatMessage & { variables?: VariableData[] };
@@ -33,13 +32,7 @@ export interface GenerateOptionsLite {
     context?: Context;
 };
 
-interface MacroOverride {
-    user?: string;
-    char?: string;
-    original?: string;
-    group?: string;
-    macros?: Record<string, DynamicMacroValue>;
-};
+
 
 export class Context {
     public chat: ChatMessageEx[];
@@ -112,7 +105,7 @@ export class Context {
             variables: [{}]
         });
 
-        await eventSource.emit(eventTypes.MESSAGE_CREATED, this.chat.length, this.chat[this.chat.length - 1]);
+        await eventSource.emit(eventTypes.MESSAGE_SEND, { messageId: this.chat.length - 1, message: this.chat[this.chat.length - 1], context: this });
     }
 
     async #recv(contents: string[], role: ContextRole = 'assistant', name: string = name2): Promise<string[]> {
@@ -148,7 +141,7 @@ export class Context {
             extra: {},
         });
 
-        await eventSource.emit(eventTypes.MESSAGE_CREATED, this.chat.length, this.chat[this.chat.length - 1]);
+        await eventSource.emit(eventTypes.MESSAGE_RECEIVED, { messageId: this.chat.length - 1, message: this.chat[this.chat.length - 1], context: this });
         return swipes;
     }
 
@@ -188,6 +181,7 @@ export class Context {
         // Prevent generation from shallow characters
         await unshallowCharacter(this_chid);
 
+        // for event handlers
         options.context = this;
 
         // Occurs every time, even if the generation is aborted due to slash commands execution
@@ -206,7 +200,7 @@ export class Context {
                 await deleteLastMessage();
             } else {
                 this.chat.length = this.chat.length - 1;
-                await eventSource.emit(eventTypes.MESSAGE_DELETED, this.chat.length);
+                await eventSource.emit(eventTypes.MESSAGE_DELETED, {  messageId: this.chat.length, context: this });
             }
         }
 
@@ -220,6 +214,8 @@ export class Context {
 
         const builder = new MessageBuilder(this.chat, preset);
         builder.filters = this.filters;
+        builder.macroOverride = this.macroOverride;
+
         const messages = await builder.build(type, dryRun);
 
         for(const message of messages) {
@@ -282,6 +278,8 @@ export class Context {
                 if(!options.dontCreate) {
                     buffers = await self.#recv(buffers);
                 }
+
+                await eventSource.emit(eventTypes.GENERATE_ENDED, { taskId, response: buffers, context: self, streaming: true });
             }
 
             return stream();
@@ -300,11 +298,14 @@ export class Context {
             result = result.map(mes => self.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
         }
 
+        const data = { taskId, response: result, context: self, streaming: false };
+        await eventSource.emit(eventTypes.GENERATE_ENDED, data);
+
         if(options.allResponses) {
-            return result;
+            return data.response;
         }
 
-        return result.find(mes => !!mes.trim()) ?? '';
+        return data.response.find(mes => !!mes.trim()) ?? '';
     }
 
     #buildApiConfig(type: string): ApiConfig | undefined {

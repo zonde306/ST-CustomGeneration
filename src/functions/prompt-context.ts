@@ -98,7 +98,8 @@ export class PromptContext {
      * 对话
      */
     get chatHistory(): { role: 'user' | 'system' | 'assistant', content: string }[] {
-        return chat.map(msg => ({ role: msg.is_user ? 'user' : msg.is_system ? 'system' : 'assistant', content: msg.mes ?? '' }));
+        // Marked as `is_system` are hidden.
+        return chat.filter(msg => !msg.is_system).map(msg => ({ role: msg.is_user ? 'user' : 'assistant', content: msg.mes ?? '' }));
     }
 
     /**
