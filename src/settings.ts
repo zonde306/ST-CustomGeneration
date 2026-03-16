@@ -3032,13 +3032,7 @@ function bindEvents() {
 
     $('#custom_generation_add_template').on('click', () => {
         const preset = getCurrentPreset();
-        const nextTemplate = normalizeTemplate({
-            decorator: '@@record',
-            tag: '',
-            regex: '',
-            findRegex: '',
-            prompts: normalizeTemplatePrompts(''),
-        });
+        const nextTemplate = normalizeTemplate(clone(defaultTemplate));
         const key = getTemplateKey(nextTemplate);
         preset.templates[key] = nextTemplate;
 
