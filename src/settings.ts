@@ -81,8 +81,13 @@ export interface Template {
     // template prompts
     prompts: PresetPrompt[];
 
-    // match regexp, pass capture group 1 to the handler
+    // Generate a result that matches the regex, and pass Capture Group 1.
+    // if regex is empty, will not be used.
     regex: string;
+
+    // Processing is triggered only when the regex matches, treating the captured group as {{lastCharMessage}}.
+    // if regex is empty, will not be used.
+    findRegex: string;
 }
 
 export interface Preset {
@@ -214,6 +219,37 @@ interface ImportPayload {
         excludeBody?: unknown;
         apiKey?: unknown;
     };
+}
+
+export const defaultTemplate: Template = {
+    decorator: '@@record',
+    tag: '',
+    prompts: [
+        {
+            name: 'Last Character Message',
+            role: 'assistant',
+            triggers: [],
+            prompt: '{{lastCharMessage}}',
+            injectionPosition: 'relative',
+            enabled: true,
+            internal: null,
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
+        },
+        {
+            name: 'Instruction',
+            role: 'user',
+            triggers: [],
+            prompt: 'Based on the above, update the following outdated information:\n\n{{original}}\n\nOutput only the updated content.',
+            injectionPosition: 'relative',
+            enabled: true,
+            internal: null,
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
+        }
+    ],
+    regex: '',
+    findRegex: '',
 }
 
 export const defaultPreset: Preset = {
@@ -371,6 +407,7 @@ export const defaultPreset: Preset = {
                 },
             ],
             regex: '/<content>([\\S\\s]+?)<\\/content>/gi',
+            findRegex: '',
         },
     },
 };
@@ -658,6 +695,7 @@ function normalizeTemplate(input: Partial<Template>): Template {
         tag: String(input.tag ?? ''),
         prompts,
         regex: String(input.regex ?? ''),
+        findRegex: String(input.findRegex ?? ''),
     };
 }
 
@@ -1870,6 +1908,7 @@ function setTemplateEditorEnabled(enabled: boolean) {
         '#custom_generation_template_decorator',
         '#custom_generation_template_tag',
         '#custom_generation_template_regex',
+        '#custom_generation_template_find_regex',
         '#custom_generation_template_delete',
         '#custom_generation_template_save',
     ];
@@ -2001,6 +2040,7 @@ function updateTemplateEditor() {
         $('#custom_generation_template_decorator').val(DEFAULT_TEMPLATE_DECORATOR);
         $('#custom_generation_template_tag').val('');
         $('#custom_generation_template_regex').val('');
+        $('#custom_generation_template_find_regex').val('');
         updateTemplatePromptList(null);
         isUpdatingUI = false;
         return;
@@ -2011,6 +2051,7 @@ function updateTemplateEditor() {
     $('#custom_generation_template_decorator').val(template.decorator);
     $('#custom_generation_template_tag').val(template.tag);
     $('#custom_generation_template_regex').val(template.regex);
+    $('#custom_generation_template_find_regex').val(template.findRegex);
     selectedTemplatePromptIndex = clamp(selectedTemplatePromptIndex, 0, Math.max(0, template.prompts.length - 1));
     updateTemplatePromptList(template);
 
@@ -2274,6 +2315,7 @@ function saveTemplateEditor(): void {
         decorator: $('#custom_generation_template_decorator').val() as Template['decorator'],
         tag: String($('#custom_generation_template_tag').val() ?? ''),
         regex: String($('#custom_generation_template_regex').val() ?? ''),
+        findRegex: String($('#custom_generation_template_find_regex').val() ?? ''),
         prompts: entry.template.prompts,
     });
 
@@ -2994,6 +3036,7 @@ function bindEvents() {
             decorator: '@@record',
             tag: '',
             regex: '',
+            findRegex: '',
             prompts: normalizeTemplatePrompts(''),
         });
         const key = getTemplateKey(nextTemplate);

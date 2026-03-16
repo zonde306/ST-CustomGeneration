@@ -16,10 +16,10 @@ export class Override {
     public chat: ChatMessageEx[];
     public chat_metadata: ChatMetadata;
 
-    constructor(_chat: ChatMessage[] = chat, _metadata: ChatMetadata = chat_metadata) {
+    constructor(_chat: ChatMessage[], _metadata: ChatMetadata) {
         this.chat = _chat;
         this.chat_metadata = _metadata;
-
+        
         eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded.bind(null, new WeakRef(this)));
     }
 
