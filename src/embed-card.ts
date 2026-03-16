@@ -1,15 +1,15 @@
-import { characters, this_chid, saveCharacterDebounced } from "../../../../../script.js";
-import { Preset, settings, saveSettings, updateSettingsUI } from './settings'
-import { eventSource, event_types } from "../../../../events.js";
-import { renderExtensionTemplateAsync } from '../../../../extensions.js';
-import { v1CharData } from "../../../../char-data.js";
-import { power_user } from "../../../../power-user.js";
-import { accountStorage } from "../../../../util/AccountStorage.js";
-import { callGenericPopup, POPUP_TYPE } from "../../../../popup.js";
+import { characters, this_chid, saveCharacterDebounced } from "@st/script.js";
+import { Preset, settings, saveSettings, updateSettingsUI } from '@/settings'
+import { eventSource, event_types } from "@st/scripts/events.js";
+import { renderExtensionTemplateAsync } from '@st/scripts/extensions.js';
+import { v1CharData } from "@st/scripts/char-data.js";
+import { power_user } from "@st/scripts/power-user.js";
+import { accountStorage } from "@st/scripts/util/AccountStorage.js";
+import { callGenericPopup, POPUP_TYPE } from "@st/scripts/popup.js";
 
 let isEmbedCardEventsBound = false;
 
-export function setup() {
+export async function setup() {
     eventSource.on(event_types.CHARACTER_EDITOR_OPENED, createSelectOption);
 }
 

@@ -1,16 +1,18 @@
-import { setupSettings } from "./settings";
-import { Context } from "./features/context";
-import { PromptContext } from "./functions/prompt-context";
-import { MessageBuilder } from "./functions/message-builder";
-import { setup as setupRecords } from "./features/records";
-import { setup as setupEmbedCard } from "./embed-card";
-import { eventTypes } from "./utils/events";
+import { setupSettings } from "@/settings";
+import { Context } from "@/features/context";
+import { PromptContext } from "@/functions/prompt-context";
+import { MessageBuilder } from "@/functions/message-builder";
+import { setup as setupEmbedCard } from "@/embed-card";
+import { eventTypes } from "@/utils/events";
+import { setup as setupAfterGenerate } from "@/features/after-generated";
+import { setup as setupReplace } from "@/features/after-generates/replace";
 
 // jQuery
 $(async () => {
     await setupSettings();
-    await setupRecords();
     await setupEmbedCard();
+    await setupAfterGenerate();
+    await setupReplace();
 
     // @ts-expect-error: 7017
     globalThis.CustomGeneration = {

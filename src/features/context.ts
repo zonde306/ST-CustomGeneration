@@ -1,4 +1,4 @@
-import { eventSource, event_types } from '../../../../../events.js';
+import { eventSource, event_types } from '@st/scripts/events.js';
 import {
     name1,
     unshallowCharacter,
@@ -9,13 +9,13 @@ import {
     name2,
     substituteParams,
     refreshSwipeButtons,
-} from '../../../../../../script.js';
-import { settings, Preset, defaultPreset } from '../settings';
-import { generate as runGenerate, ApiConfig } from '../functions/generate';
-import { MessageBuilder, PromptFilter, MacroOverride } from '../functions/message-builder';
-import { ContextRole } from '../utils/defines'
-import { runRegexScript, substitute_find_regex } from "../../../../regex/engine.js";
-import { eventTypes } from '../utils/events';
+} from '@st/script.js';
+import { settings, Preset, defaultPreset } from '@/settings';
+import { generate as runGenerate, ApiConfig } from '@/functions/generate';
+import { MessageBuilder, PromptFilter, MacroOverride } from '@/functions/message-builder';
+import { ContextRole } from '@/utils/defines'
+import { runRegexScript, substitute_find_regex } from "@/../../../regex/engine.js";
+import { eventTypes } from '@/utils/events';
 
 type VariableData = Record<string, any>;
 type ChatMessageEx = ChatMessage & { variables?: VariableData[] };

@@ -1,6 +1,5 @@
-import { eventSource, event_types } from "../../../../../events.js";
-import { chat, chat_metadata } from "../../../../../../script.js";
-import { WorldInfoLoaded } from "./defines";
+import { eventSource, event_types } from "@st/scripts/events.js";
+import { WorldInfoLoaded } from "@/utils/defines";
 
 interface WIOverride {
     type: string;
@@ -12,7 +11,7 @@ type WIOverrides = Record<string, Record<string, WIOverride>>;
 type SwipeInfoEx = SwipeInfo & { wi_overrides?: WIOverrides, mes_overrides?: string };
 type ChatMessageEx = ChatMessage & { swipe_info?: SwipeInfoEx[] };
 
-export class Override {
+export class DataOverride {
     public chat: ChatMessageEx[];
     public chat_metadata: ChatMetadata;
 
@@ -20,6 +19,7 @@ export class Override {
         this.chat = _chat;
         this.chat_metadata = _metadata;
         
+        // FIXME: Listening to Events Multiple Times
         eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded.bind(null, new WeakRef(this)));
     }
 
@@ -58,12 +58,12 @@ export class Override {
         }
     }
 
-    getOverride(world: string, uid: string): WIOverride | null {
+    getOverride(world: string, uid: string | number): WIOverride | null {
         const last = this.chat[this.chat.length - 1];
-        return last?.swipe_info?.[last.swipe_id ?? 0]?.wi_overrides?.[world]?.[uid] ?? null;
+        return last?.swipe_info?.[last.swipe_id ?? 0]?.wi_overrides?.[world]?.[String(uid)] ?? null;
     }
 
-    setOverride(world: string, uid: string, type: string, content: string) {
+    setOverride(world: string, uid: string | number, type: string, content: string) {
         const last = this.chat[this.chat.length - 1];
         if(!last.swipe_info)
             last.swipe_info = [];
@@ -73,7 +73,7 @@ export class Override {
             last.swipe_info[last.swipe_id ?? 0].wi_overrides = {};
         if(!last.swipe_info[last.swipe_id ?? 0].wi_overrides?.[world]) // @ts-expect-error: 2339
             last.swipe_info[last.swipe_id ?? 0].wi_overrides[world] = {}; // @ts-expect-error: 2339
-        last.swipe_info[last.swipe_id ?? 0].wi_overrides[world][uid] = { type, content };
+        last.swipe_info[last.swipe_id ?? 0].wi_overrides[world][String(uid)] = { type, content };
     }
 
     getChatOverride(message_id: number): string | null {
@@ -91,6 +91,6 @@ export class Override {
     }
 }
 
-async function onWorldInfoLoaded(self: WeakRef<Override>, data: WorldInfoLoaded) {
+async function onWorldInfoLoaded(self: WeakRef<DataOverride>, data: WorldInfoLoaded) {
     await self.deref()?.onWorldInfoLoaded(data);
 }

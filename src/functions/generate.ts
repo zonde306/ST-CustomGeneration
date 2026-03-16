@@ -1,8 +1,8 @@
-import { eventSource, event_types } from '../../../../../events.js';
-import { oai_settings, sendOpenAIRequest, chat_completion_sources } from '../../../../../openai.js';
-import { TokenLogprobs } from '../../../../../logprobs.js';
-import { uuidv4 } from '../../../../../utils.js';
-import { eventTypes } from '../utils/events'
+import { eventSource, event_types } from '@st/scripts/events.js';
+import { oai_settings, sendOpenAIRequest, chat_completion_sources } from '@st/scripts/openai.js';
+import { TokenLogprobs } from '@st/scripts/logprobs.js';
+import { uuidv4 } from '@st/scripts/utils.js';
+import { eventTypes } from '@/utils/events'
 
 export interface ApiConfig {
     url: string;

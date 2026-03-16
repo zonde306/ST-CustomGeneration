@@ -1,11 +1,11 @@
-import { loadWorldInfo, METADATA_KEY, selected_world_info, world_info, DEFAULT_DEPTH, world_info_position, world_names, getWorldInfoPrompt } from '../../../../../world-info.js';
-import { chat_metadata, this_chid, characters, getCharacterCardFieldsLazy, getMaxContextSize } from '../../../../../../script.js';
-import { power_user } from '../../../../../power-user.js';
-import { getCharaFilename } from '../../../../../utils.js';
-import { getGroupMembers } from '../../../../../group-chats.js';
-import { WorldInfoEntry, LoreBook } from '../utils/defines';
-import { eventSource, event_types } from '../../../../../events.js';
-import { GENERATION_TYPE_TRIGGERS } from '../../../../../constants.js';
+import { loadWorldInfo, METADATA_KEY, selected_world_info, world_info, DEFAULT_DEPTH, world_info_position, world_names, getWorldInfoPrompt, worldInfoCache } from '@st/scripts/world-info.js';
+import { chat_metadata, this_chid, characters, getCharacterCardFieldsLazy, getMaxContextSize } from '@st/script.js';
+import { power_user } from '@st/scripts/power-user.js';
+import { getCharaFilename } from '@st/scripts/utils.js';
+import { getGroupMembers } from '@st/scripts/group-chats.js';
+import { WorldInfoEntry, LoreBook } from '@/utils/defines';
+import { eventSource, event_types } from '@st/scripts/events.js';
+import { GENERATION_TYPE_TRIGGERS } from '@st/scripts/constants.js';
 
 
 export const KNOWN_DECORATORS = [
@@ -41,7 +41,7 @@ export async function loadWorldInfoEntries(name?: string): Promise<WorldInfoEntr
         const clone = { ...entry };
         // modify in place
         clone.uid = Number(entry.uid);
-        const [ decorators, content ] = parseDecorators(entry.content);
+        const [decorators, content] = parseDecorators(entry.content);
         clone.decorators = decorators;
         clone.content = content;
         clone.world = lore;
@@ -68,13 +68,13 @@ export async function getWorldInfoEntry(name: string, uid: string | number | Reg
 
     // @ts-expect-error: 2769
     const entry = Object.values(lorebook.entries).find(e => e.uid === uid || e.comment === uid || e.comment.match(uid));
-    if(!entry)
+    if (!entry)
         return null;
 
     const clone = { ...entry };
     // modify in place
     clone.uid = Number(entry.uid);
-    const [ decorators, content ] = parseDecorators(entry.content);
+    const [decorators, content] = parseDecorators(entry.content);
     clone.decorators = decorators;
     clone.content = content;
     clone.world = lore;
@@ -92,22 +92,22 @@ export async function getWorldInfoEntry(name: string, uid: string | number | Reg
  * @returns lore books
  */
 export function collectEnabledWorldInfos(
-    char : boolean = true,
-    global : boolean = true,
-    persona : boolean = true,
-    charaExtra : boolean = true,
+    char: boolean = true,
+    global: boolean = true,
+    persona: boolean = true,
+    charaExtra: boolean = true,
     chat: boolean = true,
-    onlyExisting : boolean = true
-) : string[] {
-    let results : string[] = [];
+    onlyExisting: boolean = true
+): string[] {
+    let results: string[] = [];
 
     if (char) {
         // @ts-expect-error
-        const charaWorld : string = characters[this_chid]?.data?.extensions?.world;
+        const charaWorld: string = characters[this_chid]?.data?.extensions?.world;
         if (charaWorld && !selected_world_info.includes(charaWorld))
             results.push(charaWorld);
 
-        for(const member of getGroupMembers()) {
+        for (const member of getGroupMembers()) {
             const world = member?.data?.extensions?.world;
             if (world && !selected_world_info.includes(world))
                 results.push(world);
@@ -116,15 +116,15 @@ export function collectEnabledWorldInfos(
 
     if (global) {
         for (const world of selected_world_info) {
-            if(world)
+            if (world)
                 results.push(world as string);
         }
     }
 
     if (persona) {
-        const chatWorld : string = chat_metadata[METADATA_KEY];
-        const personaWorld : string = power_user.persona_description_lorebook;
-        if(personaWorld && personaWorld !== chatWorld && !selected_world_info.includes(personaWorld))
+        const chatWorld: string = chat_metadata[METADATA_KEY];
+        const personaWorld: string = power_user.persona_description_lorebook;
+        if (personaWorld && personaWorld !== chatWorld && !selected_world_info.includes(personaWorld))
             results.push(personaWorld);
     }
 
@@ -135,23 +135,23 @@ export function collectEnabledWorldInfos(
             const extraCharLore = world_info.charLore?.find((e) => e.name === fileName);
             if (extraCharLore && Array.isArray(extraCharLore.extraBooks)) {
                 // @ts-expect-error
-                const primaryBook : string = characters[this_chid]?.data?.extensions?.world;
-                for(const book of extraCharLore.extraBooks) {
+                const primaryBook: string = characters[this_chid]?.data?.extensions?.world;
+                for (const book of extraCharLore.extraBooks) {
                     if (book && book !== primaryBook && !selected_world_info.includes(book))
                         results.push(book);
                 }
             }
         }
 
-        for(const member of getGroupMembers()) {
+        for (const member of getGroupMembers()) {
             const chid = characters.findIndex(ch => ch.avatar === member.avatar);
             const file = getCharaFilename(chid);
             if (file) {
                 // @ts-expect-error
                 const extraCharLore = world_info.charLore?.find((e) => e.name === file);
                 if (extraCharLore && Array.isArray(extraCharLore.extraBooks)) {
-                    const primaryBook : string = member?.data?.extensions?.world;
-                    for(const book of extraCharLore.extraBooks) {
+                    const primaryBook: string = member?.data?.extensions?.world;
+                    for (const book of extraCharLore.extraBooks) {
                         if (book && book !== primaryBook && !selected_world_info.includes(book))
                             results.push(book);
                     }
@@ -161,12 +161,12 @@ export function collectEnabledWorldInfos(
     }
 
     if (chat) {
-        const chatWorld : string = chat_metadata[METADATA_KEY];
+        const chatWorld: string = chat_metadata[METADATA_KEY];
         if (chatWorld && !selected_world_info.includes(chatWorld))
             results.push(chatWorld);
     }
 
-    if(onlyExisting)
+    if (onlyExisting)
         return results.filter(e => e && world_names.includes(e));
 
     return results;
@@ -175,12 +175,13 @@ export function collectEnabledWorldInfos(
 export class DecoratorParser {
     decorators: string[] = [];
     arguments: string[] = [];
+    parameters: Record<string, string[]> = {};
     cleanContent: string = '';
     entry: WorldInfoEntry;
 
     constructor(entry: WorldInfoEntry, override: boolean = false) {
         this.entry = entry;
-        if(entry.decorators?.length) {
+        if (entry.decorators?.length) {
             this.decorators = entry.decorators;
             this.cleanContent = entry.content;
         } else {
@@ -188,17 +189,20 @@ export class DecoratorParser {
             this.decorators = decorators;
             this.cleanContent = cleanContent;
 
-            if(override) {
+            if (override) {
                 entry.decorators = this.decorators;
                 entry.content = this.cleanContent;
             }
         }
 
-        for(const i in this.decorators) {
-            if(this.decorators[i].includes(' ')) {
+        for (const i in this.decorators) {
+            if (this.decorators[i].includes(' ')) {
                 const firstSpaceIndex = this.decorators[i].indexOf(' ');
-                this.arguments[i] = this.decorators[i].substring(firstSpaceIndex + 1);
-                this.decorators[i] = this.decorators[i].substring(0, firstSpaceIndex);
+                const name = this.decorators[i].substring(0, firstSpaceIndex);
+                const args = this.decorators[i].substring(firstSpaceIndex + 1);
+                this.arguments[i] = args;
+                this.decorators[i] = name;
+                this.parameters[name] = splitWithQuotes(args);
             }
         }
     }
@@ -293,12 +297,12 @@ function worldInfoSorter(a: WorldInfoEntry, b: WorldInfoEntry, top: number = DEF
         const offset = DEPTH_MAPPING[entry.position];
 
         // absolute depth
-        if(offset == null)
+        if (offset == null)
             return entry.depth ?? DEFAULT_DEPTH;
 
         // relative to AN
-        if(entry.position === world_info_position.ANTop || entry.position === world_info_position.ANBottom) {
-            switch(chat_metadata.note_position) {
+        if (entry.position === world_info_position.ANTop || entry.position === world_info_position.ANBottom) {
+            switch (chat_metadata.note_position) {
                 case 0:
                 case 2:
                     // After Main Prompt / Story String
@@ -318,7 +322,7 @@ function worldInfoSorter(a: WorldInfoEntry, b: WorldInfoEntry, top: number = DEF
     // Sort by depth (desc), then order (asc), then uid (desc)
     return calcDepth(b) - calcDepth(a) ||
         a.order - b.order ||
-        b.uid - a.uid;   
+        b.uid - a.uid;
 }
 
 interface WorldInfoScanResult {
@@ -347,6 +351,22 @@ interface WorldInfoScanResult {
     timedEffects: any;
 }
 
+export function normalizeWorldInfoEntry(entry: WorldInfoEntry): WorldInfoEntry {
+    const lorebook = worldInfoCache.get(entry.world) as LoreBook;
+    if (!lorebook) {
+        console.error(`Unable to normalize WI entry: `, entry);
+        return entry;
+    }
+
+    const nromalized = lorebook.entries[String(entry.uid)];
+    if (!nromalized) {
+        console.error(`WI entry does not exist.: `, entry);
+        return entry;
+    }
+
+    return nromalized;
+}
+
 export async function getActivatedEntries(triggerWords: string[], type: string = 'normal', dryRun: boolean = true): Promise<WorldInfoEntry[]> {
     const fields = getCharacterCardFieldsLazy();
     const globalScanData = {
@@ -360,7 +380,60 @@ export async function getActivatedEntries(triggerWords: string[], type: string =
     };
 
     return new Promise((resolve, reject) => {
-        eventSource.once(event_types.WORLDINFO_SCAN_DONE, (data: WorldInfoScanResult) => resolve(Array.from(data.activated.entries.values())));
+        eventSource.once(event_types.WORLDINFO_SCAN_DONE, (data: WorldInfoScanResult) => {
+            resolve(Array.from(data.activated.entries.values().map(normalizeWorldInfoEntry)));
+        });
         getWorldInfoPrompt(triggerWords, getMaxContextSize(), dryRun, globalScanData).catch(reject);
     });
+}
+
+export function filterWIByDecorator(entries: WorldInfoEntry[], decorator: string): WorldInfoEntry[] {
+    return entries.filter(entry => entry.decorators?.some(x => x.startsWith(decorator)) || entry.content.includes(decorator));
+}
+
+
+export function splitWithQuotes(input: string): string[] {
+    const result: string[] = [];
+    let currentToken = '';
+
+    let inDoubleQuotes = false;
+    let inSingleQuotes = false;
+    let isEscaped = false;
+    let hasToken = false;
+
+    for (let i = 0; i < input.length; i++) {
+        const char = input[i];
+
+        if (isEscaped) {
+            currentToken += char;
+            isEscaped = false;
+            hasToken = true;
+        } else if (char === '\\') {
+            isEscaped = true;
+        } else if (char === '"' && !inSingleQuotes) {
+            inDoubleQuotes = !inDoubleQuotes;
+        } else if (char === "'" && !inDoubleQuotes) {
+            inSingleQuotes = !inSingleQuotes;
+            hasToken = true;
+        } else if (/\s/.test(char) && !inDoubleQuotes && !inSingleQuotes) {
+            if (hasToken) {
+                result.push(currentToken);
+                currentToken = '';
+                hasToken = false;
+            }
+        } else {
+            currentToken += char;
+            hasToken = true;
+        }
+    }
+
+    if (isEscaped) {
+        currentToken += '\\';
+    }
+
+    if (hasToken) {
+        result.push(currentToken);
+    }
+
+    return result;
 }

@@ -1,7 +1,7 @@
 import * as YAML from 'yaml';
 import { applyPatch } from 'diff';
 import { jsonrepair } from 'jsonrepair';
-import { chat } from '../../../../../../script.js';
+import { chat } from '@st/script.js';
 
 export const PROCESSORS = {
     "none": noneProcessor,

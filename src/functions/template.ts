@@ -1,27 +1,91 @@
-import { settings, Template } from "../settings";
+import { settings, Template } from "@/settings";
 
-export function findTemplate(decorator: string, tag: string): null | Template {
-    const preset = settings.presets[settings.currentPreset];
-    if (!preset) {
+interface TemplateResult {
+    success: boolean;
+    content?: string;
+    arguments?: Record<string, any>;
+}
+
+export class TemplateHandler {
+    public template: Template;
+
+    constructor(template: Template) {
+        this.template = template;
+    }
+
+    static find(decorator: string, tag: string): TemplateHandler | null {
+        const preset = settings.presets[settings.currentPreset];
+        if (!preset) {
+            return null;
+        }
+
+        const primaryKey = `${decorator}:${tag ?? ''}`;
+        const fallbackKey = `${decorator}:`;
+        const direct = preset.templates?.[primaryKey] ?? null;
+        if (direct) {
+            return new TemplateHandler(direct);
+        }
+
+        const fallback = preset.templates?.[fallbackKey] ?? null;
+        if(fallback)
+            return new TemplateHandler(fallback);
+
         return null;
     }
 
-    const primaryKey = `${decorator}:${tag ?? ''}`;
-    const fallbackKey = `${decorator}:`;
-    const direct = preset.templates?.[primaryKey] ?? null;
-    if (direct) {
-        return direct;
+    test(content: string): TemplateResult {
+        if(!this.template.findRegex)
+            return { success: true, content };
+        
+        let regexp: RegExp;
+        try {
+            regexp = parseRegexString(this.template.findRegex);
+        } catch (e) {
+            toastr.error(`Invalid findRegex for ${this.template.decorator}:${this.template.tag}`);
+            return { success: false };
+        }
+
+        const matchs = regexp.exec(content);
+        if(!matchs)
+            return { success: false };
+
+        return {
+            success: true,
+            content: matchs[1] ?? content,
+            arguments: matchs.groups ?? {},
+        };
     }
 
-    const fallback = preset.templates?.[fallbackKey] ?? null;
-    return fallback ?? null;
-}
+    process(content: string): TemplateResult {
+        if(!this.template.regex)
+            return { success: true, content };
 
-export function evaluateTemplate(template: Template, context: Record<string, any>): string {
-    const promptText = template.prompts.map(prompt => prompt.prompt).join('\n\n');
-    return promptText.replace(/\{\{(.+?)\}\}/gi, (original: string, match: string) => {
-        return _.get(context, match.replace(/:+/g, '.')) ?? original;
-    });
+        let regexp: RegExp;
+        try {
+            regexp = parseRegexString(this.template.regex);
+        } catch (e) {
+            toastr.error(`Invalid regex for ${this.template.decorator}:${this.template.tag}`);
+            return { success: false };
+        }
+
+        const matchs = regexp.exec(content);
+        if(!matchs)
+            return { success: false };
+
+        return {
+            success: true,
+            content: matchs[1] ?? content,
+            arguments: matchs.groups ?? {},
+        };
+    }
+
+    get chatHistory(): ChatMessage[] {
+        return this.template.prompts.filter(p => p.enabled).map(p => ({
+            mes: p.prompt,
+            is_user: p.role === 'user',
+            is_system: p.role === 'system',
+        }));
+    }
 }
 
 function parseRegexString(str: string) {

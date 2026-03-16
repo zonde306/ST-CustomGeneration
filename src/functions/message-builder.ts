@@ -1,5 +1,5 @@
-import { PromptContext } from "./prompt-context";
-import { eventSource, event_types } from '../../../../../events.js';
+import { PromptContext } from "@/functions/prompt-context";
+import { eventSource, event_types } from '@st/scripts/events.js';
 import {
     name1,
     name2,
@@ -14,16 +14,16 @@ import {
     baseChatReplace,
     parseMesExamples,
     substituteParams,
-} from '../../../../../../script.js';
-import { metadata_keys } from '../../../../../authors-note.js';
-import { world_info_depth } from '../../../../../world-info.js';
-import { inject_ids } from '../../../../../constants.js';
-import { settings } from '../settings';
-import { GenerateOptionsLite, ContextRole } from "../utils/defines";
-import { Preset, defaultPreset } from "../settings";
-import { runRegexScript, substitute_find_regex } from "../../../../regex/engine.js";
-import { wi_anchor_position } from '../../../../../world-info.js';
-import { DynamicMacroValue } from '../../../../../macros/engine/MacroEnv.types.js';
+} from '@st/script.js';
+import { metadata_keys } from '@st/scripts/authors-note.js';
+import { world_info_depth } from '@st/scripts/world-info.js';
+import { inject_ids } from '@st/scripts/constants.js';
+import { settings } from '@/settings';
+import { GenerateOptionsLite, ContextRole } from "@/utils/defines";
+import { Preset, defaultPreset, RegEx, PresetPrompt } from "@/settings";
+import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
+import { wi_anchor_position } from '@st/scripts/world-info.js';
+import { DynamicMacroValue } from '@st/scripts/macros/engine/MacroEnv.types.js';
 
 interface ExtensionPrompts {
     value: string,
@@ -62,16 +62,20 @@ export interface MacroOverride {
 export class MessageBuilder {
     private chat: ChatMessage[];
     private extensionPrompts: Record<string, ExtensionPrompts>;
-    private preset: Preset;
     public filters: PromptFilter;
     public macroOverride: MacroOverride;
+    public regexs: RegEx[];
+    public prompts: PresetPrompt[];
 
     constructor(chat: ChatMessage[], preset?: Preset) {
         this.chat = chat;
         this.extensionPrompts = {};
-        this.preset = preset ?? settings.presets[Number(settings.currentPreset)] ?? defaultPreset;
         this.filters = {};
         this.macroOverride = {};
+
+        preset = preset ?? settings.presets[Number(settings.currentPreset)] ?? defaultPreset;
+        this.regexs = preset.regexs;
+        this.prompts = preset.prompts;
     }
 
     async build(type: string = 'normal', dryRun: boolean = false, wiDepth = world_info_depth): Promise<ChatCompletionMessage[]> {
@@ -131,7 +135,7 @@ export class MessageBuilder {
     }
 
     #buildMessages(prompts: PromptContext, historyMessages: ChatCompletionMessage[]): ChatCompletionMessage[] {
-        if (!this.preset?.prompts?.length) {
+        if (!this.prompts.length) {
             const messages = [...historyMessages];
             const authorNoteRange = this.#insertAuthorsNoteByMetadata(messages, null);
             this.#insertWorldInfoAroundAuthorsNote(messages, prompts, authorNoteRange);
@@ -142,7 +146,7 @@ export class MessageBuilder {
         const messages: ChatCompletionMessage[] = [];
         let mainPromptRange: { start: number, end: number } | null = null;
 
-        for (const preset of this.preset.prompts) {
+        for (const preset of this.prompts) {
             if (!preset.enabled || preset.injectionPosition === 'inChat') {
                 continue;
             }
@@ -421,11 +425,11 @@ export class MessageBuilder {
     }
 
     #injectPresetDepthPrompts(prompts: PromptContext, historyMessages: ChatCompletionMessage[]) {
-        if (!this.preset?.prompts?.length) {
+        if (!this.prompts.length) {
             return;
         }
 
-        const inChatPrompts = this.preset.prompts
+        const inChatPrompts = this.prompts
             .map((preset, index) => ({ preset, index }))
             .filter(({ preset }) => preset.enabled && preset.injectionPosition === 'inChat')
             .sort((a, b) => {
@@ -798,7 +802,7 @@ export class MessageBuilder {
     }
 
     #applyRegex(content: string, { user, assistant, depth, world } = {} as { user?: boolean, assistant?: boolean, depth?: number, world?: boolean }): string {
-        for(const regex of this.preset.regexs) {
+        for(const regex of this.regexs) {
             if(!regex.enabled || regex.ephemerality || !regex.request)
                 continue;
 

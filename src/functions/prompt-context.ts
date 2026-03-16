@@ -1,6 +1,6 @@
-import { chat, getCharacterCardFieldsLazy, CharacterCardFields, getMaxContextSize, parseMesExamples } from '../../../../../../script.js';
-import { getWorldInfoPrompt, WIPromptResult, WIGlobalScanData, wi_anchor_position } from '../../../../../world-info.js';
-import { GENERATION_TYPE_TRIGGERS } from '../../../../../constants.js';
+import { chat, getCharacterCardFieldsLazy, CharacterCardFields, getMaxContextSize, parseMesExamples } from '@st/script.js';
+import { getWorldInfoPrompt, WIPromptResult, WIGlobalScanData, wi_anchor_position } from '@st/scripts/world-info.js';
+import { GENERATION_TYPE_TRIGGERS } from '@st/scripts/constants.js';
 
 export class PromptContext {
     private fields: CharacterCardFields;

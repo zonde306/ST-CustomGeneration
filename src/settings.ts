@@ -1,8 +1,8 @@
-import { eventSource, event_types, saveSettingsDebounced } from '../../../../../script.js';
-import { extension_settings, renderExtensionTemplateAsync } from '../../../../extensions.js';
-import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '../../../../world-info.js';
-import { generate as runGenerate, ApiConfig } from './functions/generate';
-import { KNOWN_DECORATORS } from './functions/worldinfo';
+import { eventSource, event_types, saveSettingsDebounced } from '@st/script.js';
+import { extension_settings, renderExtensionTemplateAsync } from '@st/scripts/extensions.js';
+import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
+import { generate as runGenerate, ApiConfig } from '@/functions/generate';
+import { KNOWN_DECORATORS } from '@/functions/worldinfo';
 import * as YAML from 'yaml';
 
 export interface PresetPrompt {

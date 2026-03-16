@@ -1,5 +1,11 @@
-import { resolve as _resolve, relative as _relative } from 'path';
+import { resolve as _resolve, relative as _relative, dirname as _dirname, isAbsolute as _isAbsolute } from 'path';
 import TerserPlugin from 'terser-webpack-plugin';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = _dirname(__filename);
+const ST_PUBLIC_ROOT = _resolve(__dirname, '../../../../');
+const EXTENSION_ROOT = _resolve(__dirname); 
 
 const serverConfig = {
     devtool: 'source-map',
@@ -13,6 +19,9 @@ const serverConfig = {
     },
     resolve: {
         extensions: ['.ts', '.js'],
+        alias: {
+            '@': _resolve(__dirname, 'src'),
+        }
     },
     module: {
         rules: [
@@ -59,19 +68,40 @@ const serverConfig = {
     },
     plugins: [],
     externals: function({ context, request }, callback) {
-        // 对 yaml 库的特殊兼容，因为 yaml 有 ../../
-        if(request.includes('/nodes/') || request.includes('/stringify/')) {
+        // 1. 处理显式的 @st/ 别名
+        if (request.startsWith('@st/')) {
+            const webPath = request.replace('@st/', '/');
+            return callback(null, `module ${webPath}`);
+        }
+
+        // 2. 如果是普通的第三方库导入（不以 . 开头），比如 import 'yaml'
+        // 或者路径就在本插件目录之内（包括 node_modules 和 src）
+        // 这些都需要打包
+        if (!request.startsWith('.') && !_isAbsolute(request)) {
+            // 这是 node_modules 里的库，交给 webpack 打包
             return callback();
         }
 
-        // 服务器上有的文件，不需要打包，也不能打包进去
-        if (request.startsWith('../../') || request.includes('libs/')) {
-            if(context.search(/(\/|\\)src\1/) > 0)
-                return callback(null, request.substring(3));
-            return callback(null, request);
-        } else if(request.startsWith('https://') || request.startsWith('http://')) {
-            return callback(null, request);
+        // 3. 处理相对路径导入
+        const absPath = _resolve(context, request);
+        
+        // 检查这个文件是否在我们的插件目录内
+        if (absPath.startsWith(EXTENSION_ROOT)) {
+            // 在插件目录内（src 或本插件的 node_modules），打包进去
+            return callback();
         }
+
+        // 4. 如果文件在插件目录之外，但在 ST public 目录之内
+        if (absPath.startsWith(ST_PUBLIC_ROOT)) {
+            // 计算相对于 ST public 的路径，转为 web 绝对路径
+            let relativeWebPath = _relative(ST_PUBLIC_ROOT, absPath).replace(/\\/g, '/');
+            if (!relativeWebPath.startsWith('/')) {
+                relativeWebPath = '/' + relativeWebPath;
+            }
+            return callback(null, `module ${relativeWebPath}`);
+        }
+
+        // 其他情况
         callback();
     },
 };
