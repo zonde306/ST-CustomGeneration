@@ -59,7 +59,7 @@ async function processMessage(messages: ChatMessage[], override: DataOverride) {
             if(!testing.success)
                 continue;
 
-            const ctx = new Context(template.chatHistory, chat_metadata);
+            const ctx = new Context(await template.buildChatHistory('normal'), chat_metadata);
             ctx.macroOverride.original = parsed.cleanContent;
             ctx.macroOverride.macros = {
                 '{{lastUserMessage}}': () => messages.findLast(msg => msg.is_user)?.mes ?? '',
@@ -89,7 +89,7 @@ async function processMessage(messages: ChatMessage[], override: DataOverride) {
 
                 console.error(`Failed to process: `, response, template, entry);
                 return false;
-            }});
+            }, dontCreate: true });
         }
     }
 }

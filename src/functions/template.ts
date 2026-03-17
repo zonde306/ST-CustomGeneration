@@ -1,4 +1,5 @@
-import { settings, Template } from "@/settings";
+import { settings, Template, PresetPrompt } from "@/settings";
+import { MessageBuilder } from "@/functions/message-builder";
 
 interface TemplateResult {
     success: boolean;
@@ -79,12 +80,17 @@ export class TemplateHandler {
         };
     }
 
-    get chatHistory(): ChatMessage[] {
-        return this.template.prompts.filter(p => p.enabled).map(p => ({
-            mes: p.prompt,
-            is_user: p.role === 'user',
-            is_system: p.role === 'system',
-        }));
+    async buildChatHistory(type: string = 'normal'): Promise<ChatMessage[]> {
+        const builder = new MessageBuilder([]);
+        builder.regexs = [];
+        builder.evaluateMacro = false;
+        builder.prompts = this.template.prompts;
+        const messages = await builder.build(type, false);
+        return messages.map(msg => ({ is_user: msg.role === 'user', is_system: msg.role === 'system', mes: msg.content }));
+    }
+
+    get prompts(): PresetPrompt[] {
+        return this.template.prompts;
     }
 }
 
