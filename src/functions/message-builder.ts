@@ -66,12 +66,14 @@ export class MessageBuilder {
     public macroOverride: MacroOverride;
     public regexs: RegEx[];
     public prompts: PresetPrompt[];
+    public evaluateMacro: boolean;
 
     constructor(chat: ChatMessage[], preset?: Preset) {
         this.chat = chat;
         this.extensionPrompts = {};
         this.filters = {};
         this.macroOverride = {};
+        this.evaluateMacro = true;
 
         preset = preset ?? settings.presets[Number(settings.currentPreset)] ?? defaultPreset;
         this.regexs = preset.regexs;
@@ -82,9 +84,9 @@ export class MessageBuilder {
         const worldinfoTrigger: string[] = this.chat.slice(-wiDepth).map(x => x.mes ?? '');
         const prompt = await PromptContext.create(worldinfoTrigger, type, dryRun, settings.contextSize);
         const historyMessages = this.#buildChatHistory();
-        this.#rebuildDepthInjections(prompt, historyMessages);
+        this.#rebuildDepthInjections(prompt, historyMessages, type);
         const historyInjectedMessages = this.#injectDepthPromptsToHistory(historyMessages, type === 'continue');
-        const result = this.#buildMessages(prompt, historyInjectedMessages);
+        const result = this.#buildMessages(prompt, historyInjectedMessages, type);
         this.extensionPrompts = {};
         return result;
     }
@@ -134,7 +136,7 @@ export class MessageBuilder {
         return messages;
     }
 
-    #buildMessages(prompts: PromptContext, historyMessages: ChatCompletionMessage[]): ChatCompletionMessage[] {
+    #buildMessages(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal'): ChatCompletionMessage[] {
         if (!this.prompts.length) {
             const messages = [...historyMessages];
             const authorNoteRange = this.#insertAuthorsNoteByMetadata(messages, null);
@@ -148,6 +150,11 @@ export class MessageBuilder {
 
         for (const preset of this.prompts) {
             if (!preset.enabled || preset.injectionPosition === 'inChat') {
+                console.debug(`Preset ${preset.name} is not enabled or injectionPosition is inChat`);
+                continue;
+            }
+            if(preset.triggers.length > 0 && !preset.triggers.includes(type)) {
+                console.debug(`Preset ${preset.name} is not triggered by ${type}`);
                 continue;
             }
 
@@ -155,8 +162,10 @@ export class MessageBuilder {
 
             if (preset.internal) {
                 const filting = this.filters[preset.internal];
-                if(filting === false)
+                if(filting === false) {
+                    console.debug(`Preset ${preset.name} is filtered out`);
                     continue;
+                }
 
                 let content: string | string[] | ChatCompletionMessage[] = '';
                 if(filting === 'string' || Array.isArray(filting)) {
@@ -404,12 +413,12 @@ export class MessageBuilder {
         return reversedHistory.reverse();
     }
 
-    #rebuildDepthInjections(prompts: PromptContext, historyMessages: ChatCompletionMessage[]) {
+    #rebuildDepthInjections(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal') {
         this.#removeDepthPrompts();
         this.#flushWIInjections();
 
         if(this.filters.presetDepth !== false)
-            this.#injectPresetDepthPrompts(prompts, historyMessages);
+            this.#injectPresetDepthPrompts(prompts, historyMessages, type);
 
         if(this.filters.charDepth !== false)
             this.#injectCharacterDepthPrompt(prompts.charDepthPrompt);
@@ -424,12 +433,13 @@ export class MessageBuilder {
             this.#injectAuthorsNoteDepthPrompt();
     }
 
-    #injectPresetDepthPrompts(prompts: PromptContext, historyMessages: ChatCompletionMessage[]) {
+    #injectPresetDepthPrompts(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal') {
         if (!this.prompts.length) {
             return;
         }
 
         const inChatPrompts = this.prompts
+            .filter(p => p.triggers.length < 1 || p.triggers.includes(type))
             .map((preset, index) => ({ preset, index }))
             .filter(({ preset }) => preset.enabled && preset.injectionPosition === 'inChat')
             .sort((a, b) => {
@@ -886,6 +896,9 @@ export class MessageBuilder {
     }
 
     #evaluateMacros(content: string): string {
+        if(!this.evaluateMacro)
+            return content;
+
         return substituteParams(
             content,
             {
