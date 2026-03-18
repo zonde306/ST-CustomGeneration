@@ -3,7 +3,7 @@ import { chat, chat_metadata } from "@st/script.js";
 import { eventSource, event_types } from "@st/scripts/events.js";
 import { world_info_depth } from "@st/scripts/world-info.js";
 import { getActivatedEntries, DecoratorParser } from "@/functions/worldinfo";
-import { DataOverride } from "@/utils/override";
+import { DataOverride } from "@/features/override";
 import { Context } from "@/features/context";
 import { generate } from "@/utils/retries"
 import { WorldInfoEntry } from "@/utils/defines";
@@ -22,10 +22,11 @@ type DecoratorProcessor = (e: DecoratorProcessData) => (boolean | Promise<boolea
 export const WI_DECORATOR_MAPPING = new Map<string, DecoratorProcessor>();
 
 export async function setup() {
-    eventSource.on(event_types.GENERATION_ENDED, onGenerationEnded);
+    eventSource.makeLast(event_types.APP_READY, onAppReady);
+    eventSource.on(event_types.GENERATION_ENDED, runAfterGenerates);
 }
 
-async function onGenerationEnded() {
+async function runAfterGenerates() {
     const messages = chat.slice(-world_info_depth);
     const override = new DataOverride(chat, chat_metadata);
     await processMessage(messages, override);
@@ -91,5 +92,22 @@ async function processMessage(messages: ChatMessage[], override: DataOverride) {
                 return false;
             }, dontCreate: true });
         }
+    }
+}
+
+async function onAppReady() {
+    if (!$('#extensionsMenu')?.find('custom_generation_after_generate_button')?.length) {
+        $('#extensionsMenu').append(`
+            <div id="custom_generation_after_generate_button" class="extension_container interactable" tabindex="0"><div id="manageAttachments" class="list-group-item flex-container flexGap5 interactable" title="Run After Generate" tabindex="0" role="listitem">
+                <div class="fa-fw fa-solid fa-exchange extensionsMenuExtensionButton"></div>
+                    <span data-i18n="Run After Generate">Run After Generate</span>
+                </div>
+            </div>
+        `);
+
+        $('#custom_generation_after_generate_button').on('click', () => {
+            runAfterGenerates();
+            toastr.info('After Generate Starting');
+        });
     }
 }

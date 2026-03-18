@@ -1,4 +1,5 @@
 import { eventSource, event_types } from "@st/scripts/events.js";
+import { chat, chat_metadata } from "@st/script.js";
 import { WorldInfoLoaded } from "@/utils/defines";
 
 interface WIOverride {
@@ -20,7 +21,11 @@ export class DataOverride {
         this.chat_metadata = _metadata;
         
         // FIXME: Listening to Events Multiple Times
-        eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded.bind(null, new WeakRef(this)));
+        // eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded.bind(null, new WeakRef(this)));
+    }
+
+    static global(): DataOverride {
+        return new DataOverride(chat, chat_metadata);
     }
 
     async onWorldInfoLoaded(data: WorldInfoLoaded) {
@@ -91,6 +96,13 @@ export class DataOverride {
     }
 }
 
-async function onWorldInfoLoaded(self: WeakRef<DataOverride>, data: WorldInfoLoaded) {
-    await self.deref()?.onWorldInfoLoaded(data);
+async function onWorldInfoLoaded(self: WeakRef<DataOverride> | DataOverride, data: WorldInfoLoaded) {
+    if(self instanceof WeakRef)
+        await self.deref()?.onWorldInfoLoaded(data);
+    else
+        await self.onWorldInfoLoaded(data);
+}
+
+export async function setup() {
+    eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded.bind(null, DataOverride.global()));
 }

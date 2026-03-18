@@ -16,6 +16,7 @@ import { MessageBuilder, PromptFilter, MacroOverride } from '@/functions/message
 import { ContextRole } from '@/utils/defines'
 import { runRegexScript, substitute_find_regex } from "@/../../../regex/engine.js";
 import { eventTypes } from '@/utils/events';
+import { DynamicMacroValue } from "@st/scripts/macros/engine/MacroEnv.types.js";
 
 type VariableData = Record<string, any>;
 type ChatMessageEx = ChatMessage & { variables?: VariableData[] };
@@ -252,7 +253,19 @@ export class Context {
                 apiConfig = options.apiConfig;
         }
 
-        let result = await runGenerate(messages, abortController, taskId, apiConfig as ApiConfig, { context: this }, options.streaming);
+        await eventSource.emit(eventTypes.GENERATE_BEFORE, { type, options, messages, abortController, taskId, context: this, streaming: !!options.streaming });
+
+        let result : string | string[] | AsyncGenerator<{
+            swipe: number;
+            text: string;
+        }, any, any>;
+
+        try {
+            result = await runGenerate(messages, abortController, taskId, apiConfig as ApiConfig, { context: this }, options.streaming);
+        } catch(error) {
+            await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: [], context: self, streaming: !!options.streaming });
+            throw error;
+        }
 
         if(type === 'continue') {
             // remove the temporary message
@@ -263,23 +276,28 @@ export class Context {
             const self = this;
             async function * stream() {
                 let buffers : string[] = [];
-                for await (const chunk of result) {
-                    yield chunk;
-                    
-                    if(typeof chunk === 'string') {
-                        if(buffers[0] == null) buffers[0] = '';
-                        buffers[0] += chunk;
-                    } else if(chunk.swipe) {
-                        if(buffers[chunk.swipe] == null) buffers[chunk.swipe] = '';
-                        buffers[chunk.swipe] += chunk.text;
+                let error = null;
+                try {
+                    for await (const chunk of result) {
+                        yield chunk;
+                        
+                        if(typeof chunk === 'string') {
+                            if(buffers[0] == null) buffers[0] = '';
+                            buffers[0] += chunk;
+                        } else if(chunk.swipe) {
+                            if(buffers[chunk.swipe] == null) buffers[chunk.swipe] = '';
+                            buffers[chunk.swipe] += chunk.text;
+                        }
                     }
+                } catch(err) {
+                    error = err;
                 }
 
                 if(!options.dontCreate) {
                     buffers = await self.#recv(buffers);
                 }
 
-                await eventSource.emit(eventTypes.GENERATE_ENDED, { taskId, response: buffers, context: self, streaming: true });
+                await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: buffers, context: self, streaming: true });
             }
 
             return stream();
@@ -298,14 +316,14 @@ export class Context {
             result = result.map(mes => self.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
         }
 
-        const data = { taskId, response: result, context: self, streaming: false };
-        await eventSource.emit(eventTypes.GENERATE_ENDED, data);
+        const data = { type, options, taskId, error: null, responses: result, context: self, streaming: false };
+        await eventSource.emit(eventTypes.GENERATE_AFTER, data);
 
         if(options.allResponses) {
-            return data.response;
+            return data.responses;
         }
 
-        return data.response.find(mes => !!mes.trim()) ?? '';
+        return data.responses.find(mes => !!mes.trim()) ?? '';
     }
 
     #buildApiConfig(type: string): ApiConfig | undefined {

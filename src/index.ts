@@ -6,6 +6,8 @@ import { setup as setupEmbedCard } from "@/embed-card";
 import { eventTypes } from "@/utils/events";
 import { setup as setupAfterGenerate } from "@/features/after-generated";
 import { setup as setupReplace } from "@/features/after-generates/replace";
+import { setup as setupOverrides } from "@/features/override";
+import { setup as setupLogger } from "@/features/generate-logger";
 
 // jQuery
 $(async () => {
@@ -13,6 +15,8 @@ $(async () => {
     await setupEmbedCard();
     await setupAfterGenerate();
     await setupReplace();
+    await setupOverrides();
+    await setupLogger();
 
     // @ts-expect-error: 7017
     globalThis.CustomGeneration = {

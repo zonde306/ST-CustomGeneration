@@ -24,5 +24,9 @@
 	"Link to Preset": "綁定預設",
 	"Import Card Preset": "匯入卡片預設",
 	"Import linked presets confirmation": "是否從該角色卡匯入已綁定的預設？同名預設將被覆蓋。",
-	"No linked presets": "該角色卡沒有已綁定的預設。"
+	"No linked presets": "該角色卡沒有已綁定的預設。",
+	"Generate Log": "生成日誌",
+	"Generate log help": "檢視生成請求、參數與回傳內容。",
+	"No logs": "沒有日誌",
+	"View Generate Log": "檢視生成日誌"
 }

@@ -46,6 +46,15 @@ export async function generate(
 
     let eventHandler: Function | null = null;
     const originalStream = oai_settings.stream_openai;
+
+    await eventSource.emit(eventTypes.GENERATION_START, {
+        messages,
+        taskId,
+        api,
+        customOptions,
+        streaming
+    });
+
     if(api) {
         eventHandler = (data: any) => {
             function assign(key: keyof ApiConfig) {
@@ -103,7 +112,14 @@ export async function generate(
             result = await responseHandler(response, taskId);
         }
     } catch(err) {
-        console.error(`Error generating`, err);
+        console.error(`Error on generating`, err);
+
+        await eventSource.emit(eventTypes.GENERATION_END, {
+            taskId: taskId,
+            error: err,
+            responses: [],
+        });
+
         throw err;
     } finally {
         if(eventHandler)
@@ -148,10 +164,10 @@ class StreamHandler {
             lastError = err;
         }
 
-        await eventSource.emit(eventTypes.GENERATION_DONE, {
+        await eventSource.emit(eventTypes.GENERATION_END, {
             taskId: this.taskId,
             error: lastError,
-            response: this.buffer,
+            responses: this.buffer,
         });
 
         return this.buffer.length === 1 ? this.buffer[0] : this.buffer;
@@ -181,10 +197,10 @@ class StreamHandler {
             lastError = err;
         }
 
-        await eventSource.emit(eventTypes.GENERATION_DONE, {
+        await eventSource.emit(eventTypes.GENERATION_END, {
             taskId: this.taskId,
             error: lastError,
-            response: this.buffer,
+            responses: this.buffer,
         });
     }
 
@@ -208,10 +224,10 @@ class StreamHandler {
 async function responseHandler(response: any, taskId: string): Promise<string[] | string> {
     const result = extractText(response);
 
-    await eventSource.emit(eventTypes.GENERATION_DONE, {
+    await eventSource.emit(eventTypes.GENERATION_END, {
         taskId,
         error: response.error ?? null,
-        response: result,
+        responses: result,
     });
 
     return result.length === 1 ? result[0] : result;
