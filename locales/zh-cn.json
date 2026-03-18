@@ -28,5 +28,6 @@
 	"Generate Log": "生成日志",
 	"Generate log help": "查看生成请求、参数与返回内容。",
 	"No logs": "没有日志",
-	"View Generate Log": "查看生成日志"
+	"View Generate Log": "查看生成日志",
+	"Run After Generate": "执行后运行处理"
 }

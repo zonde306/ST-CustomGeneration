@@ -279,14 +279,15 @@ async function onAppReady() {
 
     if (!$('#extensionsMenu')?.find('custom_generation_logger_button')?.length) {
         $('#extensionsMenu').append(`
-            <div id="custom_generation_logger_button" class="extension_container interactable" tabindex="0"><div id="manageAttachments" class="list-group-item flex-container flexGap5 interactable" title="View generate log." tabindex="0" role="listitem">
-                <div class="fa-fw fa-solid fa-cloud extensionsMenuExtensionButton"></div>
+            <div id="custom_generation_logger_button" class="extension_container interactable" tabindex="0">
+                <div id="customGenerateLogger" class="list-group-item flex-container flexGap5 interactable" title="View generate log." tabindex="0" role="listitem">
+                    <div class="fa-fw fa-solid fa-cloud extensionsMenuExtensionButton"></div>
                     <span data-i18n="View Generate Log">View Generate Log</span>
                 </div>
             </div>
         `);
 
-        $('#custom_generation_logger_button').on('click', () => {
+        $('#customGenerateLogger').on('click', () => {
             updateLoggerList();
             openDialog('#custom_generation_logger_dialog');
         });

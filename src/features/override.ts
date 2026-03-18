@@ -94,6 +94,10 @@ export class DataOverride {
             message.swipe_info[message.swipe_id ?? 0] = {};
         message.swipe_info[message.swipe_id ?? 0].mes_overrides = content;
     }
+
+    inspectOverrides() {
+        
+    }
 }
 
 async function onWorldInfoLoaded(self: WeakRef<DataOverride> | DataOverride, data: WorldInfoLoaded) {
