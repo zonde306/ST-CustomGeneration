@@ -204,7 +204,9 @@ function updateLoggerList(): void {
     list.empty();
 
     if (loggers.length === 0) {
-        list.text(String(list.attr('no-items-text') ?? 'No logs'));
+        const emptyText = String(list.attr('no-items-text') ?? 'No logs');
+        const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text(emptyText);
+        list.append(empty);
         return;
     }
 

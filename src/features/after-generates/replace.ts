@@ -8,5 +8,6 @@ export async function setup() {
 
 async function processor(data: DecoratorProcessData) {
     data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, data.content);
+    console.debug(`WI replace ${data.entry.world}/${data.entry.uid}-${data.entry.comment} to ${data.content}`);
     return true;
 }

@@ -19,6 +19,7 @@ export async function generate(
             if(e instanceof Error)
                 e.cause = lastError ?? undefined;
             lastError = e;
+            console.error(`Failed to generate content, retrying...`, e);
             continue;
         }
 
@@ -26,9 +27,17 @@ export async function generate(
         if(result.toString() === '[object AsyncGenerator]')
             break;
 
-        // @ts-expect-error: 2345
-        if(await options.validator?.call(null, result) || result)
-            break;
+        try {
+            // @ts-expect-error: 2345
+            if(await options.validator?.call(null, result) || result)
+                break;
+        } catch(e) {
+            if(e instanceof Error)
+                e.cause = lastError ?? undefined;
+            lastError = e;
+            console.error(`Failed to validate content, retrying...`, e);
+            continue;
+        }
     }
 
     if(!result) {

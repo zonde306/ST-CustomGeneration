@@ -7,7 +7,8 @@ import { DataOverride } from "@/features/override";
 import { Context } from "@/features/context";
 import { generate } from "@/utils/retries"
 import { WorldInfoEntry } from "@/utils/defines";
-
+import { setup as setupReplace } from "@/features/after-generates/replace"
+import { setup as setupReplaceDiff } from "@/features/after-generates/replace-diff";
 
 export interface DecoratorProcessData {
     entry: WorldInfoEntry;
@@ -24,6 +25,9 @@ export const WI_DECORATOR_MAPPING = new Map<string, DecoratorProcessor>();
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
     eventSource.on(event_types.GENERATION_ENDED, runAfterGenerates);
+
+    await setupReplace();
+    await setupReplaceDiff();
 }
 
 async function runAfterGenerates() {
