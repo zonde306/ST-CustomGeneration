@@ -73,6 +73,15 @@ async function processMessage(messages: ChatMessage[], override: DataOverride) {
                 '{{original}}': parsed.cleanContent,
                 '{{current}}': () => override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent,
             };
+
+            // Reduce Attention Depletion
+            ctx.filters = {
+                worldInfoDepth: false,
+                worldInfoBefore: false,
+                worldInfoAfter: false,
+                chatExamples: false,
+                authorsNoteDepth: false,
+            };
             
             generate(ctx, 3, decorator, { validator: async(response) => {
                 response = Array.isArray(response) ? response : [ response ];
