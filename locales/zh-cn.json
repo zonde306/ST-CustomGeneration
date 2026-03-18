@@ -29,5 +29,11 @@
 	"Generate log help": "查看生成请求、参数与返回内容。",
 	"No logs": "没有日志",
 	"View Generate Log": "查看生成日志",
-	"Run After Generate": "执行后运行处理"
+	"Run After Generate": "执行后运行处理",
+	"Overrides": "内容覆盖",
+	"Overrides help": "查看世界书与聊天消息的覆盖内容。",
+	"No overrides": "没有覆盖内容",
+	"View Overrides": "查看内容覆盖",
+	"World Info Overrides": "世界书覆盖",
+	"Chat Message Overrides": "聊天消息覆盖"
 }

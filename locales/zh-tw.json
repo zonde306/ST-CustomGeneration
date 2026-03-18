@@ -29,5 +29,11 @@
 	"Generate log help": "檢視生成請求、參數與回傳內容。",
 	"No logs": "沒有日誌",
 	"View Generate Log": "檢視生成日誌",
-	"Run After Generate": "生成後執行"
+	"Run After Generate": "生成後執行",
+	"Overrides": "內容覆蓋",
+	"Overrides help": "檢視世界書與聊天訊息的覆蓋內容。",
+	"No overrides": "沒有覆蓋內容",
+	"View Overrides": "檢視內容覆蓋",
+	"World Info Overrides": "世界書覆蓋",
+	"Chat Message Overrides": "聊天訊息覆蓋"
 }

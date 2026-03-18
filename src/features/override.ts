@@ -1,5 +1,6 @@
 import { eventSource, event_types } from "@st/scripts/events.js";
-import { chat, chat_metadata } from "@st/script.js";
+import { renderExtensionTemplateAsync } from '@st/scripts/extensions.js';
+import { chat, chat_metadata, name1, name2 } from "@st/script.js";
 import { WorldInfoLoaded } from "@/utils/defines";
 
 interface WIOverride {
@@ -9,8 +10,197 @@ interface WIOverride {
 
 type WIOverrides = Record<string, Record<string, WIOverride>>;
 
-type SwipeInfoEx = SwipeInfo & { wi_overrides?: WIOverrides, mes_overrides?: string };
+type SwipeInfoEx = SwipeInfo & { wi_overrides?: WIOverrides, mes_override?: string };
 type ChatMessageEx = ChatMessage & { swipe_info?: SwipeInfoEx[] };
+
+type WorldInfoOverrideEntry = WIOverride & { world: string; uid: string; messageId: number; swipeId: number; };
+type ChatMessageOverrideEntry = { messageId: number; swipeId: number; content: string; name: string; };
+
+const PREVIEW_LIMIT = 120;
+let isOverridesEventsBound = false;
+
+function getDialog(selector: string): HTMLDialogElement | null {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLDialogElement ? element : null;
+}
+
+function openDialog(selector: string): void {
+    const dialog = getDialog(selector);
+    if (!dialog || dialog.open) {
+        return;
+    }
+
+    try {
+        dialog.showModal();
+    } catch {
+        dialog.setAttribute('open', 'open');
+    }
+}
+
+function closeDialog(selector: string): void {
+    const dialog = getDialog(selector);
+    if (!dialog) {
+        return;
+    }
+
+    if (dialog.open) {
+        dialog.close();
+    } else {
+        dialog.removeAttribute('open');
+    }
+}
+
+function getPreviewText(text: string): string {
+    return String(text ?? '').trim().replace(/\s+/g, ' ').slice(0, PREVIEW_LIMIT);
+}
+
+function buildOverrideInfoItem(label: string, value: string): JQuery<HTMLElement> {
+    const item = $('<div class="custom_generation_overrides_info_item"></div>');
+    const labelEl = $('<span class="custom_generation_overrides_info_label"></span>').text(label);
+    const valueEl = $('<span class="custom_generation_overrides_info_value"></span>').text(value);
+    item.append(labelEl, valueEl);
+    return item;
+}
+
+function buildOverrideBlock(title: string, content: string): JQuery<HTMLElement> {
+    const block = $('<div></div>');
+    const titleEl = $('<div class="custom_generation_overrides_block_title"></div>').text(title);
+    const pre = $('<pre class="custom_generation_overrides_pre"></pre>').text(content);
+    block.append(titleEl, pre);
+    return block;
+}
+
+function buildOverrideTitle(base: string, content: string): string {
+    const preview = getPreviewText(content);
+    return preview ? `${base}: ${preview}` : base;
+}
+
+function buildWorldInfoEntry(entry: WorldInfoOverrideEntry): JQuery<HTMLElement> {
+    const details = $('<details class="custom_generation_overrides_entry"></details>');
+    const summary = $('<summary class="custom_generation_overrides_summary"></summary>');
+    const caret = $('<i class="fa-solid fa-chevron-right custom_generation_overrides_caret"></i>');
+
+    const left = $('<div class="custom_generation_overrides_summary_left"></div>');
+    const title = $('<div class="custom_generation_overrides_title"></div>').text(
+        buildOverrideTitle(`World ${entry.world} · UID ${entry.uid}`, entry.content),
+    );
+    const meta = $('<div class="custom_generation_overrides_meta"></div>').text(
+        `Message ${entry.messageId + 1} · Swipe ${entry.swipeId}`,
+    );
+    left.append(title, meta);
+
+    const right = $('<div class="custom_generation_overrides_summary_right"></div>');
+    const typeBadge = $('<span class="custom_generation_overrides_badge"></span>').text(entry.type || 'Override');
+    const kindBadge = $('<span class="custom_generation_overrides_badge"></span>').text('World Info');
+    right.append(kindBadge, typeBadge);
+
+    summary.append(caret, left, right);
+
+    const body = $('<div class="custom_generation_overrides_body"></div>');
+    const info = $('<div class="custom_generation_overrides_info"></div>');
+    info.append(
+        buildOverrideInfoItem('World', entry.world),
+        buildOverrideInfoItem('UID', entry.uid),
+        buildOverrideInfoItem('Type', entry.type || '-'),
+        buildOverrideInfoItem('Message', String(entry.messageId + 1)),
+        buildOverrideInfoItem('Swipe', String(entry.swipeId)),
+    );
+
+    body.append(info);
+    body.append(buildOverrideBlock('Content', entry.content));
+
+    details.append(summary, body);
+    return details;
+}
+
+function buildChatOverrideEntry(entry: ChatMessageOverrideEntry): JQuery<HTMLElement> {
+    const details = $('<details class="custom_generation_overrides_entry"></details>');
+    const summary = $('<summary class="custom_generation_overrides_summary"></summary>');
+    const caret = $('<i class="fa-solid fa-chevron-right custom_generation_overrides_caret"></i>');
+
+    const left = $('<div class="custom_generation_overrides_summary_left"></div>');
+    const title = $('<div class="custom_generation_overrides_title"></div>').text(
+        buildOverrideTitle(`${entry.name ?? 'Unknown'} · Message ${entry.messageId + 1}`, entry.content),
+    );
+    const meta = $('<div class="custom_generation_overrides_meta"></div>').text(
+        `Swipe ${entry.swipeId}`,
+    );
+    left.append(title, meta);
+
+    const right = $('<div class="custom_generation_overrides_summary_right"></div>');
+    const kindBadge = $('<span class="custom_generation_overrides_badge"></span>').text('Chat Message');
+    right.append(kindBadge);
+
+    summary.append(caret, left, right);
+
+    const body = $('<div class="custom_generation_overrides_body"></div>');
+    const info = $('<div class="custom_generation_overrides_info"></div>');
+    info.append(
+        buildOverrideInfoItem('Name', entry.name ?? '-'),
+        buildOverrideInfoItem('Message', String(entry.messageId + 1)),
+        buildOverrideInfoItem('Swipe', String(entry.swipeId)),
+    );
+
+    body.append(info);
+    body.append(buildOverrideBlock('Content', entry.content));
+
+    details.append(summary, body);
+    return details;
+}
+
+function buildOverridesSection(title: string, entries: JQuery<HTMLElement>[], i18nKey?: string): JQuery<HTMLElement> {
+    const section = $('<div class="custom_generation_overrides_section"></div>');
+    const titleEl = $('<div class="custom_generation_overrides_section_title"></div>').text(title);
+    if (i18nKey) {
+        titleEl.attr('data-i18n', i18nKey);
+    }
+    const body = $('<div class="custom_generation_overrides_section_body"></div>');
+    entries.forEach(entry => body.append(entry));
+    section.append(titleEl, body);
+    return section;
+}
+
+function updateOverridesList(): void {
+    const list = $('#custom_generation_overrides_list');
+    if (!list.length) {
+        return;
+    }
+
+    list.empty();
+
+    const override = DataOverride.global();
+    const worldInfoOverrides = override.lookupOverrides();
+    const chatOverrides = override.lookupChatOverrides();
+
+    if (!worldInfoOverrides.length && !chatOverrides.length) {
+        const emptyText = String(list.attr('no-items-text') ?? 'No overrides');
+        const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text(emptyText);
+        list.append(empty);
+        return;
+    }
+
+    if (worldInfoOverrides.length) {
+        const entries = worldInfoOverrides.map(buildWorldInfoEntry);
+        list.append(buildOverridesSection('World Info Overrides', entries, 'World Info Overrides'));
+    }
+
+    if (chatOverrides.length) {
+        const entries = chatOverrides.map(buildChatOverrideEntry);
+        list.append(buildOverridesSection('Chat Message Overrides', entries, 'Chat Message Overrides'));
+    }
+}
+
+function bindOverridesEvents(): void {
+    if (isOverridesEventsBound) {
+        return;
+    }
+
+    isOverridesEventsBound = true;
+
+    $('#custom_generation_overrides_close').on('click', () => {
+        closeDialog('#custom_generation_overrides_dialog');
+    });
+}
 
 export class DataOverride {
     public chat: ChatMessageEx[];
@@ -92,7 +282,7 @@ export class DataOverride {
 
     getChatOverride(message_id: number): string | null {
         const message = this.chat[message_id];
-        return message?.swipe_info?.[message.swipe_id ?? 0]?.mes_overrides ?? null;
+        return message?.swipe_info?.[message.swipe_id ?? 0]?.mes_override ?? null;
     }
 
     setChatOverride(message_id: number, content: string) {
@@ -101,7 +291,7 @@ export class DataOverride {
             message.swipe_info = [];
         if(!message.swipe_info[message.swipe_id ?? 0])
             message.swipe_info[message.swipe_id ?? 0] = {};
-        message.swipe_info[message.swipe_id ?? 0].mes_overrides = content;
+        message.swipe_info[message.swipe_id ?? 0].mes_override = content;
     }
 
     lookupOverrides(depth: number = 9): (WIOverride & {
@@ -134,15 +324,66 @@ export class DataOverride {
 
         return Array.from(results.values());
     }
+
+    lookupChatOverrides(depth: number = 9): ({
+        messageId: number; swipeId: number; content: string; name: string;
+    })[] {
+        const results: {
+            messageId: number; swipeId: number; content: string; name: string;
+        }[] = [];
+
+        for(let i = this.chat.length - 1 - depth; i < this.chat.length; ++i) {
+            const message = this.chat[i];
+
+            // message is hidden
+            if(message.is_system)
+                continue;
+
+            const content = message.swipe_info?.[message.swipe_id ?? 0]?.mes_override;
+            if(content) {
+                results.push({
+                    messageId: i,
+                    swipeId: message.swipe_id ?? 0,
+                    content: content,
+                    name: message.name ?? (message.is_user ? name1 : name2),
+                });
+            }
+        }
+
+        return results;
+    }
 }
 
-async function onWorldInfoLoaded(self: WeakRef<DataOverride> | DataOverride, data: WorldInfoLoaded) {
-    if(self instanceof WeakRef)
-        await self.deref()?.onWorldInfoLoaded(data);
-    else
-        await self.onWorldInfoLoaded(data);
+async function onWorldInfoLoaded(data: WorldInfoLoaded) {
+    // TODO: Different Contexts
+    await DataOverride.global().onWorldInfoLoaded(data);
 }
 
 export async function setup() {
-    eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded.bind(null, DataOverride.global()));
+    eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded);
+    eventSource.on(event_types.APP_READY, onAppReady);
+}
+
+async function onAppReady() {
+    if (!$('#custom_generation_overrides_dialog').length) {
+        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'overrides-modal'));
+    }
+
+    bindOverridesEvents();
+
+    if (!$('#extensionsMenu')?.find('custom_generation_overrides_button')?.length) {
+        $('#extensionsMenu').append(`
+            <div id="custom_generation_overrides_button" class="extension_container interactable" tabindex="0">
+                <div id="customGenerateOverrides" class="list-group-item flex-container flexGap5 interactable" title="View Overrides." tabindex="0" role="listitem">
+                    <div class="fa-fw fa-solid fa-book extensionsMenuExtensionButton"></div>
+                    <span data-i18n="View Overrides">View Overrides</span>
+                </div>
+            </div>
+        `);
+
+        $('#customGenerateOverrides').on('click', () => {
+            updateOverridesList();
+            openDialog('#custom_generation_overrides_dialog');
+        });
+    }
 }
