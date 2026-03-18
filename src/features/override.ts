@@ -207,8 +207,8 @@ export class DataOverride {
     public chat_metadata: ChatMetadata;
 
     constructor(_chat: ChatMessage[], _metadata: ChatMetadata) {
-        this.chat = _chat;
-        this.chat_metadata = _metadata;
+        this.chat = Array.isArray(_chat) ? _chat : [];
+        this.chat_metadata = _metadata ?? {};
         
         // FIXME: Listening to Events Multiple Times
         // eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded.bind(null, new WeakRef(this)));
@@ -304,6 +304,9 @@ export class DataOverride {
                 break;
 
             const message = this.chat[i];
+            if(!message)
+                continue;
+
             const overrides = message.swipe_info?.[message.swipe_id ?? 0]?.wi_overrides;
             if(overrides) {
                 for(const [world, entries] of Object.entries(overrides)) {
@@ -332,7 +335,8 @@ export class DataOverride {
             messageId: number; swipeId: number; content: string; name: string;
         }[] = [];
 
-        for(let i = this.chat.length - 1 - depth; i < this.chat.length; ++i) {
+        const startIndex = Math.max(0, this.chat.length - 1 - depth);
+        for(let i = startIndex; i < this.chat.length; ++i) {
             const message = this.chat[i];
 
             // message is hidden
