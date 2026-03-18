@@ -336,7 +336,7 @@ export class DataOverride {
             const message = this.chat[i];
 
             // message is hidden
-            if(message.is_system)
+            if(!message || message.is_system)
                 continue;
 
             const content = message.swipe_info?.[message.swipe_id ?? 0]?.mes_override;
