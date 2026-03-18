@@ -370,7 +370,8 @@ export async function setup() {
 
 async function onAppReady() {
     if (!$('#custom_generation_overrides_dialog').length) {
-        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'overrides-modal'));
+        const host = document.body ?? document.documentElement;
+        $(host).append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'overrides-modal'));
     }
 
     bindOverridesEvents();

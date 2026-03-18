@@ -274,7 +274,8 @@ async function onGenerateAfter(data: GenerateAfter) {
 
 async function onAppReady() {
     if (!$('#custom_generation_logger_dialog').length) {
-        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'logger-modal'));
+        const host = document.body ?? document.documentElement;
+        $(host).append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'logger-modal'));
     }
 
     bindLoggerEvents();
