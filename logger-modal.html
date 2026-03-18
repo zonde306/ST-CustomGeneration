@@ -1,0 +1,154 @@
+<dialog id="custom_generation_logger_dialog">
+    <form class="completion_prompt_manager_popup_entry_form flex-container flexFlowColumn" method="dialog" onsubmit="return false;">
+        <div class="completion_prompt_manager_popup_header">
+            <label for="custom_generation_logger_list">
+                <span data-i18n="Generate Log">Generate Log</span>
+            </label>
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <small class="text_muted" data-i18n="Generate log help">Review generate requests, options, and responses.</small>
+        </div>
+        <div id="custom_generation_logger_list" class="flex-container flexFlowColumn" no-items-text="No logs" data-i18n="[no-items-text]No logs"></div>
+        <div class="flex-container justifySpaceBetween marginTop5">
+            <div></div>
+            <div class="flex-container">
+                <button id="custom_generation_logger_close" class="custom_generation_button" type="button" data-i18n="Close">Close</button>
+            </div>
+        </div>
+    </form>
+    <style>
+        #custom_generation_logger_dialog .completion_prompt_manager_popup_entry_form {
+            width: min(920px, 92vw);
+            max-width: 92vw;
+            box-sizing: border-box;
+        }
+
+        #custom_generation_logger_list {
+            width: 100%;
+            max-width: 100%;
+            align-items: stretch;
+            gap: 6px;
+        }
+
+        #custom_generation_logger_list > * {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .custom_generation_logger_entry {
+            border: 1px solid var(--SmartThemeBorderColor);
+            border-radius: 6px;
+            background-color: var(--SmartThemeBlurTintColor);
+            overflow: hidden;
+        }
+
+        .custom_generation_logger_summary {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 6px;
+            cursor: pointer;
+        }
+
+        .custom_generation_logger_summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .custom_generation_logger_entry[open] .custom_generation_logger_summary {
+            background-color: var(--white30a);
+        }
+
+        .custom_generation_logger_caret {
+            transition: transform var(--animation-duration-2x);
+            opacity: 0.7;
+        }
+
+        .custom_generation_logger_entry[open] .custom_generation_logger_caret {
+            transform: rotate(90deg);
+        }
+
+        .custom_generation_logger_summary_left {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .custom_generation_logger_title,
+        .custom_generation_logger_meta {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .custom_generation_logger_title {
+            font-weight: 600;
+        }
+
+        .custom_generation_logger_meta {
+            opacity: 0.85;
+            font-size: 0.9em;
+        }
+
+        .custom_generation_logger_summary_right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .custom_generation_logger_badge {
+            font-size: 0.8em;
+            padding: 1px 6px;
+            border: 1px solid var(--SmartThemeBorderColor);
+            border-radius: 999px;
+            opacity: 0.9;
+        }
+
+        .custom_generation_logger_status {
+            font-weight: 600;
+        }
+
+        .custom_generation_logger_body {
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .custom_generation_logger_info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 12px;
+        }
+
+        .custom_generation_logger_info_item {
+            display: flex;
+            gap: 6px;
+            font-size: 0.9em;
+        }
+
+        .custom_generation_logger_info_label {
+            opacity: 0.75;
+        }
+
+        .custom_generation_logger_block_title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .custom_generation_logger_pre {
+            white-space: pre-wrap;
+            background-color: var(--SmartThemeBlurTintColor);
+            border: 1px solid var(--SmartThemeBorderColor);
+            border-radius: 5px;
+            padding: 6px 8px;
+            max-height: 320px;
+            overflow: auto;
+            font-family: var(--mono-font, monospace);
+            font-size: 0.85em;
+        }
+    </style>
+</dialog>
