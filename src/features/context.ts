@@ -17,6 +17,7 @@ import { ContextRole } from '@/utils/defines'
 import { runRegexScript, substitute_find_regex } from "@/../../../regex/engine.js";
 import { eventTypes } from '@/utils/events';
 import { DynamicMacroValue } from "@st/scripts/macros/engine/MacroEnv.types.js";
+import { uuidv4 } from '@st/scripts/utils.js';
 
 type VariableData = Record<string, any>;
 type ChatMessageEx = ChatMessage & { variables?: VariableData[] };
@@ -243,7 +244,7 @@ export class Context {
             return '';
 
         const abortController = this.#createAbortController(options.signal);
-        const taskId = typeof this.variables?.taskId === 'string' ? this.variables.taskId : '';
+        const taskId = String(this.variables?.taskId || uuidv4());
         let apiConfig: Partial<ApiConfig> | undefined = this.#buildApiConfig(type);
 
         if(options.apiConfig) {
