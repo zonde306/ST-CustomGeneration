@@ -6,6 +6,7 @@
 	"No prompts": "沒有提示詞",
 	"No templates": "沒有模板",
 	"Triggers (comma separated)": "觸發器列表(逗號分隔)",
+	"Filters (comma separated)": "過濾器列表(逗號分隔)",
 	"injection_position": "注入位置",
 	"In-chat depth": "聊天注入深度",
 	"In-chat order": "聊天注入順序",

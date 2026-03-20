@@ -88,6 +88,9 @@ export interface Template {
     // Processing is triggered only when the regex matches, treating the captured group as {{lastCharMessage}}.
     // if regex is empty, will not be used.
     findRegex: string;
+
+    // Disable specific prompts, see PromptFilter
+    filters: string[];
 }
 
 export interface Preset {
@@ -261,6 +264,7 @@ export const defaultTemplate: Template = {
     ],
     regex: '',
     findRegex: '',
+    filters: [],
 }
 
 export const defaultPreset: Preset = {
@@ -419,6 +423,7 @@ export const defaultPreset: Preset = {
             ],
             regex: '/<content>([\\S\\s]+?)<\\/content>/gi',
             findRegex: '',
+            filters: [],
         },
     },
 };
@@ -465,7 +470,7 @@ let isEventsBound = false;
 let isSettingsLoadedListenerBound = false;
 let modelCandidates: string[] = [];
 let isConnectionActionInProgress = false;
-let templateEditorDraft: { decorator: string; tag: string; regex: string; findRegex: string } | null = null;
+let templateEditorDraft: { decorator: string; tag: string; filters: string; regex: string; findRegex: string } | null = null;
 let templateEditorDraftKey: string | null = null;
 
 const exportSchemaVersion = '1.0.0';
@@ -709,6 +714,9 @@ function normalizeTemplate(input: Partial<Template>): Template {
         prompts,
         regex: String(input.regex ?? ''),
         findRegex: String(input.findRegex ?? ''),
+        filters: Array.isArray(input.filters)
+            ? input.filters.map(value => String(value).trim()).filter(Boolean)
+            : [],
     };
 }
 
@@ -1920,6 +1928,7 @@ function setTemplateEditorEnabled(enabled: boolean) {
     const selectors = [
         '#custom_generation_template_decorator',
         '#custom_generation_template_tag',
+        '#custom_generation_template_filters',
         '#custom_generation_template_regex',
         '#custom_generation_template_find_regex',
         '#custom_generation_template_delete',
@@ -1938,18 +1947,20 @@ function resetTemplateEditorDraft(): void {
     templateEditorDraftKey = null;
 }
 
-function readTemplateEditorDraft(): { decorator: string; tag: string; regex: string; findRegex: string } {
+function readTemplateEditorDraft(): { decorator: string; tag: string; filters: string; regex: string; findRegex: string } {
     return {
         decorator: String($('#custom_generation_template_decorator').val() ?? DEFAULT_TEMPLATE_DECORATOR),
         tag: String($('#custom_generation_template_tag').val() ?? ''),
+        filters: String($('#custom_generation_template_filters').val() ?? ''),
         regex: String($('#custom_generation_template_regex').val() ?? ''),
         findRegex: String($('#custom_generation_template_find_regex').val() ?? ''),
     };
 }
 
-function applyTemplateEditorDraft(draft: { decorator: string; tag: string; regex: string; findRegex: string }): void {
+function applyTemplateEditorDraft(draft: { decorator: string; tag: string; filters: string; regex: string; findRegex: string }): void {
     $('#custom_generation_template_decorator').val(draft.decorator);
     $('#custom_generation_template_tag').val(draft.tag);
+    $('#custom_generation_template_filters').val(draft.filters);
     $('#custom_generation_template_regex').val(draft.regex);
     $('#custom_generation_template_find_regex').val(draft.findRegex);
 }
@@ -2092,6 +2103,7 @@ function updateTemplateEditor() {
         resetTemplateEditorDraft();
         $('#custom_generation_template_decorator').val(DEFAULT_TEMPLATE_DECORATOR);
         $('#custom_generation_template_tag').val('');
+        $('#custom_generation_template_filters').val('');
         $('#custom_generation_template_regex').val('');
         $('#custom_generation_template_find_regex').val('');
         updateTemplatePromptList(null);
@@ -2107,6 +2119,7 @@ function updateTemplateEditor() {
     } else {
         $('#custom_generation_template_decorator').val(template.decorator);
         $('#custom_generation_template_tag').val(template.tag);
+        $('#custom_generation_template_filters').val((template.filters ?? []).join(', '));
         $('#custom_generation_template_regex').val(template.regex);
         $('#custom_generation_template_find_regex').val(template.findRegex);
         templateEditorDraft = readTemplateEditorDraft();
@@ -2376,6 +2389,10 @@ function saveTemplateEditor(): void {
     const nextTemplate = normalizeTemplate({
         decorator: $('#custom_generation_template_decorator').val() as Template['decorator'],
         tag: String($('#custom_generation_template_tag').val() ?? ''),
+        filters: String($('#custom_generation_template_filters').val() ?? '')
+            .split(',')
+            .map(value => value.trim())
+            .filter(Boolean),
         regex: String($('#custom_generation_template_regex').val() ?? ''),
         findRegex: String($('#custom_generation_template_find_regex').val() ?? ''),
         prompts: entry.template.prompts,
@@ -3154,6 +3171,7 @@ function bindEvents() {
     const templateDraftSelectors = [
         '#custom_generation_template_decorator',
         '#custom_generation_template_tag',
+        '#custom_generation_template_filters',
         '#custom_generation_template_regex',
         '#custom_generation_template_find_regex',
     ];

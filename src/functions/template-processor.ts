@@ -1,3 +1,7 @@
+/**
+ * DEPRECATED FILE - It will be ported later.
+ */
+
 import * as YAML from 'yaml';
 import { applyPatch } from 'diff';
 import { jsonrepair } from 'jsonrepair';
