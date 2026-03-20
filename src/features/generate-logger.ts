@@ -3,7 +3,7 @@ import { eventSource, event_types } from "@st/scripts/events.js";
 import { eventTypes } from "@/utils/events";
 import { Context, GenerateOptionsLite } from "@/features/context";
 import { ApiConfig } from "@/functions/generate";
-import { getTokenCountAsync } from '@st/scripts/tokenizers';
+import { getTokenCountAsync } from '@st/scripts/tokenizers.js';
 
 interface GenerateBefore {
     type: string;
