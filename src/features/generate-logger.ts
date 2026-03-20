@@ -3,6 +3,7 @@ import { eventSource, event_types } from "@st/scripts/events.js";
 import { eventTypes } from "@/utils/events";
 import { Context, GenerateOptionsLite } from "@/features/context";
 import { ApiConfig } from "@/functions/generate";
+import { getTokenCountAsync } from '@st/scripts/tokenizers';
 
 interface GenerateBefore {
     type: string;
@@ -95,12 +96,13 @@ function formatMessageContent(content: unknown): string {
     return safeStringify(content);
 }
 
-function buildLoggerMessageTitle(message: ChatCompletionMessage, index: number): string {
+async function buildLoggerMessageTitle(message: ChatCompletionMessage, index: number): Promise<string> {
     const role = String(message.role ?? 'unknown');
     const name = message.name ? ` (${message.name})` : '';
-    const preview = getPreviewText(formatMessageContent(message.content ?? ''));
-    const base = `Message ${index + 1} · ${role}${name}`;
-    return preview ? `${base} · ${preview}` : base;
+    const markup = message.role === 'system' ? '⚙️' : message.role === 'user' ? '👤' : '🤖';
+    const tokens = await getTokenCountAsync(message.content ?? '');
+    const base = `Message ${index + 1} · ${markup}${role}${name} · ${tokens}`;
+    return base;
 }
 
 function buildLoggerResponseTitle(response: string, index: number): string {
@@ -143,17 +145,17 @@ function buildLoggerAccordionBlock(title: string, content: string, blockClass?: 
     return [header, panel];
 }
 
-function buildLoggerMessageBlocks(messages: ChatCompletionMessage[]): JQuery<HTMLElement>[] {
+async function buildLoggerMessageBlocks(messages: ChatCompletionMessage[]): Promise<JQuery<HTMLElement>[]> {
     if (!messages.length) {
         return [];
     }
 
     const blocks: JQuery<HTMLElement>[] = [];
-    messages.forEach((message, index) => {
-        const title = buildLoggerMessageTitle(message, index);
+    for (const [index, message] of messages.entries()) {
+        const title = await buildLoggerMessageTitle(message, index);
         const content = formatMessageContent(message.content ?? '');
         blocks.push(...buildLoggerAccordionBlock(title, content, 'custom_generation_logger_message'));
-    });
+    }
     return blocks;
 }
 
@@ -209,7 +211,7 @@ function buildLoggerBlock(title: string, content: string, blockClass?: string): 
     return block;
 }
 
-function buildLoggerEntry(entry: GenerateLogEntry, index: number): JQuery<HTMLElement> {
+async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise<JQuery<HTMLElement>> {
     const container = $('<div class="custom_generation_logger_entry"></div>');
     const summary = $('<div class="custom_generation_logger_summary"></div>');
     const caret = $('<i class="fa-solid fa-chevron-right custom_generation_logger_caret"></i>');
@@ -236,7 +238,7 @@ function buildLoggerEntry(entry: GenerateLogEntry, index: number): JQuery<HTMLEl
 
     body.append(info);
 
-    const messageBlocks = buildLoggerMessageBlocks(entry.messages);
+    const messageBlocks = await buildLoggerMessageBlocks(entry.messages);
     const responseBlocks = buildLoggerResponseBlocks(entry.response);
     body.append(buildLoggerSection('Messages', messageBlocks));
     body.append(buildLoggerSection('Responses', responseBlocks));
@@ -270,7 +272,7 @@ function buildLoggerEntry(entry: GenerateLogEntry, index: number): JQuery<HTMLEl
     return container;
 }
 
-function updateLoggerList(): void {
+async function updateLoggerList(): Promise<void> {
     const list = $('#custom_generation_logger_list');
     if (!list.length) {
         return;
@@ -286,19 +288,21 @@ function updateLoggerList(): void {
     }
 
     const entries = [...loggers].reverse();
-    entries.forEach((entry, index) => {
-        list.append(buildLoggerEntry(entry, loggers.length - 1 - index));
-    });
+    for (const [index, entry] of entries.entries()) {
+        const logIndex = loggers.length - 1 - index;
+        const block = await buildLoggerEntry(entry, logIndex);
+        list.append(block);
+    }
 }
 
-function refreshLoggerListIfVisible(): void {
+async function refreshLoggerListIfVisible(): Promise<void> {
     const dialog = getDialog('#custom_generation_logger_dialog');
     if (!dialog) {
         return;
     }
 
     if (dialog.open || dialog.hasAttribute('open')) {
-        updateLoggerList();
+        await updateLoggerList();
     }
 }
 
@@ -330,7 +334,7 @@ async function onGenerateBefore(data: GenerateBefore) {
         loggers.shift();
     }
 
-    refreshLoggerListIfVisible();
+    await refreshLoggerListIfVisible();
 }
 
 async function onGenerateAfter(data: GenerateAfter) {
@@ -344,7 +348,7 @@ async function onGenerateAfter(data: GenerateAfter) {
     entry.error = data.error;
     entry.done = true;
 
-    refreshLoggerListIfVisible();
+    await refreshLoggerListIfVisible();
 }
 
 async function onAppReady() {
@@ -365,8 +369,8 @@ async function onAppReady() {
             </div>
         `);
 
-        $('#customGenerateLogger').on('click', () => {
-            updateLoggerList();
+        $('#customGenerateLogger').on('click', async () => {
+            await updateLoggerList();
             openDialog('#custom_generation_logger_dialog');
         });
     }

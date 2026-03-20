@@ -34,7 +34,7 @@ export interface GenerateOptionsLite {
     context?: Context;
 };
 
-
+let taskIdCounter = 0;
 
 export class Context {
     public chat: ChatMessageEx[];
@@ -244,7 +244,7 @@ export class Context {
             return '';
 
         const abortController = this.#createAbortController(options.signal);
-        const taskId = String(this.variables?.taskId || uuidv4());
+        const taskId = String(this.variables?.taskId || ++taskIdCounter);
         let apiConfig: Partial<ApiConfig> | undefined = this.#buildApiConfig(type);
 
         if(options.apiConfig) {
