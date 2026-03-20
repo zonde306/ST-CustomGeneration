@@ -3,6 +3,7 @@ import { extension_settings, renderExtensionTemplateAsync } from '@st/scripts/ex
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { generate as runGenerate, ApiConfig } from '@/functions/generate';
 import { KNOWN_DECORATORS } from '@/functions/worldinfo';
+import { PromptFilter } from '@/functions/message-builder';
 import * as YAML from 'yaml';
 
 export interface PresetPrompt {
@@ -13,7 +14,7 @@ export interface PresetPrompt {
     role: 'user' | 'assistant' | 'system';
 
     // Filter to specific generation types. empty means all.
-    triggers: string[];
+    triggers: (typeof KNOWN_DECORATORS[number] | string)[];
 
     // content (User-defined only)
     prompt: string;
@@ -32,6 +33,9 @@ export interface PresetPrompt {
 
     // (for inChat injectionPosition) Ordered from low/top to high/bottom, and at same order: Assistant, User, System.
     injectionOrder: number;
+
+    // How many messages to retain (chatHistory only)
+    maxDepth: number;
 }
 
 export interface RegEx {
@@ -90,7 +94,7 @@ export interface Template {
     findRegex: string;
 
     // Disable specific prompts, see PromptFilter
-    filters: string[];
+    filters: (keyof PromptFilter)[];
 }
 
 export interface Preset {
@@ -238,6 +242,7 @@ export const defaultTemplate: Template = {
             internal: null,
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         },
         {
             name: 'Last Character Message',
@@ -249,6 +254,7 @@ export const defaultTemplate: Template = {
             internal: null,
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         },
         {
             name: 'Instruction',
@@ -260,11 +266,12 @@ export const defaultTemplate: Template = {
             internal: null,
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         }
     ],
     regex: '',
     findRegex: '',
-    filters: [],
+    filters: [ 'worldInfoDepth', 'authorsNoteDepth', 'charDepth', 'presetDepth' ],
 }
 
 export const defaultPreset: Preset = {
@@ -280,6 +287,7 @@ export const defaultPreset: Preset = {
             internal: 'main',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         },
         {
             name: 'World Info (before)',
@@ -291,6 +299,7 @@ export const defaultPreset: Preset = {
             internal: 'worldInfoBefore',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         },
         {
             name: 'Persona Description',
@@ -302,6 +311,7 @@ export const defaultPreset: Preset = {
             internal: 'personaDescription',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         },
         {
             name: 'Char Description',
@@ -313,6 +323,7 @@ export const defaultPreset: Preset = {
             internal: 'charDescription',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         },
         {
             name: 'Char Personality',
@@ -324,6 +335,7 @@ export const defaultPreset: Preset = {
             internal: 'charPersonality',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         },
         {
             name: 'Scenario',
@@ -335,6 +347,7 @@ export const defaultPreset: Preset = {
             internal: 'scenario',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         },
         {
             name: 'Enhance Definitions',
@@ -346,6 +359,7 @@ export const defaultPreset: Preset = {
             internal: null,
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         },
         {
             name: 'Auxiliary Prompt',
@@ -357,6 +371,7 @@ export const defaultPreset: Preset = {
             internal: null,
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         },
         {
             name: 'World Info (after)',
@@ -368,6 +383,7 @@ export const defaultPreset: Preset = {
             internal: 'worldInfoAfter',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         },
         {
             name: 'Chat Examples',
@@ -379,6 +395,7 @@ export const defaultPreset: Preset = {
             internal: 'chatExamples',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         },
         {
             name: 'Chat History',
@@ -390,6 +407,7 @@ export const defaultPreset: Preset = {
             internal: 'chatHistory',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 65535,
         },
         {
             name: 'Post-History Instructions (jailbreak)',
@@ -401,31 +419,11 @@ export const defaultPreset: Preset = {
             internal: null,
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
         },
     ],
     regexs: [],
-    templates: {
-        '@@record:full-update': {
-            decorator: '@@record',
-            tag: 'full-update',
-            prompts: [
-                {
-                    name: 'Template Prompt',
-                    role: 'user',
-                    triggers: [],
-                    prompt: '{{lastCharMessage}}\nUpdate the following documents based on the above content:\n{{current}}\nThen wrap the updated document with `<content>` to output the document.',
-                    injectionPosition: 'relative',
-                    enabled: true,
-                    internal: null,
-                    injectionDepth: DEFAULT_DEPTH,
-                    injectionOrder: DEFAULT_WEIGHT,
-                },
-            ],
-            regex: '/<content>([\\S\\s]+?)<\\/content>/gi',
-            findRegex: '',
-            filters: [],
-        },
-    },
+    templates: {},
 };
 
 const defaultSettings: Settings = {
@@ -673,6 +671,7 @@ function normalizePrompt(input: Partial<PresetPrompt>, fallbackName: string): Pr
     const enable = input.enabled === null ? null : Boolean(input.enabled);
     const injectionDepth = parseNumber(input.injectionDepth, DEFAULT_DEPTH, 0, 9999, true);
     const injectionOrder = parseNumber(input.injectionOrder, DEFAULT_WEIGHT, -1_000_000, 1_000_000, true);
+    const maxDepth = parseNumber(input.maxDepth, 999, 0, 9999, true);
 
     return {
         name: sanitizePresetName(String(input.name ?? ''), fallbackName),
@@ -686,6 +685,7 @@ function normalizePrompt(input: Partial<PresetPrompt>, fallbackName: string): Pr
         internal: input.internal ?? null,
         injectionDepth,
         injectionOrder,
+        maxDepth,
     };
 }
 
@@ -805,7 +805,7 @@ function normalizeTemplate(input: Partial<Template>): Template {
         regex: String(input.regex ?? ''),
         findRegex: String(input.findRegex ?? ''),
         filters: Array.isArray(input.filters)
-            ? input.filters.map(value => String(value).trim()).filter(Boolean)
+            ? input.filters.map(value => String(value).trim()).filter(Boolean) as Template['filters']
             : [],
     };
 }
@@ -1953,6 +1953,7 @@ function setPromptEditorEnabled(enabled: boolean) {
         '#custom_generation_prompt_injection_position',
         '#custom_generation_prompt_injection_depth',
         '#custom_generation_prompt_injection_order',
+        '#custom_generation_prompt_max_depth',
         '#custom_generation_prompt_triggers',
         '#custom_generation_prompt_enable',
         '#custom_generation_prompt_content',
@@ -1968,6 +1969,14 @@ function setPromptEditorEnabled(enabled: boolean) {
 function updatePromptInjectionControlsVisibility(position: string): void {
     const isInChat = position === 'inChat';
     $('#custom_generation_prompt_inchat_controls').toggle(isInChat);
+}
+
+function updatePromptChatHistoryControlsVisibility(prompt: PresetPrompt | null): void {
+    const shouldShow = Boolean(prompt?.internal === 'chatHistory');
+    const controls = $('#custom_generation_prompt_chat_history_controls');
+    const maxDepthInput = $('#custom_generation_prompt_max_depth');
+    controls.toggle(shouldShow);
+    maxDepthInput.prop('disabled', !shouldShow);
 }
 
 function setRegexEditorEnabled(enabled: boolean) {
@@ -2093,10 +2102,13 @@ function updatePromptEditor() {
         $('#custom_generation_prompt_injection_position').val('relative');
         $('#custom_generation_prompt_injection_depth').val(DEFAULT_DEPTH);
         $('#custom_generation_prompt_injection_order').val(DEFAULT_WEIGHT);
+        $('#custom_generation_prompt_max_depth').val(999);
         updatePromptInjectionControlsVisibility('relative');
+        updatePromptChatHistoryControlsVisibility(null);
         setSelectValues('#custom_generation_prompt_triggers', []);
         $('#custom_generation_prompt_enable').prop('checked', false);
         $('#custom_generation_prompt_content').val('');
+        $('#custom_generation_prompt_max_depth').prop('disabled', true);
         isUpdatingUI = false;
         return;
     }
@@ -2107,7 +2119,9 @@ function updatePromptEditor() {
     $('#custom_generation_prompt_injection_position').val(prompt.injectionPosition);
     $('#custom_generation_prompt_injection_depth').val(parseNumber(prompt.injectionDepth, DEFAULT_DEPTH, 0, 9999, true));
     $('#custom_generation_prompt_injection_order').val(parseNumber(prompt.injectionOrder, DEFAULT_WEIGHT, -1_000_000, 1_000_000, true));
+    $('#custom_generation_prompt_max_depth').val(parseNumber(prompt.maxDepth, 999, 0, 9999, true));
     updatePromptInjectionControlsVisibility(prompt.injectionPosition);
+    updatePromptChatHistoryControlsVisibility(prompt);
     setSelectValues('#custom_generation_prompt_triggers', prompt.triggers);
     $('#custom_generation_prompt_enable').prop('checked', prompt.enabled === true);
     $('#custom_generation_prompt_content').val(prompt.prompt);
@@ -2243,6 +2257,7 @@ function savePromptEditor(): void {
         prompt.injectionPosition = position === 'inChat' ? 'inChat' : 'relative';
         prompt.injectionDepth = parseNumber($('#custom_generation_prompt_injection_depth').val(), DEFAULT_DEPTH, 0, 9999, true);
         prompt.injectionOrder = parseNumber($('#custom_generation_prompt_injection_order').val(), DEFAULT_WEIGHT, -1_000_000, 1_000_000, true);
+        prompt.maxDepth = parseNumber($('#custom_generation_prompt_max_depth').val(), 999, 0, 9999, true);
 
         const triggersRaw = getSelectValues('#custom_generation_prompt_triggers');
         prompt.triggers = triggersRaw;
@@ -2275,6 +2290,7 @@ function savePromptEditor(): void {
     prompt.injectionPosition = position === 'inChat' ? 'inChat' : 'relative';
     prompt.injectionDepth = parseNumber($('#custom_generation_prompt_injection_depth').val(), DEFAULT_DEPTH, 0, 9999, true);
     prompt.injectionOrder = parseNumber($('#custom_generation_prompt_injection_order').val(), DEFAULT_WEIGHT, -1_000_000, 1_000_000, true);
+    prompt.maxDepth = parseNumber($('#custom_generation_prompt_max_depth').val(), 999, 0, 9999, true);
 
     const triggersRaw = getSelectValues('#custom_generation_prompt_triggers');
     prompt.triggers = triggersRaw;
@@ -2459,7 +2475,7 @@ function saveTemplateEditor(): void {
     const nextTemplate = normalizeTemplate({
         decorator: $('#custom_generation_template_decorator').val() as Template['decorator'],
         tag: String($('#custom_generation_template_tag').val() ?? ''),
-        filters: getSelectValues('#custom_generation_template_filters'),
+        filters: getSelectValues('#custom_generation_template_filters') as Template['filters'],
         regex: String($('#custom_generation_template_regex').val() ?? ''),
         findRegex: String($('#custom_generation_template_find_regex').val() ?? ''),
         prompts: entry.template.prompts,

@@ -71,6 +71,7 @@ export class MessageBuilder {
     public regexs: RegEx[];
     public prompts: PresetPrompt[];
     public evaluateMacro: boolean;
+    public maxChatHistory: number;
 
     constructor(chat: ChatMessage[], preset?: Preset) {
         this.chat = chat;
@@ -82,6 +83,7 @@ export class MessageBuilder {
         preset = preset ?? settings.presets[Number(settings.currentPreset)] ?? defaultPreset;
         this.regexs = preset.regexs;
         this.prompts = preset.prompts;
+        this.maxChatHistory = preset.prompts.find(x => x.internal === 'chatHistory')?.maxDepth ?? 65535;
     }
 
     async build(type: string = 'normal', dryRun: boolean = false, wiDepth = world_info_depth): Promise<ChatCompletionMessage[]> {
@@ -337,7 +339,7 @@ export class MessageBuilder {
 
     #buildChatHistory(): ChatCompletionMessage[] {
         const self = this;
-        const history: ChatCompletionMessage[] = this.chat.map((msg, idx) => ({
+        const history: ChatCompletionMessage[] = this.chat.slice(-this.maxChatHistory).map((msg, idx) => ({
             role: msg.is_user ? 'user' : msg.is_system ? 'system' : 'assistant',
             content: self.#applyRegex(msg.mes ?? '', {
                 user: msg.is_user,
