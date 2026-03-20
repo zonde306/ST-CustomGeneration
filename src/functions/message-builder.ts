@@ -34,6 +34,7 @@ interface ExtensionPrompts {
     filter: (() => Promise<boolean> | boolean) | null,
 };
 
+// Exclude Specific Prompts
 export interface PromptFilter {
     main?: boolean | string | string[] | ChatCompletionMessage[];
     personaDescription?: boolean | string | string[] | ChatCompletionMessage[];
@@ -51,11 +52,14 @@ export interface PromptFilter {
     worldInfoOutlet?: boolean;
 }
 
+// Replace or Customize Macros
 export interface MacroOverride {
     user?: string;
     char?: string;
     original?: string;
     group?: string;
+
+    // Keys use the `macro` format, rather than `{{macro}}` or `<macro>`.
     macros?: Record<string, DynamicMacroValue>;
 };
 

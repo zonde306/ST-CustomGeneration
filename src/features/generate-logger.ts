@@ -182,7 +182,6 @@ function buildLoggerEntry(entry: GenerateLogEntry, index: number): JQuery<HTMLEl
     );
 
     body.append(info);
-    body.append(buildLoggerBlock('Options', safeStringify(entry.options)));
     body.append(buildLoggerBlock('Messages', formatMessages(entry.messages)));
     body.append(buildLoggerBlock('Responses', formatResponses(entry.response)));
 
