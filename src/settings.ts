@@ -2112,6 +2112,11 @@ function updatePromptEditor() {
     $('#custom_generation_prompt_enable').prop('checked', prompt.enabled === true);
     $('#custom_generation_prompt_content').val(prompt.prompt);
 
+    const isInternalPrompt = prompt.internal !== null;
+    const isNonMainInternalPrompt = prompt.internal !== null && prompt.internal !== 'main';
+    $('#custom_generation_prompt_content').prop('disabled', isNonMainInternalPrompt);
+    $('#custom_generation_prompt_delete').toggle(!isInternalPrompt);
+
     isUpdatingUI = false;
 }
 

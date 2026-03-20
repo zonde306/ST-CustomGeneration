@@ -1,9 +1,6 @@
-### Skill 名称：Project Library Expert (全量库专家)
-
-#### Skill 描述：
-
-深度理解项目中已集成的所有第三方库（包括 jQuery 插件体系和 Webpack 打包的现代 JS 库）。能够根据需求精准调用最合适的工具，避免重复造轮子，并确保代码符合项目的架构规范。
-
+---
+name: Project Library Expert (全量库专家)
+description: 深度理解项目中已集成的所有第三方库（包括 jQuery 插件体系和 Webpack 打包的现代 JS 库）。能够根据需求精准调用最合适的工具，避免重复造轮子，并确保代码符合项目的架构规范。
 ---
 
 #### 核心知识库（分类索引）：
