@@ -454,6 +454,8 @@ let isEventsBound = false;
 let isSettingsLoadedListenerBound = false;
 let modelCandidates: string[] = [];
 let isConnectionActionInProgress = false;
+let templateEditorDraft: { decorator: string; tag: string; regex: string; findRegex: string } | null = null;
+let templateEditorDraftKey: string | null = null;
 
 const exportSchemaVersion = '1.0.0';
 const listExportSchemaVersion = '1.0.0';
@@ -1920,6 +1922,45 @@ function setTemplateEditorEnabled(enabled: boolean) {
     $('#custom_generation_template_add_prompt').prop('disabled', !enabled);
 }
 
+function resetTemplateEditorDraft(): void {
+    templateEditorDraft = null;
+    templateEditorDraftKey = null;
+}
+
+function readTemplateEditorDraft(): { decorator: string; tag: string; regex: string; findRegex: string } {
+    return {
+        decorator: String($('#custom_generation_template_decorator').val() ?? DEFAULT_TEMPLATE_DECORATOR),
+        tag: String($('#custom_generation_template_tag').val() ?? ''),
+        regex: String($('#custom_generation_template_regex').val() ?? ''),
+        findRegex: String($('#custom_generation_template_find_regex').val() ?? ''),
+    };
+}
+
+function applyTemplateEditorDraft(draft: { decorator: string; tag: string; regex: string; findRegex: string }): void {
+    $('#custom_generation_template_decorator').val(draft.decorator);
+    $('#custom_generation_template_tag').val(draft.tag);
+    $('#custom_generation_template_regex').val(draft.regex);
+    $('#custom_generation_template_find_regex').val(draft.findRegex);
+}
+
+function syncTemplateEditorDraft(): void {
+    if (editingTemplateIndex === null) {
+        resetTemplateEditorDraft();
+        return;
+    }
+
+    const preset = getCurrentPreset();
+    const entries = getTemplateEntries(preset);
+    const entry = entries[editingTemplateIndex];
+    if (!entry) {
+        resetTemplateEditorDraft();
+        return;
+    }
+
+    templateEditorDraftKey = entry.key;
+    templateEditorDraft = readTemplateEditorDraft();
+}
+
 function updateTemplatePromptList(template: Template | null) {
     const list = $('#custom_generation_template_prompt_list');
     if (!list.length) {
@@ -2037,6 +2078,7 @@ function updateTemplateEditor() {
 
     if (!templateEntry) {
         setTemplateEditorEnabled(false);
+        resetTemplateEditorDraft();
         $('#custom_generation_template_decorator').val(DEFAULT_TEMPLATE_DECORATOR);
         $('#custom_generation_template_tag').val('');
         $('#custom_generation_template_regex').val('');
@@ -2047,11 +2089,18 @@ function updateTemplateEditor() {
     }
 
     const template = templateEntry.template;
+    const shouldRestoreDraft = templateEditorDraft && templateEditorDraftKey === templateEntry.key;
     setTemplateEditorEnabled(true);
-    $('#custom_generation_template_decorator').val(template.decorator);
-    $('#custom_generation_template_tag').val(template.tag);
-    $('#custom_generation_template_regex').val(template.regex);
-    $('#custom_generation_template_find_regex').val(template.findRegex);
+    if (shouldRestoreDraft && templateEditorDraft) {
+        applyTemplateEditorDraft(templateEditorDraft);
+    } else {
+        $('#custom_generation_template_decorator').val(template.decorator);
+        $('#custom_generation_template_tag').val(template.tag);
+        $('#custom_generation_template_regex').val(template.regex);
+        $('#custom_generation_template_find_regex').val(template.findRegex);
+        templateEditorDraft = readTemplateEditorDraft();
+        templateEditorDraftKey = templateEntry.key;
+    }
     selectedTemplatePromptIndex = clamp(selectedTemplatePromptIndex, 0, Math.max(0, template.prompts.length - 1));
     updateTemplatePromptList(template);
 
@@ -2205,6 +2254,7 @@ function openRegexEditor(index: number): void {
 }
 
 function openTemplatePromptEditor(index: number): void {
+    syncTemplateEditorDraft();
     const template = getEditingTemplate();
     if (!template || !template.prompts[index]) {
         return;
@@ -2296,6 +2346,7 @@ function closeTemplateEditor(): void {
     selectedTemplatePromptIndex = 0;
     editingTemplatePromptIndex = null;
     promptEditorTarget = 'preset';
+    resetTemplateEditorDraft();
     closeDialog('#custom_generation_template_dialog');
 }
 
@@ -2329,6 +2380,7 @@ function saveTemplateEditor(): void {
     preset.templates[nextKey] = nextTemplate;
 
     selectedTemplateIndex = editingTemplateIndex;
+    resetTemplateEditorDraft();
     closeTemplateEditor();
     updateSettingsUI();
     saveSettings();
@@ -2353,6 +2405,7 @@ function deleteTemplateFromEditor(): void {
     delete preset.templates[entry.key];
 
     const removedIndex = editingTemplateIndex;
+    resetTemplateEditorDraft();
     closeTemplateEditor();
     const remainingCount = getTemplateCount(preset);
     selectedTemplateIndex = clamp(removedIndex, 0, Math.max(0, remainingCount - 1));
@@ -3086,6 +3139,29 @@ function bindEvents() {
     $('#custom_generation_template_delete').on('click', () => {
         deleteTemplateFromEditor();
     });
+
+    const templateDraftSelectors = [
+        '#custom_generation_template_decorator',
+        '#custom_generation_template_tag',
+        '#custom_generation_template_regex',
+        '#custom_generation_template_find_regex',
+    ];
+
+    for (const selector of templateDraftSelectors) {
+        $(selector).on('input', () => {
+            if (isUpdatingUI || editingTemplateIndex === null) {
+                return;
+            }
+            syncTemplateEditorDraft();
+        });
+
+        $(selector).on('change', () => {
+            if (isUpdatingUI || editingTemplateIndex === null) {
+                return;
+            }
+            syncTemplateEditorDraft();
+        });
+    }
 
     $('#custom_generation_template_add_prompt').on('click', () => {
         const template = getEditingTemplate();
