@@ -8,6 +8,7 @@ import { setup as setupAfterGenerate } from "@/features/after-generated";
 import { setup as setupReplace } from "@/features/after-generates/replace";
 import { setup as setupOverrides } from "@/features/override";
 import { setup as setupLogger } from "@/features/generate-logger";
+import { runAfterGenerates } from "@/features/after-generated";
 
 // jQuery
 $(async () => {
@@ -30,6 +31,7 @@ $(async () => {
             return await new MessageBuilder(chat).buildFully(type, {}, dryRun);
         },
         eventTypes,
+        runAfterGenerates,
     };
     
     console.log('Custom generation initialized');

@@ -30,7 +30,7 @@ export async function setup() {
     await setupReplaceDiff();
 }
 
-async function runAfterGenerates() {
+export async function runAfterGenerates() {
     const messages = chat.slice(-world_info_depth);
     const override = new DataOverride(chat, chat_metadata);
     await processMessage(messages, override);
@@ -111,14 +111,15 @@ async function processMessage(messages: ChatMessage[], override: DataOverride) {
 async function onAppReady() {
     if (!$('#extensionsMenu')?.find('custom_generation_after_generate_button')?.length) {
         $('#extensionsMenu').append(`
-            <div id="custom_generation_after_generate_button" class="extension_container interactable" tabindex="0"><div id="manageAttachments" class="list-group-item flex-container flexGap5 interactable" title="Run After Generate" tabindex="0" role="listitem">
-                <div class="fa-fw fa-solid fa-exchange extensionsMenuExtensionButton"></div>
+            <div id="custom_generation_after_generate_button" class="extension_container interactable" tabindex="0">
+                <div id="customGenerateAfter" class="list-group-item flex-container flexGap5 interactable" title="Run After Generate" tabindex="0" role="listitem">
+                    <div class="fa-fw fa-solid fa-exchange extensionsMenuExtensionButton"></div>
                     <span data-i18n="Run After Generate">Run After Generate</span>
                 </div>
             </div>
         `);
 
-        $('#custom_generation_after_generate_button').on('click', () => {
+        $('#customGenerateAfter').on('click', () => {
             runAfterGenerates();
             toastr.info('After Generate Starting');
         });
