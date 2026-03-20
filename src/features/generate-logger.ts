@@ -101,14 +101,14 @@ async function buildLoggerMessageTitle(message: ChatCompletionMessage, index: nu
     const name = message.name ? ` (${message.name})` : '';
     const markup = message.role === 'system' ? '⚙️' : message.role === 'user' ? '👤' : message.role === 'assistant' ? '🤖' : '⁉';
     const tokens = await getTokenCountAsync(message.content ?? '');
-    const base = `Message ${index + 1} · ${markup}${role}${name} · 🧠${tokens}`;
+    const base = `Message #${index + 1} · ${markup}${role}${name} · 🧠${tokens}`;
     return base;
 }
 
-function buildLoggerResponseTitle(response: string, index: number): string {
-    const preview = getPreviewText(String(response ?? ''));
-    const base = `Response ${index + 1}`;
-    return preview ? `${base} · ${preview}` : base;
+async function buildLoggerResponseTitle(response: string, index: number): Promise<string> {
+    const tokens = await getTokenCountAsync(response ?? '');
+    const base = `Response #${index + 1} · 🧠${tokens}`;
+    return base;
 }
 
 function buildLoggerSection(title: string, blocks: JQuery<HTMLElement>[]): JQuery<HTMLElement> {
@@ -159,17 +159,17 @@ async function buildLoggerMessageBlocks(messages: ChatCompletionMessage[]): Prom
     return blocks;
 }
 
-function buildLoggerResponseBlocks(responses: string[]): JQuery<HTMLElement>[] {
+async function buildLoggerResponseBlocks(responses: string[]): Promise<JQuery<HTMLElement>[]> {
     if (!responses.length) {
         return [];
     }
 
     const blocks: JQuery<HTMLElement>[] = [];
-    responses.forEach((response, index) => {
-        const title = buildLoggerResponseTitle(response, index);
+    for(const [index, response] of responses.entries()) {
+        const title = await buildLoggerResponseTitle(response, index);
         const content = String(response ?? '');
         blocks.push(...buildLoggerAccordionBlock(title, content, 'custom_generation_logger_response'));
-    });
+    }
     return blocks;
 }
 
@@ -239,7 +239,7 @@ async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise
     body.append(info);
 
     const messageBlocks = await buildLoggerMessageBlocks(entry.messages);
-    const responseBlocks = buildLoggerResponseBlocks(entry.response);
+    const responseBlocks = await buildLoggerResponseBlocks(entry.response);
     body.append(buildLoggerSection('Messages', messageBlocks));
     body.append(buildLoggerSection('Responses', responseBlocks));
 
