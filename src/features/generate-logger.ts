@@ -95,30 +95,80 @@ function formatMessageContent(content: unknown): string {
     return safeStringify(content);
 }
 
-function formatMessages(messages: ChatCompletionMessage[]): string {
-    if (!messages.length) {
-        return '(empty)';
-    }
-
-    return messages
-        .map((message, index) => {
-            const role = String(message.role ?? 'unknown');
-            const name = message.name ? ` (${message.name})` : '';
-            const header = `[${index + 1}] ${role}${name}`;
-            const body = formatMessageContent(message.content ?? '');
-            return `${header}\n${body}`;
-        })
-        .join('\n\n');
+function buildLoggerMessageTitle(message: ChatCompletionMessage, index: number): string {
+    const role = String(message.role ?? 'unknown');
+    const name = message.name ? ` (${message.name})` : '';
+    const preview = getPreviewText(formatMessageContent(message.content ?? ''));
+    const base = `Message ${index + 1} · ${role}${name}`;
+    return preview ? `${base} · ${preview}` : base;
 }
 
-function formatResponses(responses: string[]): string {
-    if (!responses.length) {
-        return '(empty)';
+function buildLoggerResponseTitle(response: string, index: number): string {
+    const preview = getPreviewText(String(response ?? ''));
+    const base = `Response ${index + 1}`;
+    return preview ? `${base} · ${preview}` : base;
+}
+
+function buildLoggerSection(title: string, blocks: JQuery<HTMLElement>[]): JQuery<HTMLElement> {
+    const section = $('<div class="custom_generation_logger_section"></div>');
+    const titleEl = $('<div class="custom_generation_logger_section_title"></div>').text(title);
+    const body = $('<div class="custom_generation_logger_section_body"></div>');
+    section.append(titleEl, body);
+
+    if (!blocks.length) {
+        const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text('(empty)');
+        body.append(empty);
+        return section;
     }
 
-    return responses
-        .map((response, index) => `[${index + 1}]\n${String(response ?? '')}`)
-        .join('\n\n');
+    blocks.forEach(block => body.append(block));
+    return section;
+}
+
+function buildLoggerAccordionBlock(title: string, content: string, blockClass?: string): JQuery<HTMLElement>[] {
+    const header = $('<div class="custom_generation_logger_block_header"></div>');
+    const caret = $('<i class="fa-solid fa-chevron-right custom_generation_logger_block_caret"></i>');
+    const titleEl = $('<div class="custom_generation_logger_block_title"></div>').text(title);
+    header.append(caret, titleEl);
+
+    const panel = $('<div class="custom_generation_logger_block_panel"></div>');
+    const pre = $('<pre class="custom_generation_logger_pre"></pre>').text(content);
+    panel.append(pre);
+
+    if (blockClass) {
+        header.addClass(`${blockClass}_header`);
+        panel.addClass(`${blockClass}_panel`);
+    }
+
+    return [header, panel];
+}
+
+function buildLoggerMessageBlocks(messages: ChatCompletionMessage[]): JQuery<HTMLElement>[] {
+    if (!messages.length) {
+        return [];
+    }
+
+    const blocks: JQuery<HTMLElement>[] = [];
+    messages.forEach((message, index) => {
+        const title = buildLoggerMessageTitle(message, index);
+        const content = formatMessageContent(message.content ?? '');
+        blocks.push(...buildLoggerAccordionBlock(title, content, 'custom_generation_logger_message'));
+    });
+    return blocks;
+}
+
+function buildLoggerResponseBlocks(responses: string[]): JQuery<HTMLElement>[] {
+    if (!responses.length) {
+        return [];
+    }
+
+    const blocks: JQuery<HTMLElement>[] = [];
+    responses.forEach((response, index) => {
+        const title = buildLoggerResponseTitle(response, index);
+        const content = String(response ?? '');
+        blocks.push(...buildLoggerAccordionBlock(title, content, 'custom_generation_logger_response'));
+    });
+    return blocks;
 }
 
 function buildLoggerStatus(entry: GenerateLogEntry): string {
@@ -148,8 +198,11 @@ function buildLoggerInfoItem(label: string, value: string): JQuery<HTMLElement> 
     return item;
 }
 
-function buildLoggerBlock(title: string, content: string): JQuery<HTMLElement> {
+function buildLoggerBlock(title: string, content: string, blockClass?: string): JQuery<HTMLElement> {
     const block = $('<div></div>');
+    if (blockClass) {
+        block.addClass(blockClass);
+    }
     const titleEl = $('<div class="custom_generation_logger_block_title"></div>').text(title);
     const pre = $('<pre class="custom_generation_logger_pre"></pre>').text(content);
     block.append(titleEl, pre);
@@ -157,8 +210,8 @@ function buildLoggerBlock(title: string, content: string): JQuery<HTMLElement> {
 }
 
 function buildLoggerEntry(entry: GenerateLogEntry, index: number): JQuery<HTMLElement> {
-    const details = $('<details class="custom_generation_logger_entry"></details>');
-    const summary = $('<summary class="custom_generation_logger_summary"></summary>');
+    const container = $('<div class="custom_generation_logger_entry"></div>');
+    const summary = $('<div class="custom_generation_logger_summary"></div>');
     const caret = $('<i class="fa-solid fa-chevron-right custom_generation_logger_caret"></i>');
 
     const left = $('<div class="custom_generation_logger_summary_left"></div>');
@@ -182,16 +235,39 @@ function buildLoggerEntry(entry: GenerateLogEntry, index: number): JQuery<HTMLEl
     );
 
     body.append(info);
-    body.append(buildLoggerBlock('Messages', formatMessages(entry.messages)));
-    body.append(buildLoggerBlock('Responses', formatResponses(entry.response)));
+
+    const messageBlocks = buildLoggerMessageBlocks(entry.messages);
+    const responseBlocks = buildLoggerResponseBlocks(entry.response);
+    body.append(buildLoggerSection('Messages', messageBlocks));
+    body.append(buildLoggerSection('Responses', responseBlocks));
 
     if (entry.error) {
         const errorText = entry.error.stack || entry.error.message || String(entry.error);
-        body.append(buildLoggerBlock('Error', errorText));
+        body.append(buildLoggerBlock('Error', errorText, 'custom_generation_logger_error'));
     }
 
-    details.append(summary, body);
-    return details;
+    container.append(summary, body);
+
+    container.accordion({
+        header: '> .custom_generation_logger_summary',
+        heightStyle: 'content',
+        collapsible: true,
+        active: false,
+        icons: false,
+    });
+
+    body.find('.custom_generation_logger_section_body').each((_index, section) => {
+        const sectionEl = $(section);
+        sectionEl.accordion({
+            header: '> .custom_generation_logger_block_header',
+            heightStyle: 'content',
+            collapsible: true,
+            active: false,
+            icons: false,
+        });
+    });
+
+    return container;
 }
 
 function updateLoggerList(): void {
