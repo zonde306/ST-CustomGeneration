@@ -99,9 +99,9 @@ function formatMessageContent(content: unknown): string {
 async function buildLoggerMessageTitle(message: ChatCompletionMessage, index: number): Promise<string> {
     const role = String(message.role ?? 'unknown');
     const name = message.name ? ` (${message.name})` : '';
-    const markup = message.role === 'system' ? '⚙️' : message.role === 'user' ? '👤' : '🤖';
+    const markup = message.role === 'system' ? '⚙️' : message.role === 'user' ? '👤' : message.role === 'assistant' ? '🤖' : '⁉';
     const tokens = await getTokenCountAsync(message.content ?? '');
-    const base = `Message ${index + 1} · ${markup}${role}${name} · ${tokens}`;
+    const base = `Message ${index + 1} · ${markup}${role}${name} · 🧠${tokens}`;
     return base;
 }
 
