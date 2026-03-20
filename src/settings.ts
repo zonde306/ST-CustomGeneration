@@ -460,10 +460,6 @@ let editingPromptIndex: number | null = null;
 let editingRegexIndex: number | null = null;
 let editingTemplateIndex: number | null = null;
 let editingTemplatePromptIndex: number | null = null;
-let draggedPromptIndex: number | null = null;
-let draggedRegexIndex: number | null = null;
-let draggedTemplateIndex: number | null = null;
-let draggedTemplatePromptIndex: number | null = null;
 let promptEditorTarget: 'preset' | 'template' = 'preset';
 let isUpdatingUI = false;
 let isEventsBound = false;
@@ -1023,6 +1019,155 @@ function moveArrayItem<T>(array: T[], fromIndex: number, toIndex: number): void 
     array.splice(toIndex, 0, item);
 }
 
+function readSortableOrder(list: JQuery): number[] {
+    return list.children('.custom_generation_list_row').toArray().map((element) => {
+        const value = Number($(element).attr('data-index'));
+        return Number.isFinite(value) ? Math.trunc(value) : -1;
+    }).filter(value => value >= 0);
+}
+
+function isIdentityOrder(order: number[]): boolean {
+    return order.every((value, index) => value === index);
+}
+
+function resolveReorderedIndex(order: number[], current: number | null): number | null {
+    if (current === null) {
+        return null;
+    }
+
+    const nextIndex = order.indexOf(current);
+    return nextIndex >= 0 ? nextIndex : current;
+}
+
+function applyPromptOrderFromList(list: JQuery): void {
+    const preset = getCurrentPreset();
+    const order = readSortableOrder(list);
+    if (order.length !== preset.prompts.length || isIdentityOrder(order)) {
+        return;
+    }
+
+    const next = order.map(index => preset.prompts[index]).filter(Boolean) as PresetPrompt[];
+    if (next.length !== preset.prompts.length) {
+        return;
+    }
+
+    preset.prompts = next;
+    selectedPromptIndex = resolveReorderedIndex(order, selectedPromptIndex) ?? selectedPromptIndex;
+    editingPromptIndex = resolveReorderedIndex(order, editingPromptIndex);
+    updateSettingsUI();
+    saveSettings();
+}
+
+function applyRegexOrderFromList(list: JQuery): void {
+    const preset = getCurrentPreset();
+    const order = readSortableOrder(list);
+    if (order.length !== preset.regexs.length || isIdentityOrder(order)) {
+        return;
+    }
+
+    const next = order.map(index => preset.regexs[index]).filter(Boolean) as RegEx[];
+    if (next.length !== preset.regexs.length) {
+        return;
+    }
+
+    preset.regexs = next;
+    selectedRegexIndex = resolveReorderedIndex(order, selectedRegexIndex) ?? selectedRegexIndex;
+    editingRegexIndex = resolveReorderedIndex(order, editingRegexIndex);
+    updateSettingsUI();
+    saveSettings();
+}
+
+function applyTemplateOrderFromList(list: JQuery): void {
+    const preset = getCurrentPreset();
+    const entries = getTemplateEntries(preset);
+    const order = readSortableOrder(list);
+    if (order.length !== entries.length || isIdentityOrder(order)) {
+        return;
+    }
+
+    const nextEntries = order.map(index => entries[index]).filter(Boolean) as TemplateEntry[];
+    if (nextEntries.length !== entries.length) {
+        return;
+    }
+
+    const nextTemplates: Record<string, Template> = {};
+    nextEntries.forEach((entry) => {
+        nextTemplates[entry.key] = entry.template;
+    });
+
+    preset.templates = nextTemplates;
+    selectedTemplateIndex = resolveReorderedIndex(order, selectedTemplateIndex) ?? selectedTemplateIndex;
+    editingTemplateIndex = resolveReorderedIndex(order, editingTemplateIndex);
+    updateSettingsUI();
+    saveSettings();
+}
+
+function applyTemplatePromptOrderFromList(list: JQuery): void {
+    const template = getEditingTemplate();
+    if (!template) {
+        return;
+    }
+
+    const order = readSortableOrder(list);
+    if (order.length !== template.prompts.length || isIdentityOrder(order)) {
+        return;
+    }
+
+    const next = order.map(index => template.prompts[index]).filter(Boolean) as PresetPrompt[];
+    if (next.length !== template.prompts.length) {
+        return;
+    }
+
+    template.prompts = next;
+    selectedTemplatePromptIndex = resolveReorderedIndex(order, selectedTemplatePromptIndex) ?? selectedTemplatePromptIndex;
+    editingTemplatePromptIndex = resolveReorderedIndex(order, editingTemplatePromptIndex);
+    updateSettingsUI();
+    saveSettings();
+}
+
+function initSortableList(list: JQuery, onUpdate: () => void): void {
+    if (!list.length) {
+        return;
+    }
+
+    const sortable = (list as any).sortable;
+    if (typeof sortable !== 'function') {
+        return;
+    }
+
+    if (list.data('ui-sortable')) {
+        try {
+            (list as any).sortable('destroy');
+        } catch {
+            // ignore
+        }
+    }
+
+    const itemCount = list.children('.custom_generation_list_row').length;
+    if (itemCount < 2) {
+        return;
+    }
+
+    (list as any).sortable({
+        handle: '.custom_generation_drag_handle',
+        items: '> .custom_generation_list_row',
+        tolerance: 'pointer',
+        update: () => {
+            if (isUpdatingUI) {
+                return;
+            }
+            onUpdate();
+        },
+    });
+}
+
+function initSortableLists(): void {
+    initSortableList($('#custom_generation_prompt_list'), () => applyPromptOrderFromList($('#custom_generation_prompt_list')));
+    initSortableList($('#custom_generation_regex_list'), () => applyRegexOrderFromList($('#custom_generation_regex_list')));
+    initSortableList($('#custom_generation_template_list'), () => applyTemplateOrderFromList($('#custom_generation_template_list')));
+    initSortableList($('#custom_generation_template_prompt_list'), () => applyTemplatePromptOrderFromList($('#custom_generation_template_prompt_list')));
+}
+
 function getDialog(selector: string): HTMLDialogElement | null {
     const element = document.querySelector(selector);
     return element instanceof HTMLDialogElement ? element : null;
@@ -1524,11 +1669,11 @@ async function testGenerateConnection(): Promise<string> {
 
 function buildPromptRow(prompt: PresetPrompt, index: number) {
     const row = $('<div class="custom_generation_list_row flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
-    row.attr('draggable', 'true');
+    row.attr('data-index', String(index));
     row.toggleClass('active', index === selectedPromptIndex);
 
     const left = $('<div class="flex-container alignItemsCenter flex1"></div>');
-    const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
+    const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines custom_generation_drag_handle" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
     const toggle = $('<input type="checkbox" />').prop('checked', prompt.enabled === true);
     const name = $('<div class="flex1"></div>').text(buildPromptDisplayName(prompt, index));
 
@@ -1590,55 +1735,17 @@ function buildPromptRow(prompt: PresetPrompt, index: number) {
         saveSettings();
     });
 
-    row.on('dragstart', (event: JQuery.TriggeredEvent) => {
-        draggedPromptIndex = index;
-        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
-        if (nativeEvent?.dataTransfer) {
-            nativeEvent.dataTransfer.effectAllowed = 'move';
-            nativeEvent.dataTransfer.setData('text/plain', String(index));
-        }
-    });
-
-    row.on('dragover', (event: JQuery.TriggeredEvent) => {
-        event.preventDefault();
-    });
-
-    row.on('drop', (event: JQuery.TriggeredEvent) => {
-        event.preventDefault();
-
-        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
-        const payload = Number(nativeEvent?.dataTransfer?.getData('text/plain'));
-        const sourceIndex = Number.isFinite(payload) ? Math.trunc(payload) : draggedPromptIndex;
-        if (sourceIndex === null) {
-            return;
-        }
-
-        const preset = getCurrentPreset();
-        if (sourceIndex < 0 || sourceIndex >= preset.prompts.length || index < 0 || index >= preset.prompts.length) {
-            return;
-        }
-
-        moveArrayItem(preset.prompts, sourceIndex, index);
-        selectedPromptIndex = index;
-        updateSettingsUI();
-        saveSettings();
-    });
-
-    row.on('dragend', () => {
-        draggedPromptIndex = null;
-    });
-
     row.append(left, actions);
     return row;
 }
 
 function buildTemplatePromptRow(prompt: PresetPrompt, index: number) {
     const row = $('<div class="custom_generation_list_row flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
-    row.attr('draggable', 'true');
+    row.attr('data-index', String(index));
     row.toggleClass('active', index === selectedTemplatePromptIndex);
 
     const left = $('<div class="flex-container alignItemsCenter flex1"></div>');
-    const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
+    const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines custom_generation_drag_handle" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
     const toggle = $('<input type="checkbox" />').prop('checked', prompt.enabled === true);
     const name = $('<div class="flex1"></div>').text(prompt.name || `Prompt ${index + 1}`);
 
@@ -1694,55 +1801,17 @@ function buildTemplatePromptRow(prompt: PresetPrompt, index: number) {
         saveSettings();
     });
 
-    row.on('dragstart', (event: JQuery.TriggeredEvent) => {
-        draggedTemplatePromptIndex = index;
-        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
-        if (nativeEvent?.dataTransfer) {
-            nativeEvent.dataTransfer.effectAllowed = 'move';
-            nativeEvent.dataTransfer.setData('text/plain', String(index));
-        }
-    });
-
-    row.on('dragover', (event: JQuery.TriggeredEvent) => {
-        event.preventDefault();
-    });
-
-    row.on('drop', (event: JQuery.TriggeredEvent) => {
-        event.preventDefault();
-
-        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
-        const payload = Number(nativeEvent?.dataTransfer?.getData('text/plain'));
-        const sourceIndex = Number.isFinite(payload) ? Math.trunc(payload) : draggedTemplatePromptIndex;
-        if (sourceIndex === null) {
-            return;
-        }
-
-        const template = getEditingTemplate();
-        if (!template || sourceIndex < 0 || sourceIndex >= template.prompts.length || index < 0 || index >= template.prompts.length) {
-            return;
-        }
-
-        moveArrayItem(template.prompts, sourceIndex, index);
-        selectedTemplatePromptIndex = index;
-        updateSettingsUI();
-        saveSettings();
-    });
-
-    row.on('dragend', () => {
-        draggedTemplatePromptIndex = null;
-    });
-
     row.append(left, actions);
     return row;
 }
 
 function buildRegexRow(regex: RegEx, index: number) {
     const row = $('<div class="custom_generation_list_row flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
-    row.attr('draggable', 'true');
+    row.attr('data-index', String(index));
     row.toggleClass('active', index === selectedRegexIndex);
 
     const left = $('<div class="flex-container alignItemsCenter flex1"></div>');
-    const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
+    const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines custom_generation_drag_handle" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
     const toggle = $('<input type="checkbox" />').prop('checked', regex.enabled);
     const name = $('<div class="flex1"></div>').text(buildRegexDisplayName(regex, index));
 
@@ -1804,44 +1873,6 @@ function buildRegexRow(regex: RegEx, index: number) {
         saveSettings();
     });
 
-    row.on('dragstart', (event: JQuery.TriggeredEvent) => {
-        draggedRegexIndex = index;
-        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
-        if (nativeEvent?.dataTransfer) {
-            nativeEvent.dataTransfer.effectAllowed = 'move';
-            nativeEvent.dataTransfer.setData('text/plain', String(index));
-        }
-    });
-
-    row.on('dragover', (event: JQuery.TriggeredEvent) => {
-        event.preventDefault();
-    });
-
-    row.on('drop', (event: JQuery.TriggeredEvent) => {
-        event.preventDefault();
-
-        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
-        const payload = Number(nativeEvent?.dataTransfer?.getData('text/plain'));
-        const sourceIndex = Number.isFinite(payload) ? Math.trunc(payload) : draggedRegexIndex;
-        if (sourceIndex === null) {
-            return;
-        }
-
-        const preset = getCurrentPreset();
-        if (sourceIndex < 0 || sourceIndex >= preset.regexs.length || index < 0 || index >= preset.regexs.length) {
-            return;
-        }
-
-        moveArrayItem(preset.regexs, sourceIndex, index);
-        selectedRegexIndex = index;
-        updateSettingsUI();
-        saveSettings();
-    });
-
-    row.on('dragend', () => {
-        draggedRegexIndex = null;
-    });
-
     row.append(left, actions);
     return row;
 }
@@ -1849,11 +1880,11 @@ function buildRegexRow(regex: RegEx, index: number) {
 function buildTemplateRow(entry: TemplateEntry, index: number) {
     const template = entry.template;
     const row = $('<div class="custom_generation_list_row custom_generation_template_row flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
-    row.attr('draggable', 'true');
+    row.attr('data-index', String(index));
     row.toggleClass('active', index === selectedTemplateIndex);
 
     const left = $('<div class="flex-container alignItemsCenter flex1 custom_generation_template_row_body"></div>');
-    const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
+    const dragHandle = $('<i class="menu_button fa-solid fa-grip-lines custom_generation_drag_handle" title="Drag to reorder" data-i18n="[title]Drag to reorder"></i>');
     const meta = $('<div class="flex-container flexFlowColumn flex1 custom_generation_template_meta"></div>');
     const title = $('<div class="custom_generation_template_title"></div>').text(getTemplateSummary(template));
     // const subtitle = $('<div class="custom_generation_template_subtitle"></div>').text(getTemplateRegexPreview(template));
@@ -1899,62 +1930,6 @@ function buildTemplateRow(entry: TemplateEntry, index: number) {
         selectedTemplateIndex = clamp(index, 0, Math.max(0, getTemplateCount(preset) - 1));
         updateSettingsUI();
         saveSettings();
-    });
-
-    row.on('dragstart', (event: JQuery.TriggeredEvent) => {
-        draggedTemplateIndex = index;
-        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
-        if (nativeEvent?.dataTransfer) {
-            nativeEvent.dataTransfer.effectAllowed = 'move';
-            nativeEvent.dataTransfer.setData('text/plain', String(index));
-        }
-    });
-
-    row.on('dragover', (event: JQuery.TriggeredEvent) => {
-        event.preventDefault();
-    });
-
-    row.on('drop', (event: JQuery.TriggeredEvent) => {
-        event.preventDefault();
-
-        const nativeEvent = (event as JQuery.TriggeredEvent).originalEvent as DragEvent | undefined;
-        const payload = Number(nativeEvent?.dataTransfer?.getData('text/plain'));
-        const sourceIndex = Number.isFinite(payload) ? Math.trunc(payload) : draggedTemplateIndex;
-        if (sourceIndex === null) {
-            return;
-        }
-
-        const preset = getCurrentPreset();
-        const entries = getTemplateEntries(preset);
-        const sourceEntry = entries[sourceIndex];
-        const targetEntry = entries[index];
-        if (!sourceEntry || !targetEntry) {
-            return;
-        }
-
-        const keys = Object.keys(preset.templates ?? {});
-        if (sourceEntry.key === targetEntry.key || sourceIndex === index) {
-            return;
-        }
-
-        const sourceTemplate = preset.templates[sourceEntry.key];
-        const targetTemplate = preset.templates[targetEntry.key];
-        if (!sourceTemplate || !targetTemplate) {
-            return;
-        }
-
-        delete preset.templates[sourceEntry.key];
-        delete preset.templates[targetEntry.key];
-        preset.templates[targetEntry.key] = sourceTemplate;
-        preset.templates[sourceEntry.key] = targetTemplate;
-
-        selectedTemplateIndex = index;
-        updateSettingsUI();
-        saveSettings();
-    });
-
-    row.on('dragend', () => {
-        draggedTemplateIndex = null;
     });
 
     row.append(left, actions);
@@ -2085,19 +2060,15 @@ function updateTemplatePromptList(template: Template | null) {
 
     list.empty();
 
-    if (!template) {
+    if (!template || !template.prompts.length) {
         list.text(String(list.attr('no-items-text') ?? 'No prompts'));
-        return;
+    } else {
+        template.prompts.forEach((prompt, index) => {
+            list.append(buildTemplatePromptRow(prompt, index));
+        });
     }
 
-    if (!template.prompts.length) {
-        list.text(String(list.attr('no-items-text') ?? 'No prompts'));
-        return;
-    }
-
-    template.prompts.forEach((prompt, index) => {
-        list.append(buildTemplatePromptRow(prompt, index));
-    });
+    initSortableList(list, () => applyTemplatePromptOrderFromList(list));
 }
 
 function updatePromptEditor() {
@@ -3432,6 +3403,8 @@ export function updateSettingsUI() {
             templateList.append(buildTemplateRow(entry, index));
         });
     }
+
+    initSortableLists();
 
     updatePresetSummary(currentPreset);
 
