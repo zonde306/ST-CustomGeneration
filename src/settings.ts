@@ -226,6 +226,17 @@ export const defaultTemplate: Template = {
     tag: '',
     prompts: [
         {
+            name: 'Last User Message',
+            role: 'assistant',
+            triggers: [],
+            prompt: '{{lastUserMessage}}',
+            injectionPosition: 'relative',
+            enabled: true,
+            internal: null,
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
+        },
+        {
             name: 'Last Character Message',
             role: 'assistant',
             triggers: [],
