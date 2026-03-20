@@ -1,5 +1,6 @@
 import { settings, Template, PresetPrompt } from "@/settings";
 import { MessageBuilder } from "@/functions/message-builder";
+import { PromptFilter } from "@/functions/message-builder";
 
 interface TemplateResult {
     success: boolean;
@@ -91,6 +92,14 @@ export class TemplateHandler {
 
     get prompts(): PresetPrompt[] {
         return this.template.prompts;
+    }
+
+    get filters(): PromptFilter {
+        const filters = {} as PromptFilter;
+        for(const filter of this.template.filters) {
+            filters[filter as keyof PromptFilter] = false;
+        }
+        return filters;
     }
 }
 

@@ -1,5 +1,5 @@
 import { TemplateHandler } from "@/functions/template";
-import { chat, chat_metadata } from "@st/script.js";
+import { chat, chat_metadata, substituteParams } from "@st/script.js";
 import { eventSource, event_types } from "@st/scripts/events.js";
 import { world_info_depth } from "@st/scripts/world-info.js";
 import { getActivatedEntries, DecoratorParser } from "@/functions/worldinfo";
@@ -67,21 +67,15 @@ async function processMessage(messages: ChatMessage[], override: DataOverride) {
             const ctx = new Context(await template.buildChatHistory('normal'), chat_metadata);
             ctx.macroOverride.original = parsed.cleanContent;
             ctx.macroOverride.macros = {
-                'lastUserMessage': () => messages.findLast(msg => msg.is_user)?.mes ?? '',
-                'lastCharMessage': () => messages.findLast(msg => !msg.is_user && !msg.is_system)?.mes ?? '',
-                'message': testing.content ?? '',
-                'original': parsed.cleanContent,
-                'current': () => override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent,
+                'lastUserMessage': () => substituteParams(messages.findLast(msg => msg.is_user)?.mes ?? ''),
+                'lastCharMessage': () => substituteParams(messages.findLast(msg => !msg.is_user && !msg.is_system)?.mes ?? ''),
+                'message': substituteParams(testing.content ?? ''),
+                'original': substituteParams(parsed.cleanContent),
+                'current': () => substituteParams(override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent),
             };
 
             // Reduce Attention Depletion
-            ctx.filters = {
-                worldInfoDepth: false,
-                worldInfoBefore: false,
-                worldInfoAfter: false,
-                chatExamples: false,
-                authorsNoteDepth: false,
-            };
+            ctx.filters = template.filters;
             
             generate(ctx, 3, decorator, { validator: async(response) => {
                 response = Array.isArray(response) ? response : [ response ];
