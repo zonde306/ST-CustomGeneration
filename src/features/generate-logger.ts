@@ -32,6 +32,7 @@ interface GenerateLogEntry {
     response: string[];
     error: Error | null;
     done: boolean;
+    type: string;
 }
 
 const MAX_LOG_COUNT = 100;
@@ -101,13 +102,13 @@ async function buildLoggerMessageTitle(message: ChatCompletionMessage, index: nu
     const name = message.name ? ` (${message.name})` : '';
     const markup = message.role === 'system' ? '⚙️' : message.role === 'user' ? '👤' : message.role === 'assistant' ? '🤖' : '⁉';
     const tokens = await getTokenCountAsync(message.content ?? '');
-    const base = `Message #${index + 1} · ${markup}${role}${name} · 🧠${tokens}`;
+    const base = `Message #${index + 1} · ${markup}${role}${name} · 🧠${tokens} tokens`;
     return base;
 }
 
 async function buildLoggerResponseTitle(response: string, index: number): Promise<string> {
     const tokens = await getTokenCountAsync(response ?? '');
-    const base = `Response #${index + 1} · 🧠${tokens}`;
+    const base = `Response #${index + 1} · 🧠${tokens} tokens`;
     return base;
 }
 
@@ -180,11 +181,10 @@ function buildLoggerStatus(entry: GenerateLogEntry): string {
     return entry.done ? 'Done' : 'Running';
 }
 
-function buildLoggerTitle(entry: GenerateLogEntry, index: number): string {
+async function buildLoggerTitle(entry: GenerateLogEntry, index: number): Promise<string> {
     const fallback = entry.taskId ? `Task ${entry.taskId}` : `Log ${index + 1}`;
-    const previewSource = entry.messages.find(message => String(message.content ?? '').trim())?.content ?? '';
-    const preview = getPreviewText(formatMessageContent(previewSource));
-    return preview ? `${fallback}: ${preview}` : fallback;
+    const tokens = await Promise.all(entry.messages.map(msg => getTokenCountAsync(msg.content ?? '')));
+    return `${fallback}: ${entry.type} · 🧠${_.sum(tokens)} tokens`;
 }
 
 function buildLoggerMeta(entry: GenerateLogEntry): string {
@@ -217,7 +217,7 @@ async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise
     const caret = $('<i class="fa-solid fa-chevron-right custom_generation_logger_caret"></i>');
 
     const left = $('<div class="custom_generation_logger_summary_left"></div>');
-    const title = $('<div class="custom_generation_logger_title"></div>').text(buildLoggerTitle(entry, index));
+    const title = $('<div class="custom_generation_logger_title"></div>').text(await buildLoggerTitle(entry, index));
     const meta = $('<div class="custom_generation_logger_meta"></div>').text(buildLoggerMeta(entry));
     left.append(title, meta);
 
@@ -328,6 +328,7 @@ async function onGenerateBefore(data: GenerateBefore) {
         response: [],
         error: null,
         done: false,
+        type: data.type,
     });
 
     while (loggers.length > MAX_LOG_COUNT) {

@@ -17,11 +17,21 @@
         </div>
     </form>
     <style>
+        #custom_generation_logger_dialog {
+            max-height: min(86vh, 760px);
+            height: min(86vh, 760px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
         #custom_generation_logger_dialog .completion_prompt_manager_popup_entry_form {
             width: min(920px, 92vw);
             max-width: 92vw;
             box-sizing: border-box;
             max-height: min(86vh, 760px);
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
         }
 
         #custom_generation_logger_list {
