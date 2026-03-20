@@ -253,7 +253,7 @@ export class Context {
                 apiConfig = options.apiConfig;
         }
 
-        await eventSource.emit(eventTypes.GENERATE_BEFORE, { type, options, messages, abortController, taskId, context: this, streaming: !!options.streaming });
+        await eventSource.emit(eventTypes.GENERATE_BEFORE, { type, options, messages, abortController, taskId, context: this, streaming: !!options.streaming, apiConfig });
 
         let result : string | string[] | AsyncGenerator<{
             swipe: number;
@@ -263,7 +263,7 @@ export class Context {
         try {
             result = await runGenerate(messages, abortController, taskId, apiConfig as ApiConfig, { context: this }, options.streaming);
         } catch(error) {
-            await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: [], context: self, streaming: !!options.streaming });
+            await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: [], context: self, streaming: !!options.streaming, apiConfig });
             throw error;
         }
 
@@ -297,7 +297,7 @@ export class Context {
                     buffers = await self.#recv(buffers);
                 }
 
-                await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: buffers, context: self, streaming: true });
+                await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: buffers, context: self, streaming: true, apiConfig });
             }
 
             return stream();
@@ -316,7 +316,7 @@ export class Context {
             result = result.map(mes => self.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
         }
 
-        const data = { type, options, taskId, error: null, responses: result, context: self, streaming: false };
+        const data = { type, options, taskId, error: null, responses: result, context: self, streaming: false, apiConfig };
         await eventSource.emit(eventTypes.GENERATE_AFTER, data);
 
         if(options.allResponses) {
