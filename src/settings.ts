@@ -470,7 +470,7 @@ let isEventsBound = false;
 let isSettingsLoadedListenerBound = false;
 let modelCandidates: string[] = [];
 let isConnectionActionInProgress = false;
-let templateEditorDraft: { decorator: string; tag: string; filters: string; regex: string; findRegex: string } | null = null;
+let templateEditorDraft: { decorator: string; tag: string; filters: string[]; regex: string; findRegex: string } | null = null;
 let templateEditorDraftKey: string | null = null;
 
 const exportSchemaVersion = '1.0.0';
@@ -481,6 +481,23 @@ const listExportDialogState: ListExportDialogState = {
 };
 type TemplateDecorator = Template['decorator'];
 const DEFAULT_TEMPLATE_DECORATOR = (KNOWN_DECORATORS.find(x => x === '@@record') ?? KNOWN_DECORATORS[0] ?? '@@record') as TemplateDecorator;
+const PROMPT_TRIGGER_OPTIONS = ['normal', ...KNOWN_DECORATORS];
+const TEMPLATE_FILTER_OPTIONS = [
+    'main',
+    'personaDescription',
+    'charDescription',
+    'charPersonality',
+    'scenario',
+    'chatExamples',
+    'worldInfoBefore',
+    'worldInfoAfter',
+    'chatHistory',
+    'worldInfoDepth',
+    'authorsNoteDepth',
+    'presetDepth',
+    'charDepth',
+    'worldInfoOutlet',
+];
 
 function clone<T>(value: T): T {
     return typeof structuredClone === 'function'
@@ -519,6 +536,83 @@ function parseNumber(value: unknown, fallback: number, min: number, max: number,
 
     const clamped = clamp(parsed, min, max);
     return integer ? Math.trunc(clamped) : clamped;
+}
+
+function normalizeSelectValues(value: unknown): string[] {
+    if (Array.isArray(value)) {
+        return value.map(item => String(item).trim()).filter(Boolean);
+    }
+
+    if (typeof value === 'string') {
+        const text = value.trim();
+        if (!text) {
+            return [];
+        }
+        return text.split(',').map(item => item.trim()).filter(Boolean);
+    }
+
+    return [];
+}
+
+function ensureSelectOptions(select: JQuery, options: string[]): void {
+    options.forEach((option) => {
+        ensureSelectOption(select, option);
+    });
+}
+
+function ensureSelectOption(select: JQuery, option: string): void {
+    const value = String(option);
+    const exists = select.find('option').toArray().some(item => String($(item).val()) === value);
+    if (!exists) {
+        select.append($('<option></option>').val(value).text(value));
+    }
+}
+
+function getSelectValues(selector: string): string[] {
+    return normalizeSelectValues($(selector).val());
+}
+
+function setSelectValues(selector: string, values: string[]): void {
+    const select = $(selector);
+    const normalized = values.map(value => String(value).trim()).filter(Boolean);
+    normalized.forEach(value => ensureSelectOption(select, value));
+    select.val(normalized);
+    if (select.data('select2')) {
+        select.trigger('change.select2');
+    } else {
+        select.trigger('change');
+    }
+}
+
+function initSelect2Multi(selector: string, options: string[]): void {
+    const select = $(selector);
+    if (!select.length) {
+        return;
+    }
+
+    const hasSelect2 = typeof (select as any).select2 === 'function';
+    if (!hasSelect2) {
+        return;
+    }
+
+    if (select.data('select2')) {
+        ensureSelectOptions(select, options);
+        return;
+    }
+
+    ensureSelectOptions(select, options);
+
+    const dialogParent = select.closest('dialog');
+    const dropdownParent = dialogParent.length ? dialogParent : $(document.body);
+    (select as any).select2({
+        width: '100%',
+        placeholder: String(select.data('placeholder') ?? ''),
+        allowClear: true,
+        tags: true,
+        closeOnSelect: false,
+        tokenSeparators: [','],
+        dropdownParent,
+    });
 }
 
 function normalizeRecord(value: unknown): Record<string, unknown> {
@@ -1947,20 +2041,20 @@ function resetTemplateEditorDraft(): void {
     templateEditorDraftKey = null;
 }
 
-function readTemplateEditorDraft(): { decorator: string; tag: string; filters: string; regex: string; findRegex: string } {
+function readTemplateEditorDraft(): { decorator: string; tag: string; filters: string[]; regex: string; findRegex: string } {
     return {
         decorator: String($('#custom_generation_template_decorator').val() ?? DEFAULT_TEMPLATE_DECORATOR),
         tag: String($('#custom_generation_template_tag').val() ?? ''),
-        filters: String($('#custom_generation_template_filters').val() ?? ''),
+        filters: getSelectValues('#custom_generation_template_filters'),
         regex: String($('#custom_generation_template_regex').val() ?? ''),
         findRegex: String($('#custom_generation_template_find_regex').val() ?? ''),
     };
 }
 
-function applyTemplateEditorDraft(draft: { decorator: string; tag: string; filters: string; regex: string; findRegex: string }): void {
+function applyTemplateEditorDraft(draft: { decorator: string; tag: string; filters: string[]; regex: string; findRegex: string }): void {
     $('#custom_generation_template_decorator').val(draft.decorator);
     $('#custom_generation_template_tag').val(draft.tag);
-    $('#custom_generation_template_filters').val(draft.filters);
+    setSelectValues('#custom_generation_template_filters', draft.filters);
     $('#custom_generation_template_regex').val(draft.regex);
     $('#custom_generation_template_find_regex').val(draft.findRegex);
 }
@@ -2029,7 +2123,7 @@ function updatePromptEditor() {
         $('#custom_generation_prompt_injection_depth').val(DEFAULT_DEPTH);
         $('#custom_generation_prompt_injection_order').val(DEFAULT_WEIGHT);
         updatePromptInjectionControlsVisibility('relative');
-        $('#custom_generation_prompt_triggers').val('');
+        setSelectValues('#custom_generation_prompt_triggers', []);
         $('#custom_generation_prompt_enable').prop('checked', false);
         $('#custom_generation_prompt_content').val('');
         isUpdatingUI = false;
@@ -2043,7 +2137,7 @@ function updatePromptEditor() {
     $('#custom_generation_prompt_injection_depth').val(parseNumber(prompt.injectionDepth, DEFAULT_DEPTH, 0, 9999, true));
     $('#custom_generation_prompt_injection_order').val(parseNumber(prompt.injectionOrder, DEFAULT_WEIGHT, -1_000_000, 1_000_000, true));
     updatePromptInjectionControlsVisibility(prompt.injectionPosition);
-    $('#custom_generation_prompt_triggers').val(prompt.triggers.join(', '));
+    setSelectValues('#custom_generation_prompt_triggers', prompt.triggers);
     $('#custom_generation_prompt_enable').prop('checked', prompt.enabled === true);
     $('#custom_generation_prompt_content').val(prompt.prompt);
 
@@ -2103,7 +2197,7 @@ function updateTemplateEditor() {
         resetTemplateEditorDraft();
         $('#custom_generation_template_decorator').val(DEFAULT_TEMPLATE_DECORATOR);
         $('#custom_generation_template_tag').val('');
-        $('#custom_generation_template_filters').val('');
+        setSelectValues('#custom_generation_template_filters', []);
         $('#custom_generation_template_regex').val('');
         $('#custom_generation_template_find_regex').val('');
         updateTemplatePromptList(null);
@@ -2119,7 +2213,7 @@ function updateTemplateEditor() {
     } else {
         $('#custom_generation_template_decorator').val(template.decorator);
         $('#custom_generation_template_tag').val(template.tag);
-        $('#custom_generation_template_filters').val((template.filters ?? []).join(', '));
+        setSelectValues('#custom_generation_template_filters', template.filters ?? []);
         $('#custom_generation_template_regex').val(template.regex);
         $('#custom_generation_template_find_regex').val(template.findRegex);
         templateEditorDraft = readTemplateEditorDraft();
@@ -2174,8 +2268,8 @@ function savePromptEditor(): void {
         prompt.injectionDepth = parseNumber($('#custom_generation_prompt_injection_depth').val(), DEFAULT_DEPTH, 0, 9999, true);
         prompt.injectionOrder = parseNumber($('#custom_generation_prompt_injection_order').val(), DEFAULT_WEIGHT, -1_000_000, 1_000_000, true);
 
-        const triggersRaw = String($('#custom_generation_prompt_triggers').val() ?? '');
-        prompt.triggers = triggersRaw.split(',').map(x => x.trim()).filter(Boolean);
+        const triggersRaw = getSelectValues('#custom_generation_prompt_triggers');
+        prompt.triggers = triggersRaw;
 
         prompt.enabled = Boolean($('#custom_generation_prompt_enable').prop('checked'));
         prompt.prompt = String($('#custom_generation_prompt_content').val() ?? '');
@@ -2206,8 +2300,8 @@ function savePromptEditor(): void {
     prompt.injectionDepth = parseNumber($('#custom_generation_prompt_injection_depth').val(), DEFAULT_DEPTH, 0, 9999, true);
     prompt.injectionOrder = parseNumber($('#custom_generation_prompt_injection_order').val(), DEFAULT_WEIGHT, -1_000_000, 1_000_000, true);
 
-    const triggersRaw = String($('#custom_generation_prompt_triggers').val() ?? '');
-    prompt.triggers = triggersRaw.split(',').map(x => x.trim()).filter(Boolean);
+    const triggersRaw = getSelectValues('#custom_generation_prompt_triggers');
+    prompt.triggers = triggersRaw;
 
     prompt.enabled = Boolean($('#custom_generation_prompt_enable').prop('checked'));
     prompt.prompt = String($('#custom_generation_prompt_content').val() ?? '');
@@ -2389,10 +2483,7 @@ function saveTemplateEditor(): void {
     const nextTemplate = normalizeTemplate({
         decorator: $('#custom_generation_template_decorator').val() as Template['decorator'],
         tag: String($('#custom_generation_template_tag').val() ?? ''),
-        filters: String($('#custom_generation_template_filters').val() ?? '')
-            .split(',')
-            .map(value => value.trim())
-            .filter(Boolean),
+        filters: getSelectValues('#custom_generation_template_filters'),
         regex: String($('#custom_generation_template_regex').val() ?? ''),
         findRegex: String($('#custom_generation_template_find_regex').val() ?? ''),
         prompts: entry.template.prompts,
@@ -2605,6 +2696,9 @@ async function ensureModalTemplatesInjected(): Promise<void> {
             decoratorSelect.append(`<option value="${decorator}" data-i18n="cg-${decorator}">${decorator}</option>`);
         }
     }
+
+    initSelect2Multi('#custom_generation_prompt_triggers', PROMPT_TRIGGER_OPTIONS);
+    initSelect2Multi('#custom_generation_template_filters', TEMPLATE_FILTER_OPTIONS);
 }
 
 function bindEvents() {

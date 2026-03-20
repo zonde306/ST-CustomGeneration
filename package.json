@@ -3,6 +3,9 @@
   "version": "0.0.0.0",
   "private": true,
   "dependencies": {
+    "@types/dialog-polyfill": "^0.5.0",
+    "@types/jqueryui": "^1.12.24",
+    "@types/select2": "^4.0.63",
     "comlink": "^4.4.2",
     "diff": "^8.0.3",
     "jsonrepair": "^3.13.2",

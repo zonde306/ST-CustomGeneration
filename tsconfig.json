@@ -26,7 +26,10 @@
         "types": [
             "lodash",
             "jquery",
-            "toastr"
+            "toastr",
+            "select2",
+            "dialog-polyfill",
+            "jqueryui",
         ],
         "baseUrl": ".",
         "paths": {
