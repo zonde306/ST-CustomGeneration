@@ -67,11 +67,11 @@ async function processMessage(messages: ChatMessage[], override: DataOverride) {
             const ctx = new Context(await template.buildChatHistory('normal'), chat_metadata);
             ctx.macroOverride.original = parsed.cleanContent;
             ctx.macroOverride.macros = {
-                '{{lastUserMessage}}': () => messages.findLast(msg => msg.is_user)?.mes ?? '',
-                '{{lastCharMessage}}': () => messages.findLast(msg => !msg.is_user && !msg.is_system)?.mes ?? '',
-                '{{message}}': testing.content ?? '',
-                '{{original}}': parsed.cleanContent,
-                '{{current}}': () => override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent,
+                'lastUserMessage': () => messages.findLast(msg => msg.is_user)?.mes ?? '',
+                'lastCharMessage': () => messages.findLast(msg => !msg.is_user && !msg.is_system)?.mes ?? '',
+                'message': testing.content ?? '',
+                'original': parsed.cleanContent,
+                'current': () => override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent,
             };
 
             // Reduce Attention Depletion
