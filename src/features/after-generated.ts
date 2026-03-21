@@ -1,5 +1,5 @@
 import { TemplateHandler } from "@/functions/template";
-import { chat, chat_metadata, substituteParams } from "@st/script.js";
+import { substituteParams } from "@st/script.js";
 import { eventSource, event_types } from "@st/scripts/events.js";
 import { world_info_depth } from "@st/scripts/world-info.js";
 import { getActivatedEntries, DecoratorParser } from "@/functions/worldinfo";
@@ -9,6 +9,11 @@ import { generate } from "@/utils/retries"
 import { WorldInfoEntry } from "@/utils/defines";
 import { setup as setupReplace } from "@/features/after-generates/replace"
 import { setup as setupReplaceDiff } from "@/features/after-generates/replace-diff";
+import { setup as setupVarJson } from "@/features/after-generates/variable-json";
+import { setup as setupVarYaml } from "@/features/after-generates/variable-yaml";
+import { setup as setupVarJsonPatch } from "@/features/after-generates/variable-json-patch";
+import { setup as setupEjsEvaluate } from "@/features/after-generates/ejs-evaluate";
+import { setup as setupReplaceEjs } from "@/features/after-generates/ejs-replace";
 
 export interface DecoratorProcessData {
     entry: WorldInfoEntry;
@@ -16,6 +21,7 @@ export interface DecoratorProcessData {
     args: Record<string, any>;
     override: DataOverride;
     decorator: DecoratorParser;
+    env: Context;
 }
 
 type DecoratorProcessor = (e: DecoratorProcessData) => (boolean | Promise<boolean>);
@@ -28,15 +34,21 @@ export async function setup() {
 
     await setupReplace();
     await setupReplaceDiff();
+    await setupVarJson();
+    await setupVarYaml();
+    await setupVarJsonPatch();
+    await setupEjsEvaluate();
+    await setupReplaceEjs();
 }
 
 export async function runAfterGenerates() {
-    const messages = chat.slice(-world_info_depth);
-    const override = new DataOverride(chat, chat_metadata);
-    await processMessage(messages, override);
+    const env = Context.global();
+    const override = new DataOverride(env.chat, env.chat_metadata);
+    await processMessage(env, override);
 }
 
-async function processMessage(messages: ChatMessage[], override: DataOverride) {
+async function processMessage(env: Context, override: DataOverride) {
+    const messages = env.chat.slice(-world_info_depth);
     const entries = await getActivatedEntries(messages.map(msg => msg.mes ?? ''));
     if(entries.length < 1)
         return;
@@ -64,7 +76,7 @@ async function processMessage(messages: ChatMessage[], override: DataOverride) {
             if(!testing.success)
                 continue;
 
-            const ctx = new Context(await template.buildChatHistory('normal'), chat_metadata);
+            const ctx = new Context(await template.buildChatHistory('normal'), env.chat_metadata);
             ctx.macroOverride.original = parsed.cleanContent;
             ctx.macroOverride.macros = {
                 'lastUserMessage': () => substituteParams(messages.findLast(msg => msg.is_user)?.mes ?? ''),
@@ -89,6 +101,7 @@ async function processMessage(messages: ChatMessage[], override: DataOverride) {
                             args: processed.arguments ?? {},
                             override,
                             decorator: parsed,
+                            env,
                         })) {
                             return true;
                         }
