@@ -110,7 +110,7 @@ export class Context {
         await eventSource.emit(eventTypes.MESSAGE_SEND, { messageId: this.chat.length - 1, message: this.chat[this.chat.length - 1], context: this });
     }
 
-    async #recv(contents: string[], role: ContextRole = 'assistant', name: string = name2): Promise<string[]> {
+    async #recv(contents: string[], swipe: boolean = false, role: ContextRole = 'assistant', name: string = name2): Promise<string[]> {
         if(contents.length < 1)
             return [];
 
@@ -131,17 +131,35 @@ export class Context {
             variables.push({});
         }
 
-        this.chat.push({
-            is_user: role === 'user',
-            is_system: role === 'system',
-            mes: swipes[0],
-            send_date: new Date(),
-            name,
-            swipes,
-            swipe_info,
-            variables,
-            extra: {},
-        });
+        if(swipe && this.lastMessage) {
+            if(this.lastMessage.swipes)
+                this.lastMessage.swipes = this.lastMessage.swipes.concat(swipes);
+            else
+                this.lastMessage.swipes = [ this.lastMessage.mes ?? '' ].concat(swipes);
+            this.lastMessage.mes = swipes[0];
+
+            if(this.lastMessage.swipe_info)
+                this.lastMessage.swipe_info = this.lastMessage.swipe_info.concat(swipe_info);
+            else
+                this.lastMessage.swipe_info = ([ { send_date: new Date(), extra: {}, } ] as SwipeInfo[]).concat(swipe_info);
+
+            if(this.lastMessage.variables)
+                this.lastMessage.variables = this.lastMessage.variables.concat(variables);
+            else
+                this.lastMessage.variables = [ {} ].concat(variables);
+        } else {
+            this.chat.push({
+                is_user: role === 'user',
+                is_system: role === 'system',
+                mes: swipes[0],
+                send_date: new Date(),
+                name,
+                swipes,
+                swipe_info,
+                variables,
+                extra: {},
+            });
+        }
 
         await eventSource.emit(eventTypes.MESSAGE_RECEIVED, { messageId: this.chat.length - 1, message: this.chat[this.chat.length - 1], context: this });
         return swipes;
@@ -192,11 +210,8 @@ export class Context {
         // Occurs only if the generation is not aborted due to slash commands execution
         await eventSource.emit(event_types.GENERATION_AFTER_COMMANDS, type, options, dryRun);
 
-        if (type === 'regenerate' &&
-            !dryRun &&
-            this.chat.length > 0 &&
-            !this.chat[this.chat.length - 1]?.is_user &&
-            !this.chat[this.chat.length - 1]?.is_system
+        if (type === 'regenerate' && !dryRun && this.chat.length > 0 &&
+            !this.lastMessage?.is_user && !this.lastMessage?.is_system
         ) {
             if(this.isGlobal) {
                 await deleteLastMessage();
@@ -204,10 +219,6 @@ export class Context {
                 this.chat.length = this.chat.length - 1;
                 await eventSource.emit(eventTypes.MESSAGE_DELETED, {  messageId: this.chat.length, context: this });
             }
-        }
-
-        if(type === 'continue' && !dryRun && this.chat.length > 0) {
-            this.send('Continue');
         }
 
         let preset : Preset | undefined = this.currentPreset;
@@ -295,7 +306,17 @@ export class Context {
                 }
 
                 if(!options.dontCreate) {
-                    buffers = await self.#recv(buffers);
+                    if(type === 'continue') {
+                        buffers = buffers.map(mes => self.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
+                        if(self.lastMessage?.mes) {
+                            self.lastMessage.mes += buffers[0];
+                        }
+                        if(self.lastMessage?.swipes?.[self.lastMessage.swipe_id ?? 0]) {
+                            self.lastMessage.swipes[self.lastMessage.swipe_id ?? 0] += buffers[0];
+                        }
+                    } else {
+                        buffers = await self.#recv(buffers, type === 'swipe');
+                    }
                 }
 
                 await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: buffers, context: self, streaming: true, apiConfig });
@@ -311,7 +332,18 @@ export class Context {
         }
 
         if(!options.dontCreate) {
-            result = await this.#recv(result);
+            if(type === 'continue') {
+                const self = this;
+                result = result.map(mes => self.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
+                if(self.lastMessage?.mes) {
+                    self.lastMessage.mes += result[0];
+                }
+                if(self.lastMessage?.swipes?.[self.lastMessage.swipe_id ?? 0]) {
+                    self.lastMessage.swipes[self.lastMessage.swipe_id ?? 0] += result[0];
+                }
+            } else {
+                result = await this.#recv(result, type === 'swipe');
+            }
         } else {
             const self = this;
             result = result.map(mes => self.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));

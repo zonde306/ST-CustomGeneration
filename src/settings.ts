@@ -475,7 +475,7 @@ const listExportDialogState: ListExportDialogState = {
 };
 type TemplateDecorator = Template['decorator'];
 const DEFAULT_TEMPLATE_DECORATOR = (KNOWN_DECORATORS.find(x => x === '@@record') ?? KNOWN_DECORATORS[0] ?? '@@record') as TemplateDecorator;
-const PROMPT_TRIGGER_OPTIONS = ['normal', ...KNOWN_DECORATORS];
+const PROMPT_TRIGGER_OPTIONS = ['normal', 'regenerate', 'swipe', 'continue', ...KNOWN_DECORATORS];
 const TEMPLATE_FILTER_OPTIONS = [
     'main',
     'personaDescription',
