@@ -14,6 +14,9 @@ import { setup as setupVarYaml } from "@/features/after-generates/variable-yaml"
 import { setup as setupVarJsonPatch } from "@/features/after-generates/variable-json-patch";
 import { setup as setupEjsEvaluate } from "@/features/after-generates/ejs-evaluate";
 import { setup as setupReplaceEjs } from "@/features/after-generates/ejs-replace";
+import { setup as setupReplaceSearch } from "@/features/after-generates/replace-search";
+import { setup as setupAppendMessage } from "@/features/after-generates/append-message";
+import { setup as setupAppendEjs } from "@/features/after-generates/ejs-append";
 
 export interface DecoratorProcessData {
     entry: WorldInfoEntry;
@@ -39,6 +42,9 @@ export async function setup() {
     await setupVarJsonPatch();
     await setupEjsEvaluate();
     await setupReplaceEjs();
+    await setupReplaceSearch();
+    await setupAppendMessage();
+    await setupAppendEjs();
 }
 
 export async function runAfterGenerates() {
