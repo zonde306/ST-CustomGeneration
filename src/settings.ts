@@ -234,7 +234,7 @@ export const defaultTemplate: Template = {
     prompts: [
         {
             name: 'Last User Message',
-            role: 'assistant',
+            role: 'user',
             triggers: [],
             prompt: '{{lastUserMessage}}',
             injectionPosition: 'relative',
@@ -430,7 +430,7 @@ export const defaultPreset: Preset = {
             "prompts": [
                 {
                 "name": "Last User Message",
-                "role": "assistant",
+                "role": "user",
                 "triggers": [],
                 "prompt": "{{lastUserMessage}}",
                 "injectionPosition": "relative",
@@ -480,7 +480,7 @@ export const defaultPreset: Preset = {
             "prompts": [
                 {
                 "name": "Last User Message",
-                "role": "assistant",
+                "role": "user",
                 "triggers": [],
                 "prompt": "{{lastUserMessage}}",
                 "injectionPosition": "relative",
@@ -530,7 +530,7 @@ export const defaultPreset: Preset = {
             "prompts": [
                 {
                 "name": "Last User Message",
-                "role": "assistant",
+                "role": "user",
                 "triggers": [],
                 "prompt": "{{lastUserMessage}}",
                 "injectionPosition": "relative",
@@ -580,7 +580,7 @@ export const defaultPreset: Preset = {
             "prompts": [
                 {
                 "name": "Last User Message",
-                "role": "assistant",
+                "role": "user",
                 "triggers": [],
                 "prompt": "{{lastUserMessage}}",
                 "injectionPosition": "relative",
@@ -630,7 +630,7 @@ export const defaultPreset: Preset = {
             "prompts": [
                 {
                 "name": "Last User Message",
-                "role": "assistant",
+                "role": "user",
                 "triggers": [],
                 "prompt": "{{lastUserMessage}}",
                 "injectionPosition": "relative",
@@ -680,7 +680,7 @@ export const defaultPreset: Preset = {
             "prompts": [
                 {
                 "name": "Last User Message",
-                "role": "assistant",
+                "role": "user",
                 "triggers": [],
                 "prompt": "{{lastUserMessage}}",
                 "injectionPosition": "relative",
@@ -730,7 +730,7 @@ export const defaultPreset: Preset = {
             "prompts": [
                 {
                 "name": "Last User Message",
-                "role": "assistant",
+                "role": "user",
                 "triggers": [],
                 "prompt": "{{lastUserMessage}}",
                 "injectionPosition": "relative",
@@ -780,7 +780,7 @@ export const defaultPreset: Preset = {
             "prompts": [
                 {
                 "name": "Last User Message",
-                "role": "assistant",
+                "role": "user",
                 "triggers": [],
                 "prompt": "{{lastUserMessage}}",
                 "injectionPosition": "relative",
@@ -830,7 +830,7 @@ export const defaultPreset: Preset = {
             "prompts": [
                 {
                 "name": "Last User Message",
-                "role": "assistant",
+                "role": "user",
                 "triggers": [],
                 "prompt": "{{lastUserMessage}}",
                 "injectionPosition": "relative",
@@ -880,7 +880,7 @@ export const defaultPreset: Preset = {
             "prompts": [
                 {
                 "name": "Last User Message",
-                "role": "assistant",
+                "role": "user",
                 "triggers": [],
                 "prompt": "{{lastUserMessage}}",
                 "injectionPosition": "relative",
