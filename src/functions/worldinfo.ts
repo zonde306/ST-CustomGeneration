@@ -10,7 +10,8 @@ import { GENERATION_TYPE_TRIGGERS } from '@st/scripts/constants.js';
 
 export const KNOWN_DECORATORS = [
     '@@replace',             // Full-Text Replacement Update
-    '@@replace_diff',        // Diff-based Text Updates
+    '@@replace_diff',        // Unified Diff-based Text Updates
+    '@@replace_search',      // Search & Replace-based Text Updates
     '@@variables_json',      // JSON-based Variables Updates (Merge)
     '@@variables_yaml',      // Yaml-based Variables Updates (Merge)
     '@@variables_jsonpatch', // JSON-Patch-based Variables Updates (Merge)
