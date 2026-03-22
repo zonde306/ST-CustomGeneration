@@ -31,6 +31,16 @@ type DecoratorProcessor = (e: DecoratorProcessData) => (boolean | Promise<boolea
 
 export const WI_DECORATOR_MAPPING = new Map<string, DecoratorProcessor>();
 
+// Execute only; do not participate in generation.
+export const NOT_ALLOWED_DECORATORS = [
+    '@@variables_json',
+    '@@variables_yaml',
+    '@@variables_jsonpatch',
+    '@@evaluate_ejs',
+    '@@append_output',
+    '@@append_output_ejs',
+];
+
 let isPostGenerating = false;
 let abortController: AbortController | null = null;
 let activeTasks = 0;
@@ -187,7 +197,7 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
     for(let i = data.globalLore.length - 1; i  >= 0; --i) {
         const entry = data.globalLore[i];
         const parsed = new DecoratorParser(entry);
-        if(parsed.decorators.some(d => WI_DECORATOR_MAPPING.has(d))) {
+        if(parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
             data.globalLore.splice(i, 1);
             console.debug(`remove global lore ${entry.world}/${entry.uid}-${entry.comment} used for after-generate`);
         }
@@ -195,7 +205,7 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
     for(let i = 0; i < data.personaLore.length; ++i) {
         const entry = data.personaLore[i];
         const parsed = new DecoratorParser(entry);
-        if(parsed.decorators.some(d => WI_DECORATOR_MAPPING.has(d))) {
+        if(parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
             data.personaLore.splice(i, 1);
             console.debug(`remove persona lore ${entry.world}/${entry.uid}-${entry.comment} used for after-generate`);
         }
@@ -203,7 +213,7 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
     for(let i = 0; i < data.characterLore.length; ++i) {
         const entry = data.characterLore[i];
         const parsed = new DecoratorParser(entry);
-        if(parsed.decorators.some(d => WI_DECORATOR_MAPPING.has(d))) {
+        if(parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
             data.characterLore.splice(i, 1);
             console.debug(`remove character lore ${entry.world}/${entry.uid}-${entry.comment} used for after-generate`);
         }
@@ -211,7 +221,7 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
     for(let i = 0; i < data.chatLore.length; ++i) {
         const entry = data.chatLore[i];
         const parsed = new DecoratorParser(entry);
-        if(parsed.decorators.some(d => WI_DECORATOR_MAPPING.has(d))) {
+        if(parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
             data.chatLore.splice(i, 1);
             console.debug(`remove chat lore ${entry.world}/${entry.uid}-${entry.comment} used for after-generate`);
         }
