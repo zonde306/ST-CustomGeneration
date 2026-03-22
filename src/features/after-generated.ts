@@ -33,7 +33,7 @@ export const WI_DECORATOR_MAPPING = new Map<string, DecoratorProcessor>();
 
 let isPostGenerating = false;
 let abortController: AbortController | null = null;
-let currentTasks = 0;
+let activeTasks = 0;
 
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
@@ -69,9 +69,9 @@ async function processMessage(env: Context, override: DataOverride) {
     if(entries.length < 1)
         return;
 
-    if(currentTasks > 0 && !abortController?.signal?.aborted) {
+    if(activeTasks > 0 && !abortController?.signal?.aborted) {
         abortController?.abort();
-        currentTasks = 0;
+        activeTasks = 0;
         toastr.warning(`Aborting previous after-generate`);
     }
 
@@ -106,7 +106,7 @@ async function processMessage(env: Context, override: DataOverride) {
                 continue;
             }
 
-            const ctx = new Context(await template.buildChatHistory('normal'), env.chat_metadata);
+            const ctx = new Context(await template.buildChatHistory(), env.chat_metadata);
             ctx.macroOverride.original = parsed.cleanContent;
             ctx.macroOverride.macros = {
                 'lastUserMessage': () => substituteParams(messages.findLast(msg => msg.is_user)?.mes ?? ''),
@@ -133,16 +133,26 @@ async function processMessage(env: Context, override: DataOverride) {
                             decorator: parsed,
                             env,
                         })) {
-                            currentTasks -= 1;
                             return true;
                         }
                     }
                 }
 
-                console.error(`Failed to process: `, response, template, entry);
+                console.warn(`Unknown error: `, response, template, entry);
                 return false;
-            }, dontCreate: true, abortController });
-            currentTasks += 1;
+            }, dontCreate: true, abortController }).catch(e => {
+                activeTasks -= 1;
+                toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, 'After Generate');
+                if(activeTasks <= 0) {
+                    toastr.info('All after generate tasks ended', 'After Generate');
+                }
+            }).then(() => {
+                activeTasks -= 1;
+                if(activeTasks <= 0) {
+                    toastr.info('All after generate tasks ended', 'After Generate');
+                }
+            });
+            activeTasks += 1;
 
             console.log(`After Generate: ${entry.world}/${entry.uid}-${entry.comment} - ${decorator}`);
         }
@@ -210,9 +220,9 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
 
 async function onGenerateStarting(type: string, _options: any, dryRun: boolean) {
     if((type === 'normal' || type === 'regenerate' || type === 'swipe') && !dryRun) {
-        if(abortController && currentTasks > 0) {
+        if(abortController && activeTasks > 0) {
             abortController.abort('generating');
-            currentTasks = 0;
+            activeTasks = 0;
             toastr.warning('Aborting after generate', 'After Generate');
         }
     }

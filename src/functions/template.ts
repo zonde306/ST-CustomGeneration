@@ -96,12 +96,12 @@ export class TemplateHandler {
         };
     }
 
-    async buildChatHistory(type: string = 'normal'): Promise<ChatMessage[]> {
+    async buildChatHistory(type: string = ''): Promise<ChatMessage[]> {
         const builder = new MessageBuilder([]);
         builder.regexs = [];
         builder.evaluateMacro = false;
         builder.prompts = this.template.prompts;
-        const messages = await builder.build(type, false);
+        const messages = await builder.build(type || this.template.decorator, false);
         return messages.map(msg => ({ is_user: msg.role === 'user', is_system: msg.role === 'system', mes: msg.content }));
     }
 
