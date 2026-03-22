@@ -359,13 +359,20 @@ export function normalizeWorldInfoEntry(entry: WorldInfoEntry): WorldInfoEntry {
         return entry;
     }
 
-    const nromalized = lorebook.entries[String(entry.uid)];
-    if (!nromalized) {
+    const raw = lorebook.entries[String(entry.uid)];
+    if (!raw) {
         console.error(`WI entry does not exist.: `, entry);
         return entry;
     }
 
-    return nromalized;
+    const cloned = { ...raw };
+    // modify in place
+    cloned.uid = Number(raw.uid);
+    const [decorators, content] = parseDecorators(entry.content);
+    cloned.decorators = decorators;
+    cloned.content = content;
+    cloned.world = entry.world;
+    return cloned;
 }
 
 export async function getActivatedEntries(triggerWords: string[], type: string = 'normal', dryRun: boolean = true): Promise<WorldInfoEntry[]> {
