@@ -220,10 +220,12 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
 
 async function onGenerateStarting(type: string, _options: any, dryRun: boolean) {
     if((type === 'normal' || type === 'regenerate' || type === 'swipe') && !dryRun) {
-        if(abortController && activeTasks > 0) {
+        if(abortController) {
             abortController.abort('canceled by new generate');
-            activeTasks = 0;
-            toastr.warning('Aborting after generate', 'After Generate');
+            if(activeTasks > 0) {
+                toastr.warning('Aborting after generate', 'After Generate');
+                activeTasks = 0;
+            }
         }
     }
 }
