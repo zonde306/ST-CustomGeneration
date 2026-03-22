@@ -33,6 +33,7 @@ export const WI_DECORATOR_MAPPING = new Map<string, DecoratorProcessor>();
 
 let isPostGenerating = false;
 let abortController: AbortController | null = null;
+let currentTasks = 0;
 
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
@@ -67,6 +68,12 @@ async function processMessage(env: Context, override: DataOverride) {
 
     if(entries.length < 1)
         return;
+
+    if(currentTasks > 0 && !abortController?.signal?.aborted) {
+        abortController?.abort();
+        currentTasks = 0;
+        toastr.warning(`Aborting previous after-generate`);
+    }
 
     abortController = new AbortController();
     toastr.info(`Running after-generate`);
@@ -126,6 +133,7 @@ async function processMessage(env: Context, override: DataOverride) {
                             decorator: parsed,
                             env,
                         })) {
+                            currentTasks -= 1;
                             return true;
                         }
                     }
@@ -134,6 +142,7 @@ async function processMessage(env: Context, override: DataOverride) {
                 console.error(`Failed to process: `, response, template, entry);
                 return false;
             }, dontCreate: true, abortController });
+            currentTasks += 1;
 
             console.log(`After Generate: ${entry.world}/${entry.uid}-${entry.comment} - ${decorator}`);
         }
@@ -201,8 +210,9 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
 
 async function onGenerateStarting(type: string, _options: any, dryRun: boolean) {
     if((type === 'normal' || type === 'regenerate' || type === 'swipe') && !dryRun) {
-        if(abortController) {
+        if(abortController && currentTasks > 0) {
             abortController.abort('generating');
+            currentTasks = 0;
             toastr.warning('Aborting after generate', 'After Generate');
         }
     }
