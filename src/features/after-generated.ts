@@ -6,7 +6,7 @@ import { getActivatedEntries, DecoratorParser } from "@/functions/worldinfo";
 import { DataOverride } from "@/features/override";
 import { Context } from "@/features/context";
 import { generate } from "@/utils/retries"
-import { WorldInfoEntry } from "@/utils/defines";
+import { WorldInfoEntry, WorldInfoLoaded } from "@/utils/defines";
 import { setup as setupReplace } from "@/features/after-generates/replace"
 import { setup as setupReplaceDiff } from "@/features/after-generates/replace-diff";
 import { setup as setupVarJson } from "@/features/after-generates/variable-json";
@@ -34,6 +34,7 @@ export const WI_DECORATOR_MAPPING = new Map<string, DecoratorProcessor>();
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
     eventSource.on(event_types.GENERATION_ENDED, runAfterGenerates);
+    eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded);
 
     await setupReplace();
     await setupReplaceDiff();
@@ -137,4 +138,40 @@ async function onAppReady() {
             toastr.info('After Generate Starting');
         });
     }
+}
+
+async function onWorldInfoLoaded(data: WorldInfoLoaded) {
+    for(let i = data.globalLore.length - 1; i  >= 0; --i) {
+        const entry = data.globalLore[i];
+        const parsed = new DecoratorParser(entry);
+        if(parsed.decorators.some(d => WI_DECORATOR_MAPPING.has(d))) {
+            data.globalLore.splice(i, 1);
+            console.debug(`remove global lore ${entry.world}/${entry.uid}-${entry.comment} used for after-generate`);
+        }
+    }
+    for(let i = 0; i < data.personaLore.length; ++i) {
+        const entry = data.personaLore[i];
+        const parsed = new DecoratorParser(entry);
+        if(parsed.decorators.some(d => WI_DECORATOR_MAPPING.has(d))) {
+            data.personaLore.splice(i, 1);
+            console.debug(`remove persona lore ${entry.world}/${entry.uid}-${entry.comment} used for after-generate`);
+        }
+    }
+    for(let i = 0; i < data.characterLore.length; ++i) {
+        const entry = data.characterLore[i];
+        const parsed = new DecoratorParser(entry);
+        if(parsed.decorators.some(d => WI_DECORATOR_MAPPING.has(d))) {
+            data.characterLore.splice(i, 1);
+            console.debug(`remove character lore ${entry.world}/${entry.uid}-${entry.comment} used for after-generate`);
+        }
+    }
+    for(let i = 0; i < data.chatLore.length; ++i) {
+        const entry = data.chatLore[i];
+        const parsed = new DecoratorParser(entry);
+        if(parsed.decorators.some(d => WI_DECORATOR_MAPPING.has(d))) {
+            data.chatLore.splice(i, 1);
+            console.debug(`remove chat lore ${entry.world}/${entry.uid}-${entry.comment} used for after-generate`);
+        }
+    }
+    
 }

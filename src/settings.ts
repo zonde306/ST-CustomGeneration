@@ -963,9 +963,11 @@ let promptEditorTarget: 'preset' | 'template' = 'preset';
 let isCreatingPrompt = false;
 let isCreatingRegex = false;
 let isCreatingTemplate = false;
+let isCreatingTemplatePrompt = false;
 let creatingPromptDraft: PresetPrompt | null = null;
 let creatingRegexDraft: RegEx | null = null;
 let creatingTemplateDraft: Template | null = null;
+let creatingTemplatePromptDraft: PresetPrompt | null = null;
 let isUpdatingUI = false;
 let isEventsBound = false;
 let isSettingsLoadedListenerBound = false;
@@ -1403,6 +1405,23 @@ function getEditingTemplate(): Template | null {
     return entry?.template ?? null;
 }
 
+function getEditingTemplatePrompt(): PresetPrompt | null {
+    const template = getEditingTemplate();
+    if (!template) {
+        return null;
+    }
+
+    if (isCreatingTemplatePrompt && creatingTemplatePromptDraft) {
+        return creatingTemplatePromptDraft;
+    }
+
+    if (editingTemplatePromptIndex === null) {
+        return null;
+    }
+
+    return template.prompts[editingTemplatePromptIndex] ?? null;
+}
+
 function resetPromptCreationState(): void {
     isCreatingPrompt = false;
     creatingPromptDraft = null;
@@ -1416,6 +1435,11 @@ function resetRegexCreationState(): void {
 function resetTemplateCreationState(): void {
     isCreatingTemplate = false;
     creatingTemplateDraft = null;
+}
+
+function resetTemplatePromptCreationState(): void {
+    isCreatingTemplatePrompt = false;
+    creatingTemplatePromptDraft = null;
 }
 
 function normalizePreset(input: Partial<Preset>, fallbackName: string): Preset {
@@ -2648,10 +2672,7 @@ function updatePromptEditor() {
     let prompt: PresetPrompt | null = null;
 
     if (promptEditorTarget === 'template') {
-        const template = getEditingTemplate();
-        prompt = template && editingTemplatePromptIndex !== null
-            ? template.prompts[editingTemplatePromptIndex] ?? null
-            : null;
+        prompt = getEditingTemplatePrompt();
     } else if (isCreatingPrompt && creatingPromptDraft) {
         prompt = creatingPromptDraft;
     } else {
@@ -2694,7 +2715,7 @@ function updatePromptEditor() {
     const isInternalPrompt = prompt.internal !== null;
     const isNonMainInternalPrompt = prompt.internal !== null && prompt.internal !== 'main';
     $('#custom_generation_prompt_content').prop('disabled', isNonMainInternalPrompt);
-    $('#custom_generation_prompt_delete').toggle(!isInternalPrompt && !isCreatingPrompt);
+    $('#custom_generation_prompt_delete').toggle(!isInternalPrompt && !isCreatingPrompt && !isCreatingTemplatePrompt);
 
     isUpdatingUI = false;
 }
@@ -2795,6 +2816,7 @@ function openPromptEditor(index: number): void {
     }
 
     resetPromptCreationState();
+    resetTemplatePromptCreationState();
     promptEditorTarget = 'preset';
     editingPromptIndex = index;
     selectedPromptIndex = index;
@@ -2807,38 +2829,59 @@ function closePromptEditor(): void {
     editingTemplatePromptIndex = null;
     promptEditorTarget = 'preset';
     resetPromptCreationState();
+    resetTemplatePromptCreationState();
     closeDialog('#custom_generation_prompt_dialog');
 }
 
 function savePromptEditor(): void {
     const preset = getCurrentPreset();
     if (promptEditorTarget === 'template') {
+        const template = getEditingTemplate();
+        if (!template) {
+            return;
+        }
+
+        const fallbackName = `Prompt ${template.prompts.length + 1}`;
+        const nextPrompt = normalizePrompt({
+            name: String($('#custom_generation_prompt_name').val() ?? ''),
+            role: String($('#custom_generation_prompt_role').val() ?? 'system') as PresetPrompt['role'],
+            triggers: getSelectValues('#custom_generation_prompt_triggers'),
+            prompt: String($('#custom_generation_prompt_content').val() ?? ''),
+            injectionPosition: String($('#custom_generation_prompt_injection_position').val() ?? 'relative') as PresetPrompt['injectionPosition'],
+            enabled: Boolean($('#custom_generation_prompt_enable').prop('checked')),
+            internal: null,
+            injectionDepth: parseNumber($('#custom_generation_prompt_injection_depth').val(), DEFAULT_DEPTH, 0, 9999, true),
+            injectionOrder: parseNumber($('#custom_generation_prompt_injection_order').val(), DEFAULT_WEIGHT, -1_000_000, 1_000_000, true),
+            maxDepth: parseNumber($('#custom_generation_prompt_max_depth').val(), 999, 0, 9999, true),
+        }, fallbackName);
+
+        if (isCreatingTemplatePrompt) {
+            template.prompts.push(nextPrompt);
+            selectedTemplatePromptIndex = template.prompts.length - 1;
+            closePromptEditor();
+            updateSettingsUI();
+            saveSettings();
+            return;
+        }
+
         if (editingTemplatePromptIndex === null) {
             return;
         }
 
-        const template = getEditingTemplate();
-        const prompt = template?.prompts[editingTemplatePromptIndex];
-        if (!template || !prompt) {
+        const prompt = template.prompts[editingTemplatePromptIndex];
+        if (!prompt) {
             return;
         }
 
-        prompt.name = sanitizePresetName(String($('#custom_generation_prompt_name').val() ?? ''), `Prompt ${editingTemplatePromptIndex + 1}`);
-
-        const role = String($('#custom_generation_prompt_role').val() ?? 'system');
-        prompt.role = role === 'assistant' || role === 'user' ? role : 'system';
-
-        const position = String($('#custom_generation_prompt_injection_position').val() ?? 'relative');
-        prompt.injectionPosition = position === 'inChat' ? 'inChat' : 'relative';
-        prompt.injectionDepth = parseNumber($('#custom_generation_prompt_injection_depth').val(), DEFAULT_DEPTH, 0, 9999, true);
-        prompt.injectionOrder = parseNumber($('#custom_generation_prompt_injection_order').val(), DEFAULT_WEIGHT, -1_000_000, 1_000_000, true);
-        prompt.maxDepth = parseNumber($('#custom_generation_prompt_max_depth').val(), 999, 0, 9999, true);
-
-        const triggersRaw = getSelectValues('#custom_generation_prompt_triggers');
-        prompt.triggers = triggersRaw;
-
-        prompt.enabled = Boolean($('#custom_generation_prompt_enable').prop('checked'));
-        prompt.prompt = String($('#custom_generation_prompt_content').val() ?? '');
+        prompt.name = nextPrompt.name;
+        prompt.role = nextPrompt.role;
+        prompt.triggers = nextPrompt.triggers;
+        prompt.prompt = nextPrompt.prompt;
+        prompt.injectionPosition = nextPrompt.injectionPosition;
+        prompt.enabled = nextPrompt.enabled;
+        prompt.injectionDepth = nextPrompt.injectionDepth;
+        prompt.injectionOrder = nextPrompt.injectionOrder;
+        prompt.maxDepth = nextPrompt.maxDepth;
 
         selectedTemplatePromptIndex = editingTemplatePromptIndex;
         closePromptEditor();
@@ -2898,13 +2941,23 @@ function savePromptEditor(): void {
 function deletePromptFromEditor(): void {
     const preset = getCurrentPreset();
     if (promptEditorTarget === 'template') {
+        const template = getEditingTemplate();
+        if (!template) {
+            return;
+        }
+
+        if (isCreatingTemplatePrompt) {
+            closePromptEditor();
+            updateSettingsUI();
+            return;
+        }
+
         if (editingTemplatePromptIndex === null) {
             return;
         }
 
-        const template = getEditingTemplate();
-        const prompt = template?.prompts[editingTemplatePromptIndex];
-        if (!template || !prompt) {
+        const prompt = template.prompts[editingTemplatePromptIndex];
+        if (!prompt) {
             return;
         }
 
@@ -3924,20 +3977,25 @@ function bindEvents() {
             return;
         }
 
-        template.prompts.push(normalizePrompt({
-            name: `Prompt ${template.prompts.length + 1}`,
+        resetTemplatePromptCreationState();
+        creatingTemplatePromptDraft = normalizePrompt({
+            name: '',
             role: 'user',
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
             enabled: true,
             internal: null,
-        }, `Prompt ${template.prompts.length + 1}`));
-
-        selectedTemplatePromptIndex = template.prompts.length - 1;
-        updateSettingsUI();
-        saveSettings();
-        openTemplatePromptEditor(selectedTemplatePromptIndex);
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
+        }, 'Prompt');
+        isCreatingTemplatePrompt = true;
+        promptEditorTarget = 'template';
+        editingTemplatePromptIndex = null;
+        selectedTemplatePromptIndex = template.prompts.length;
+        updatePromptEditor();
+        openDialog('#custom_generation_prompt_dialog');
     });
 
     $('#custom_generation_prompt_dialog').on('close', () => {
@@ -3945,6 +4003,7 @@ function bindEvents() {
         editingTemplatePromptIndex = null;
         promptEditorTarget = 'preset';
         resetPromptCreationState();
+        resetTemplatePromptCreationState();
     });
 
     $('#custom_generation_regex_dialog').on('close', () => {
