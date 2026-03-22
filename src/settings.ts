@@ -415,7 +415,7 @@ export const defaultPreset: Preset = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enabled: true,
+            enabled: false,
             internal: null,
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
@@ -423,7 +423,508 @@ export const defaultPreset: Preset = {
         },
     ],
     regexs: [],
-    templates: {},
+    templates: {
+        "@@replace:": {
+            "decorator": "@@replace",
+            "tag": "",
+            "prompts": [
+                {
+                "name": "Last User Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastUserMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Last Character Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastCharMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Instruction",
+                "role": "user",
+                "triggers": [],
+                "prompt": "Based on the above, update the following document:\n<doc>\n{{current}}\n</doc>\n\nOutput only the updated document content, and it must be wrapped in `<doc>` tags.\nFor example:\n<doc>\nLatest document content\n</doc>\n\n\nIf no update is needed, output the original content as is.",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                }
+            ],
+            "regex": "/<doc>([\\s\\S]+?)<\\/doc>/i",
+            "findRegex": "",
+            "filters": [
+                "worldInfoDepth",
+                "authorsNoteDepth",
+                "presetDepth",
+                "charDepth"
+            ]
+        },
+        "@@replace_diff:": {
+            "decorator": "@@replace_diff",
+            "tag": "",
+            "prompts": [
+                {
+                "name": "Last User Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastUserMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Last Character Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastCharMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Instruction",
+                "role": "user",
+                "triggers": [],
+                "prompt": "Based on the content above, update the following document:\n<doc>\n{{current}}\n</doc>\n\nThe `<doc>` tags serve only to mark the beginning and end of the document; they are not part of the document itself and should not be used for patch positioning.\nGenerate the diff patch using the `git diff -u` (Unified Diff) format, and enclose it within `<diff>` tags.\nLine numbers should be calculated relative to the line immediately following `<doc>` as 0, and the line immediately preceding `</doc>` as EOF.\nUse `text.txt` as the filename.\n\nFor example:\n<diff>\n--- a/text.txt\n+++ b/text.txt\n@@ -1,3 +1,3 @@\nHello\n-World\n+World!\nHow are you?\n</diff>\n\nIf no updates are required, output an empty patch.",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                }
+            ],
+            "regex": "/<diff>([\\s\\S]*?)<\\/diff>/",
+            "findRegex": "",
+            "filters": [
+                "worldInfoDepth",
+                "authorsNoteDepth",
+                "presetDepth",
+                "charDepth"
+            ]
+        },
+        "@@replace_search:": {
+            "decorator": "@@replace_search",
+            "tag": "",
+            "prompts": [
+                {
+                "name": "Last User Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastUserMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Last Character Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastCharMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Instruction",
+                "role": "user",
+                "triggers": [],
+                "prompt": "Based on the above, update the following document:\n<doc>\n{{current}}\n</doc>\n\nThe `<doc>` tag is solely used to mark the beginning and end of the document; it is not part of the document content itself.\nOutput the modified document content using Git conflict syntax, enclosed within `<edit>` tags.\nMultiple Git conflict blocks are permitted, and the content may include line breaks.\n\nFor example:\n<edit>\n<<<<<<< SEARCH\nold content 1\n=======\nnew content 1\n>>>>>>> REPLACE\n<<<<<<< SEARCH\nold content 2\n=======\nnew content 2\n>>>>>>> REPLACE\n</edit>\n\nIf no updates are required, output an empty `<edit>` tag.",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                }
+            ],
+            "regex": "/<edit>([\\s\\S]*?)<\\/edit>/i",
+            "findRegex": "",
+            "filters": [
+                "worldInfoDepth",
+                "authorsNoteDepth",
+                "presetDepth",
+                "charDepth"
+            ]
+        },
+        "@@variables_json:": {
+            "decorator": "@@variables_json",
+            "tag": "",
+            "prompts": [
+                {
+                "name": "Last User Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastUserMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Last Character Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastCharMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Instruction",
+                "role": "user",
+                "triggers": [],
+                "prompt": "Update the following JSON document based on the content above:\n<json>\n{{current}}\n</json>\n\nThe `<json>` tags serve only to delimit the start and end of the document and are not part of the document itself.\nOutput a patch in accordance with the `RFC 7396: JSON Merge Patch` standard to update the JSON document, enclosed within `<json>` tags.\n\nFor example:\n<json>\n{ \"a\": 1, \"b\": { \"c\": 2 } }\n</json>\n\nIf no updates are required, output an empty JSON object.",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                }
+            ],
+            "regex": "/<json>([\\s\\S]*?)<\\/json>/i",
+            "findRegex": "",
+            "filters": [
+                "worldInfoDepth",
+                "authorsNoteDepth",
+                "presetDepth",
+                "charDepth"
+            ]
+        },
+        "@@variables_yaml:": {
+            "decorator": "@@variables_yaml",
+            "tag": "",
+            "prompts": [
+                {
+                "name": "Last User Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastUserMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Last Character Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastCharMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Instruction",
+                "role": "user",
+                "triggers": [],
+                "prompt": "Based on the above content, update the following YAML document:\n<yaml>\n{{current}}\n</yaml>\n\nThe `<yaml>` tags serve only to delimit the start and end of the document and are not part of the document itself.\nOutput the content of the fields requiring updates; the updates will be applied in a format similar to `RFC 7396: JSON Merge Patch`, enclosed within `<yaml>` tags.\n\nFor example:\n<yaml>\na: 1\nb:\n  c: 2\n</yaml>\n\nIf no updates are required, output an empty YAML document.",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                }
+            ],
+            "regex": "/<yaml>([\\s\\S]*?)<\\/yaml>/i",
+            "findRegex": "",
+            "filters": [
+                "worldInfoDepth",
+                "authorsNoteDepth",
+                "presetDepth",
+                "charDepth"
+            ]
+        },
+        "@@variables_jsonpatch:": {
+            "decorator": "@@variables_jsonpatch",
+            "tag": "",
+            "prompts": [
+                {
+                "name": "Last User Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastUserMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Last Character Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastCharMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Instruction",
+                "role": "user",
+                "triggers": [],
+                "prompt": "Update the following JSON document based on the content above:\n<json>\n{{current}}\n</json>\n\nThe `<json>` tags serve only to delimit the start and end of the document and are not part of the document itself.\nOutput the update patch in the format of `RFC 6902: JSON Patch`, wrapping the output content within `<patch>` tags.\n\nFor example:\n<patch>\n[\n  { \"op\": \"replace\", \"path\": \"/a/b/c\", \"value\": 42 },\n  { \"op\": \"add\", \"path\": \"/d/e/f\", \"value\": [ \"foo\", \"bar\" ] },\n  { \"op\": \"replace\", \"path\": \"/g/h/i\", \"value\": 42 }\n]\n</patch>\n\nIf no updates are required, output an empty JSON object.",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                }
+            ],
+            "regex": "",
+            "findRegex": "",
+            "filters": [
+                "worldInfoDepth",
+                "authorsNoteDepth",
+                "presetDepth",
+                "charDepth"
+            ]
+        },
+        "@@evaluate_ejs:": {
+            "decorator": "@@evaluate_ejs",
+            "tag": "",
+            "prompts": [
+                {
+                "name": "Last User Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastUserMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Last Character Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastCharMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Instruction",
+                "role": "user",
+                "triggers": [],
+                "prompt": "Based on the information provided above and the following requirements, generate EJS code:\n\n{{original}}\n\nThe output EJS code must be wrapped within an outermost `<ejs>` tag, with code blocks enclosed using `<%% ... %%>` internally.\n\nFor example:\n<ejs>\n<%% setvar('stat_data.var1', 1) %%>\n</ejs>\n\nIf the code cannot be generated, output an empty `<ejs>` block.",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                }
+            ],
+            "regex": "/<ejs>([\\s\\S]*?)<\\/ejs>/i",
+            "findRegex": "",
+            "filters": [
+                "worldInfoDepth",
+                "authorsNoteDepth",
+                "presetDepth",
+                "charDepth"
+            ]
+        },
+        "@@replace_ejs:": {
+            "decorator": "@@replace_ejs",
+            "tag": "",
+            "prompts": [
+                {
+                "name": "Last User Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastUserMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Last Character Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastCharMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Instruction",
+                "role": "user",
+                "triggers": [],
+                "prompt": "Based on the information provided above and the following requirements, generate EJS code:\n\n{{original}}\n\nThe output EJS code must be wrapped within an outermost `<ejs>` tag, with code blocks enclosed using `<%% ... %%>` internally.\n\nFor example:\n<ejs>\n<%% setvar('stat_data.var1', 1) %%>\n</ejs>\n\nIf the code cannot be generated, output an empty `<ejs>` block.",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                }
+            ],
+            "regex": "",
+            "findRegex": "",
+            "filters": [
+                "worldInfoDepth",
+                "authorsNoteDepth",
+                "presetDepth",
+                "charDepth"
+            ]
+        },
+        "@@append_output:": {
+            "decorator": "@@append_output",
+            "tag": "",
+            "prompts": [
+                {
+                "name": "Last User Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastUserMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Last Character Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastCharMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Instruction",
+                "role": "user",
+                "triggers": [],
+                "prompt": "{{original}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                }
+            ],
+            "regex": "",
+            "findRegex": "",
+            "filters": [
+                "worldInfoDepth",
+                "authorsNoteDepth",
+                "presetDepth",
+                "charDepth"
+            ]
+        },
+        "@@append_output_ejs:": {
+            "decorator": "@@append_output_ejs",
+            "tag": "",
+            "prompts": [
+                {
+                "name": "Last User Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastUserMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Last Character Message",
+                "role": "assistant",
+                "triggers": [],
+                "prompt": "{{lastCharMessage}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                },
+                {
+                "name": "Instruction",
+                "role": "user",
+                "triggers": [],
+                "prompt": "{{original}}",
+                "injectionPosition": "relative",
+                "enabled": true,
+                "internal": null,
+                "injectionDepth": 4,
+                "injectionOrder": 100,
+                "maxDepth": 999
+                }
+            ],
+            "regex": "",
+            "findRegex": "",
+            "filters": [
+                "worldInfoDepth",
+                "authorsNoteDepth",
+                "presetDepth",
+                "charDepth"
+            ]
+        },
+    },
 };
 
 const defaultSettings: Settings = {
@@ -1738,6 +2239,7 @@ function buildPromptRow(prompt: PresetPrompt, index: number) {
     const editButton = $('<i class="menu_button fa-solid fa-pen-to-square" title="Edit" data-i18n="[title]Edit"></i>');
     const exportButton = $('<i class="menu_button fa-solid fa-file-export" title="Export" data-i18n="[title]Export"></i>');
     const deleteButton = $('<i class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></i>');
+    deleteButton.toggle(prompt.internal === null);
     actions.append(editButton, exportButton, deleteButton);
 
     row.on('click', () => {
