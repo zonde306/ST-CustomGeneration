@@ -188,7 +188,7 @@ async function buildLoggerTitle(entry: GenerateLogEntry, index: number): Promise
 }
 
 function buildLoggerMeta(entry: GenerateLogEntry): string {
-    const mode = entry.streaming ? 'Streaming' : 'Non-streaming';
+    const mode = entry.streaming ? 'Streaming' : entry.options?.streaming ? 'Half-streaming' : 'Non-streaming';
     return `Messages: ${entry.messages.length} · Responses: ${entry.response.length} · ${mode}`;
 }
 

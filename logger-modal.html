@@ -69,12 +69,24 @@
 
         .custom_generation_logger_summary,
         .custom_generation_logger_block_header {
-            display: flex;
-            align-items: center;
             gap: 8px;
             padding: 4px 6px;
             cursor: pointer;
             user-select: none;
+        }
+
+        .custom_generation_logger_summary {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            grid-template-areas:
+                'caret title right'
+                'caret meta right';
+            align-items: start;
+        }
+
+        .custom_generation_logger_block_header {
+            display: flex;
+            align-items: center;
         }
 
         .custom_generation_logger_summary::-webkit-details-marker {
@@ -92,6 +104,12 @@
             opacity: 0.7;
         }
 
+        .custom_generation_logger_caret {
+            grid-area: caret;
+            align-self: start;
+            margin-top: 2px;
+        }
+
         .custom_generation_logger_summary.ui-accordion-header-active .custom_generation_logger_caret,
         .custom_generation_logger_block_header.ui-accordion-header-active .custom_generation_logger_block_caret {
             transform: rotate(90deg);
@@ -99,8 +117,7 @@
 
         .custom_generation_logger_summary_left {
             min-width: 0;
-            display: flex;
-            flex-direction: column;
+            display: contents;
             flex: 1;
         }
 
@@ -113,19 +130,25 @@
         }
 
         .custom_generation_logger_title {
+            grid-area: title;
             font-weight: 600;
         }
 
         .custom_generation_logger_meta {
+            grid-area: meta;
             opacity: 0.85;
             font-size: 0.9em;
         }
 
         .custom_generation_logger_summary_right {
+            grid-area: right;
             display: flex;
             align-items: center;
             gap: 6px;
             flex-shrink: 0;
+            align-self: start;
+            justify-self: end;
+            margin-top: 1px;
         }
 
         .custom_generation_logger_badge {
