@@ -22,9 +22,12 @@
             height: min(86vh, 760px);
             box-sizing: border-box;
             padding: 0;
+            overflow: hidden;
+        }
+
+        #custom_generation_logger_dialog[open] {
             display: flex;
             flex-direction: column;
-            overflow: hidden;
         }
 
         #custom_generation_logger_dialog .completion_prompt_manager_popup_entry_form {
