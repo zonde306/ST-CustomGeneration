@@ -28,9 +28,24 @@ export class TemplateHandler {
             return new TemplateHandler(direct);
         }
 
+        const matchedEntry = Object.entries(preset.templates ?? {}).find(([, template]) => {
+            return template?.decorator === decorator && String(template?.tag ?? '') === String(tag ?? '');
+        });
+        if (matchedEntry?.[1]) {
+            return new TemplateHandler(matchedEntry[1]);
+        }
+
         const fallback = preset.templates?.[fallbackKey] ?? null;
-        if(fallback)
+        if (fallback) {
             return new TemplateHandler(fallback);
+        }
+
+        const fallbackEntry = Object.entries(preset.templates ?? {}).find(([, template]) => {
+            return template?.decorator === decorator && String(template?.tag ?? '') === '';
+        });
+        if (fallbackEntry?.[1]) {
+            return new TemplateHandler(fallbackEntry[1]);
+        }
 
         return null;
     }

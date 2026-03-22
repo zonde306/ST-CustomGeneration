@@ -459,6 +459,12 @@ let editingRegexIndex: number | null = null;
 let editingTemplateIndex: number | null = null;
 let editingTemplatePromptIndex: number | null = null;
 let promptEditorTarget: 'preset' | 'template' = 'preset';
+let isCreatingPrompt = false;
+let isCreatingRegex = false;
+let isCreatingTemplate = false;
+let creatingPromptDraft: PresetPrompt | null = null;
+let creatingRegexDraft: RegEx | null = null;
+let creatingTemplateDraft: Template | null = null;
 let isUpdatingUI = false;
 let isEventsBound = false;
 let isSettingsLoadedListenerBound = false;
@@ -706,12 +712,46 @@ function normalizeRegex(input: Partial<RegEx>, fallbackName: string): RegEx {
     };
 }
 
-function buildTemplateMap(templates: Template[]): Record<string, Template> {
-    const map: Record<string, Template> = {};
-    for (const template of templates) {
-        const key = getTemplateKey(template);
-        map[key] = template;
+function buildTemplateMatchKey(template: Template): string {
+    return `${template.decorator}:${String(template.tag ?? '')}`;
+}
+
+function getTemplateKey(template: Template, existingKeys: Iterable<string> = [], preferredKey: string | null = null): string {
+    const baseKey = buildTemplateMatchKey(template);
+    const taken = new Set(Array.from(existingKeys, key => String(key)));
+
+    if (preferredKey && (preferredKey === baseKey || preferredKey.startsWith(`${baseKey}#`))) {
+        return preferredKey;
     }
+
+    if (!taken.has(baseKey)) {
+        return baseKey;
+    }
+
+    if (preferredKey && !taken.has(preferredKey)) {
+        return preferredKey;
+    }
+
+    let suffix = 2;
+    let candidate = `${baseKey}#${suffix}`;
+    while (taken.has(candidate) && candidate !== preferredKey) {
+        suffix++;
+        candidate = `${baseKey}#${suffix}`;
+    }
+
+    return candidate;
+}
+
+function buildTemplateMap(templates: Template[], existingKeys: Iterable<string> = []): Record<string, Template> {
+    const map: Record<string, Template> = {};
+    const taken = new Set(Array.from(existingKeys, key => String(key)));
+
+    for (const template of templates) {
+        const key = getTemplateKey(template, taken);
+        map[key] = template;
+        taken.add(key);
+    }
+
     return map;
 }
 
@@ -810,10 +850,6 @@ function normalizeTemplate(input: Partial<Template>): Template {
     };
 }
 
-function getTemplateKey(template: Template): string {
-    return `${template.decorator}:${String(template.tag ?? '')}`;
-}
-
 function normalizeTemplates(raw: unknown): Record<string, Template> {
     const templates: Template[] = [];
     if (Array.isArray(raw)) {
@@ -856,10 +892,29 @@ function getTemplateCount(preset: Preset): number {
 }
 
 function getEditingTemplate(): Template | null {
+    if (isCreatingTemplate && creatingTemplateDraft) {
+        return creatingTemplateDraft;
+    }
+
     const preset = getCurrentPreset();
     const entries = getTemplateEntries(preset);
     const entry = editingTemplateIndex === null ? null : entries[editingTemplateIndex] ?? null;
     return entry?.template ?? null;
+}
+
+function resetPromptCreationState(): void {
+    isCreatingPrompt = false;
+    creatingPromptDraft = null;
+}
+
+function resetRegexCreationState(): void {
+    isCreatingRegex = false;
+    creatingRegexDraft = null;
+}
+
+function resetTemplateCreationState(): void {
+    isCreatingTemplate = false;
+    creatingTemplateDraft = null;
 }
 
 function normalizePreset(input: Partial<Preset>, fallbackName: string): Preset {
@@ -1519,7 +1574,7 @@ async function importListFromFile(kind: ListExportKind, file: File): Promise<voi
         selectedRegexIndex = clamp(preset.regexs.length - 1, 0, Math.max(0, preset.regexs.length - 1));
     } else {
         const templateList = normalized.items as Template[];
-        const templateMap = buildTemplateMap(templateList);
+        const templateMap = buildTemplateMap(templateList, Object.keys(preset.templates));
         Object.assign(preset.templates, templateMap);
         selectedTemplateIndex = clamp(getTemplateCount(preset) - 1, 0, Math.max(0, getTemplateCount(preset) - 1));
     }
@@ -2044,6 +2099,12 @@ function applyTemplateEditorDraft(draft: { decorator: string; tag: string; filte
 }
 
 function syncTemplateEditorDraft(): void {
+    if (isCreatingTemplate && creatingTemplateDraft) {
+        templateEditorDraftKey = '__creating__';
+        templateEditorDraft = readTemplateEditorDraft();
+        return;
+    }
+
     if (editingTemplateIndex === null) {
         resetTemplateEditorDraft();
         return;
@@ -2089,6 +2150,8 @@ function updatePromptEditor() {
         prompt = template && editingTemplatePromptIndex !== null
             ? template.prompts[editingTemplatePromptIndex] ?? null
             : null;
+    } else if (isCreatingPrompt && creatingPromptDraft) {
+        prompt = creatingPromptDraft;
     } else {
         prompt = editingPromptIndex === null ? null : preset.prompts[editingPromptIndex] ?? null;
     }
@@ -2129,14 +2192,16 @@ function updatePromptEditor() {
     const isInternalPrompt = prompt.internal !== null;
     const isNonMainInternalPrompt = prompt.internal !== null && prompt.internal !== 'main';
     $('#custom_generation_prompt_content').prop('disabled', isNonMainInternalPrompt);
-    $('#custom_generation_prompt_delete').toggle(!isInternalPrompt);
+    $('#custom_generation_prompt_delete').toggle(!isInternalPrompt && !isCreatingPrompt);
 
     isUpdatingUI = false;
 }
 
 function updateRegexEditor() {
     const preset = getCurrentPreset();
-    const regex = editingRegexIndex === null ? null : preset.regexs[editingRegexIndex];
+    const regex = isCreatingRegex && creatingRegexDraft
+        ? creatingRegexDraft
+        : editingRegexIndex === null ? null : preset.regexs[editingRegexIndex];
 
     isUpdatingUI = true;
 
@@ -2154,6 +2219,7 @@ function updateRegexEditor() {
         $('#custom_generation_regex_enable').prop('checked', false);
         $('#custom_generation_regex_min_depth').val('');
         $('#custom_generation_regex_max_depth').val('');
+        $('#custom_generation_regex_delete').toggle(false);
         isUpdatingUI = false;
         return;
     }
@@ -2171,6 +2237,7 @@ function updateRegexEditor() {
     $('#custom_generation_regex_enable').prop('checked', regex.enabled);
     $('#custom_generation_regex_min_depth').val(regex.minDepth ?? '');
     $('#custom_generation_regex_max_depth').val(regex.maxDepth ?? '');
+    $('#custom_generation_regex_delete').toggle(!isCreatingRegex);
 
     isUpdatingUI = false;
 }
@@ -2178,7 +2245,9 @@ function updateRegexEditor() {
 function updateTemplateEditor() {
     const preset = getCurrentPreset();
     const entries = getTemplateEntries(preset);
-    const templateEntry = editingTemplateIndex === null ? null : entries[editingTemplateIndex] ?? null;
+    const templateEntry = isCreatingTemplate && creatingTemplateDraft
+        ? { key: '__creating__', template: creatingTemplateDraft }
+        : editingTemplateIndex === null ? null : entries[editingTemplateIndex] ?? null;
 
     isUpdatingUI = true;
 
@@ -2190,6 +2259,7 @@ function updateTemplateEditor() {
         setSelectValues('#custom_generation_template_filters', []);
         $('#custom_generation_template_regex').val('');
         $('#custom_generation_template_find_regex').val('');
+        $('#custom_generation_template_delete').toggle(false);
         updateTemplatePromptList(null);
         isUpdatingUI = false;
         return;
@@ -2198,6 +2268,7 @@ function updateTemplateEditor() {
     const template = templateEntry.template;
     const shouldRestoreDraft = templateEditorDraft && templateEditorDraftKey === templateEntry.key;
     setTemplateEditorEnabled(true);
+    $('#custom_generation_template_delete').toggle(!isCreatingTemplate);
     if (shouldRestoreDraft && templateEditorDraft) {
         applyTemplateEditorDraft(templateEditorDraft);
     } else {
@@ -2221,6 +2292,7 @@ function openPromptEditor(index: number): void {
         return;
     }
 
+    resetPromptCreationState();
     promptEditorTarget = 'preset';
     editingPromptIndex = index;
     selectedPromptIndex = index;
@@ -2232,6 +2304,7 @@ function closePromptEditor(): void {
     editingPromptIndex = null;
     editingTemplatePromptIndex = null;
     promptEditorTarget = 'preset';
+    resetPromptCreationState();
     closeDialog('#custom_generation_prompt_dialog');
 }
 
@@ -2272,6 +2345,29 @@ function savePromptEditor(): void {
         return;
     }
 
+    const fallbackName = `Prompt ${preset.prompts.length + 1}`;
+    const nextPrompt = normalizePrompt({
+        name: String($('#custom_generation_prompt_name').val() ?? ''),
+        role: String($('#custom_generation_prompt_role').val() ?? 'system') as PresetPrompt['role'],
+        triggers: getSelectValues('#custom_generation_prompt_triggers'),
+        prompt: String($('#custom_generation_prompt_content').val() ?? ''),
+        injectionPosition: String($('#custom_generation_prompt_injection_position').val() ?? 'relative') as PresetPrompt['injectionPosition'],
+        enabled: Boolean($('#custom_generation_prompt_enable').prop('checked')),
+        internal: null,
+        injectionDepth: parseNumber($('#custom_generation_prompt_injection_depth').val(), DEFAULT_DEPTH, 0, 9999, true),
+        injectionOrder: parseNumber($('#custom_generation_prompt_injection_order').val(), DEFAULT_WEIGHT, -1_000_000, 1_000_000, true),
+        maxDepth: parseNumber($('#custom_generation_prompt_max_depth').val(), 999, 0, 9999, true),
+    }, fallbackName);
+
+    if (isCreatingPrompt) {
+        preset.prompts.push(nextPrompt);
+        selectedPromptIndex = preset.prompts.length - 1;
+        closePromptEditor();
+        updateSettingsUI();
+        saveSettings();
+        return;
+    }
+
     if (editingPromptIndex === null) {
         return;
     }
@@ -2281,22 +2377,15 @@ function savePromptEditor(): void {
         return;
     }
 
-    prompt.name = sanitizePresetName(String($('#custom_generation_prompt_name').val() ?? ''), `Prompt ${editingPromptIndex + 1}`);
-
-    const role = String($('#custom_generation_prompt_role').val() ?? 'system');
-    prompt.role = role === 'assistant' || role === 'user' ? role : 'system';
-
-    const position = String($('#custom_generation_prompt_injection_position').val() ?? 'relative');
-    prompt.injectionPosition = position === 'inChat' ? 'inChat' : 'relative';
-    prompt.injectionDepth = parseNumber($('#custom_generation_prompt_injection_depth').val(), DEFAULT_DEPTH, 0, 9999, true);
-    prompt.injectionOrder = parseNumber($('#custom_generation_prompt_injection_order').val(), DEFAULT_WEIGHT, -1_000_000, 1_000_000, true);
-    prompt.maxDepth = parseNumber($('#custom_generation_prompt_max_depth').val(), 999, 0, 9999, true);
-
-    const triggersRaw = getSelectValues('#custom_generation_prompt_triggers');
-    prompt.triggers = triggersRaw;
-
-    prompt.enabled = Boolean($('#custom_generation_prompt_enable').prop('checked'));
-    prompt.prompt = String($('#custom_generation_prompt_content').val() ?? '');
+    prompt.name = nextPrompt.name;
+    prompt.role = nextPrompt.role;
+    prompt.triggers = nextPrompt.triggers;
+    prompt.prompt = nextPrompt.prompt;
+    prompt.injectionPosition = nextPrompt.injectionPosition;
+    prompt.enabled = nextPrompt.enabled;
+    prompt.injectionDepth = nextPrompt.injectionDepth;
+    prompt.injectionOrder = nextPrompt.injectionOrder;
+    prompt.maxDepth = nextPrompt.maxDepth;
 
     selectedPromptIndex = editingPromptIndex;
     closePromptEditor();
@@ -2330,6 +2419,12 @@ function deletePromptFromEditor(): void {
         return;
     }
 
+    if (isCreatingPrompt) {
+        closePromptEditor();
+        updateSettingsUI();
+        return;
+    }
+
     if (editingPromptIndex === null) {
         return;
     }
@@ -2357,6 +2452,7 @@ function openRegexEditor(index: number): void {
         return;
     }
 
+    resetRegexCreationState();
     editingRegexIndex = index;
     selectedRegexIndex = index;
     updateRegexEditor();
@@ -2379,33 +2475,46 @@ function openTemplatePromptEditor(index: number): void {
 
 function closeRegexEditor(): void {
     editingRegexIndex = null;
+    resetRegexCreationState();
     closeDialog('#custom_generation_regex_dialog');
 }
 
 function saveRegexEditor(): void {
     const preset = getCurrentPreset();
+    const fallbackName = `Regex ${preset.regexs.length + 1}`;
+    const nextRegex = normalizeRegex({
+        name: String($('#custom_generation_regex_name').val() ?? ''),
+        regex: String($('#custom_generation_regex_regex').val() ?? ''),
+        replace: String($('#custom_generation_regex_replace').val() ?? ''),
+        userInput: Boolean($('#custom_generation_regex_user_input').prop('checked')),
+        aiOutput: Boolean($('#custom_generation_regex_ai_output').prop('checked')),
+        worldInfo: Boolean($('#custom_generation_regex_world_info').prop('checked')),
+        enabled: Boolean($('#custom_generation_regex_enable').prop('checked')),
+        minDepth: parseNullableInt($('#custom_generation_regex_min_depth').val(), -1),
+        maxDepth: parseNullableInt($('#custom_generation_regex_max_depth').val(), 0),
+        ephemerality: Boolean($('#custom_generation_regex_ephemerality').prop('checked')),
+        request: Boolean($('#custom_generation_regex_request').prop('checked')),
+        response: Boolean($('#custom_generation_regex_response').prop('checked')),
+    }, fallbackName);
+
+    if (isCreatingRegex) {
+        preset.regexs.push(nextRegex);
+        selectedRegexIndex = preset.regexs.length - 1;
+        closeRegexEditor();
+        updateSettingsUI();
+        saveSettings();
+        return;
+    }
+
     if (editingRegexIndex === null) {
         return;
     }
 
-    const regex = preset.regexs[editingRegexIndex];
-    if (!regex) {
+    if (!preset.regexs[editingRegexIndex]) {
         return;
     }
 
-    regex.name = sanitizePresetName(String($('#custom_generation_regex_name').val() ?? ''), `Regex ${editingRegexIndex + 1}`);
-    regex.regex = String($('#custom_generation_regex_regex').val() ?? '');
-    regex.replace = String($('#custom_generation_regex_replace').val() ?? '');
-    regex.userInput = Boolean($('#custom_generation_regex_user_input').prop('checked'));
-    regex.aiOutput = Boolean($('#custom_generation_regex_ai_output').prop('checked'));
-    regex.worldInfo = Boolean($('#custom_generation_regex_world_info').prop('checked'));
-    regex.request = Boolean($('#custom_generation_regex_request').prop('checked'));
-    regex.response = Boolean($('#custom_generation_regex_response').prop('checked'));
-    regex.ephemerality = Boolean($('#custom_generation_regex_ephemerality').prop('checked'));
-    regex.enabled = Boolean($('#custom_generation_regex_enable').prop('checked'));
-    regex.minDepth = parseNullableInt($('#custom_generation_regex_min_depth').val(), -1);
-    regex.maxDepth = parseNullableInt($('#custom_generation_regex_max_depth').val(), 0);
-
+    preset.regexs[editingRegexIndex] = nextRegex;
     selectedRegexIndex = editingRegexIndex;
     closeRegexEditor();
     updateSettingsUI();
@@ -2414,6 +2523,12 @@ function saveRegexEditor(): void {
 
 function deleteRegexFromEditor(): void {
     const preset = getCurrentPreset();
+    if (isCreatingRegex) {
+        closeRegexEditor();
+        updateSettingsUI();
+        return;
+    }
+
     if (editingRegexIndex === null) {
         return;
     }
@@ -2442,6 +2557,7 @@ function openTemplateEditor(index: number): void {
         return;
     }
 
+    resetTemplateCreationState();
     editingTemplateIndex = index;
     selectedTemplateIndex = index;
     selectedTemplatePromptIndex = 0;
@@ -2456,12 +2572,33 @@ function closeTemplateEditor(): void {
     selectedTemplatePromptIndex = 0;
     editingTemplatePromptIndex = null;
     promptEditorTarget = 'preset';
+    resetTemplateCreationState();
     resetTemplateEditorDraft();
     closeDialog('#custom_generation_template_dialog');
 }
 
 function saveTemplateEditor(): void {
     const preset = getCurrentPreset();
+    const nextTemplate = normalizeTemplate({
+        decorator: $('#custom_generation_template_decorator').val() as Template['decorator'],
+        tag: String($('#custom_generation_template_tag').val() ?? ''),
+        filters: getSelectValues('#custom_generation_template_filters') as Template['filters'],
+        regex: String($('#custom_generation_template_regex').val() ?? ''),
+        findRegex: String($('#custom_generation_template_find_regex').val() ?? ''),
+        prompts: getEditingTemplate()?.prompts ?? [],
+    });
+
+    if (isCreatingTemplate) {
+        const nextKey = getTemplateKey(nextTemplate, Object.keys(preset.templates));
+        preset.templates[nextKey] = nextTemplate;
+        selectedTemplateIndex = getTemplateCount(preset) - 1;
+        resetTemplateEditorDraft();
+        closeTemplateEditor();
+        updateSettingsUI();
+        saveSettings();
+        return;
+    }
+
     const entries = getTemplateEntries(preset);
     if (editingTemplateIndex === null) {
         return;
@@ -2472,17 +2609,9 @@ function saveTemplateEditor(): void {
         return;
     }
 
-    const nextTemplate = normalizeTemplate({
-        decorator: $('#custom_generation_template_decorator').val() as Template['decorator'],
-        tag: String($('#custom_generation_template_tag').val() ?? ''),
-        filters: getSelectValues('#custom_generation_template_filters') as Template['filters'],
-        regex: String($('#custom_generation_template_regex').val() ?? ''),
-        findRegex: String($('#custom_generation_template_find_regex').val() ?? ''),
-        prompts: entry.template.prompts,
-    });
-
     const previousKey = entry.key;
-    const nextKey = getTemplateKey(nextTemplate);
+    const nextKeys = Object.keys(preset.templates).filter(key => key !== previousKey);
+    const nextKey = getTemplateKey(nextTemplate, nextKeys, previousKey);
 
     if (previousKey !== nextKey) {
         delete preset.templates[previousKey];
@@ -2499,6 +2628,12 @@ function saveTemplateEditor(): void {
 
 function deleteTemplateFromEditor(): void {
     const preset = getCurrentPreset();
+    if (isCreatingTemplate) {
+        closeTemplateEditor();
+        updateSettingsUI();
+        return;
+    }
+
     const entries = getTemplateEntries(preset);
     if (editingTemplateIndex === null) {
         return;
@@ -3157,27 +3292,30 @@ function bindEvents() {
     });
 
     $('#custom_generation_add_prompt').on('click', () => {
-        const preset = getCurrentPreset();
-        preset.prompts.push(normalizePrompt({
-            name: `Prompt ${preset.prompts.length + 1}`,
+        resetPromptCreationState();
+        creatingPromptDraft = normalizePrompt({
+            name: '',
             role: 'system',
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
             enabled: true,
             internal: null,
-        }, `Prompt ${preset.prompts.length + 1}`));
-
-        selectedPromptIndex = preset.prompts.length - 1;
-        updateSettingsUI();
-        saveSettings();
-        openPromptEditor(selectedPromptIndex);
+            injectionDepth: DEFAULT_DEPTH,
+            injectionOrder: DEFAULT_WEIGHT,
+            maxDepth: 999,
+        }, 'Prompt');
+        isCreatingPrompt = true;
+        editingPromptIndex = null;
+        promptEditorTarget = 'preset';
+        updatePromptEditor();
+        openDialog('#custom_generation_prompt_dialog');
     });
 
     $('#custom_generation_add_regex').on('click', () => {
-        const preset = getCurrentPreset();
-        preset.regexs.push(normalizeRegex({
-            name: `Regex ${preset.regexs.length + 1}`,
+        resetRegexCreationState();
+        creatingRegexDraft = normalizeRegex({
+            name: '',
             regex: '',
             replace: '',
             userInput: true,
@@ -3189,24 +3327,24 @@ function bindEvents() {
             ephemerality: false,
             request: true,
             response: true,
-        }, `Regex ${preset.regexs.length + 1}`));
-
-        selectedRegexIndex = preset.regexs.length - 1;
-        updateSettingsUI();
-        saveSettings();
-        openRegexEditor(selectedRegexIndex);
+        }, 'Regex');
+        isCreatingRegex = true;
+        editingRegexIndex = null;
+        updateRegexEditor();
+        openDialog('#custom_generation_regex_dialog');
     });
 
     $('#custom_generation_add_template').on('click', () => {
-        const preset = getCurrentPreset();
-        const nextTemplate = normalizeTemplate(clone(defaultTemplate));
-        const key = getTemplateKey(nextTemplate);
-        preset.templates[key] = nextTemplate;
-
-        selectedTemplateIndex = getTemplateCount(preset) - 1;
-        updateSettingsUI();
-        saveSettings();
-        openTemplateEditor(selectedTemplateIndex);
+        resetTemplateCreationState();
+        resetTemplateEditorDraft();
+        creatingTemplateDraft = normalizeTemplate(clone(defaultTemplate));
+        isCreatingTemplate = true;
+        editingTemplateIndex = null;
+        selectedTemplatePromptIndex = 0;
+        editingTemplatePromptIndex = null;
+        promptEditorTarget = 'template';
+        updateTemplateEditor();
+        openDialog('#custom_generation_template_dialog');
     });
 
     $('#custom_generation_prompt_injection_position').on('change', () => {
@@ -3304,10 +3442,12 @@ function bindEvents() {
         editingPromptIndex = null;
         editingTemplatePromptIndex = null;
         promptEditorTarget = 'preset';
+        resetPromptCreationState();
     });
 
     $('#custom_generation_regex_dialog').on('close', () => {
         editingRegexIndex = null;
+        resetRegexCreationState();
     });
 
     $('#custom_generation_template_dialog').on('close', () => {
@@ -3315,6 +3455,8 @@ function bindEvents() {
         selectedTemplatePromptIndex = 0;
         editingTemplatePromptIndex = null;
         promptEditorTarget = 'preset';
+        resetTemplateCreationState();
+        resetTemplateEditorDraft();
     });
 }
 
@@ -3431,25 +3573,25 @@ export function updateSettingsUI() {
 
     isUpdatingUI = false;
 
-    if (editingPromptIndex !== null) {
-        if (currentPreset.prompts[editingPromptIndex]) {
+    if (editingPromptIndex !== null || isCreatingPrompt) {
+        if (isCreatingPrompt || currentPreset.prompts[editingPromptIndex ?? -1]) {
             updatePromptEditor();
         } else {
             closePromptEditor();
         }
     }
 
-    if (editingRegexIndex !== null) {
-        if (currentPreset.regexs[editingRegexIndex]) {
+    if (editingRegexIndex !== null || isCreatingRegex) {
+        if (isCreatingRegex || currentPreset.regexs[editingRegexIndex ?? -1]) {
             updateRegexEditor();
         } else {
             closeRegexEditor();
         }
     }
 
-    if (editingTemplateIndex !== null) {
-        const templateEntries = getTemplateEntries(currentPreset);
-        if (templateEntries[editingTemplateIndex]) {
+    if (editingTemplateIndex !== null || isCreatingTemplate) {
+        const nextTemplateEntries = getTemplateEntries(currentPreset);
+        if (isCreatingTemplate || nextTemplateEntries[editingTemplateIndex ?? -1]) {
             updateTemplateEditor();
         } else {
             closeTemplateEditor();
