@@ -17,13 +17,13 @@ import { ContextRole } from '@/utils/defines'
 import { runRegexScript, substitute_find_regex } from "@/../../../regex/engine.js";
 import { eventTypes } from '@/utils/events';
 import { DynamicMacroValue } from "@st/scripts/macros/engine/MacroEnv.types.js";
-import { uuidv4 } from '@st/scripts/utils.js';
 
 type VariableData = Record<string, any>;
 type ChatMessageEx = ChatMessage & { variables?: VariableData[] };
 type ChatMetadataEx = ChatMetadata & { variables?: VariableData };
 
 export interface GenerateOptionsLite {
+    abortController?: AbortController;
     signal?: AbortSignal;
     quietName?: string;
     dontCreate?: boolean;
@@ -262,7 +262,7 @@ export class Context {
         if(dryRun)
             return '';
 
-        const abortController = this.#createAbortController(options.signal);
+        const abortController = options.abortController ?? this.#createAbortController(options.signal);
         const taskId = String(this.variables?.taskId || ++taskIdCounter);
         let apiConfig: Partial<ApiConfig> | undefined = this.#buildApiConfig(type);
 
@@ -281,7 +281,7 @@ export class Context {
         }, any, any>;
 
         try {
-            result = await runGenerate(messages, abortController, taskId, apiConfig as ApiConfig, { context: this }, options.streaming);
+            result = await runGenerate(messages, abortController.signal, taskId, apiConfig as ApiConfig, { context: this }, options.streaming);
         } catch(error) {
             await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: [], context: self, streaming: !!options.streaming, apiConfig });
             throw error;

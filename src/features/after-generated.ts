@@ -32,11 +32,13 @@ type DecoratorProcessor = (e: DecoratorProcessData) => (boolean | Promise<boolea
 export const WI_DECORATOR_MAPPING = new Map<string, DecoratorProcessor>();
 
 let isPostGenerating = false;
+let abortController: AbortController | null = null;
 
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
     eventSource.on(event_types.GENERATION_ENDED, runAfterGenerates);
     eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded);
+    eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onGenerateStarting);
 
     await setupReplace();
     await setupReplaceDiff();
@@ -66,6 +68,9 @@ async function processMessage(env: Context, override: DataOverride) {
     if(entries.length < 1)
         return;
 
+    abortController = new AbortController();
+    toastr.info(`Running after-generate`);
+
     const cache = new Map<string, TemplateHandler>();
     for(const entry of entries) {
         const parsed = new DecoratorParser(entry);
@@ -81,13 +86,18 @@ async function processMessage(env: Context, override: DataOverride) {
                 template = TemplateHandler.find(decorator, tag)!;
                 cache.set(cacheKey, template);
             }
-            if(template === null)
+            if(template === null) {
+                console.error(`Failed to find template for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
                 continue;
+            }
 
             const messageContent = messages.findLast(msg => !msg.is_system && !msg.is_user)?.mes ?? messages[messages.length - 1]?.mes ?? '';
             const testing = template.test(messageContent);
-            if(!testing.success)
+            if(!testing.success) {
+                console.warn(`Failed to test message for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
+                toastr.warning(`Failed to test message for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`, 'After Generate');
                 continue;
+            }
 
             const ctx = new Context(await template.buildChatHistory('normal'), env.chat_metadata);
             ctx.macroOverride.original = parsed.cleanContent;
@@ -123,7 +133,9 @@ async function processMessage(env: Context, override: DataOverride) {
 
                 console.error(`Failed to process: `, response, template, entry);
                 return false;
-            }, dontCreate: true });
+            }, dontCreate: true, abortController });
+
+            console.log(`After Generate: ${entry.world}/${entry.uid}-${entry.comment} - ${decorator}`);
         }
     }
 }
@@ -185,4 +197,13 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
         }
     }
     
+}
+
+async function onGenerateStarting(type: string, _options: any, dryRun: boolean) {
+    if((type === 'normal' || type === 'regenerate' || type === 'swipe') && !dryRun) {
+        if(abortController) {
+            abortController.abort('generating');
+            toastr.warning('Aborting after generate', 'After Generate');
+        }
+    }
 }

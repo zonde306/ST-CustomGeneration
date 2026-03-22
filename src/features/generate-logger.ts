@@ -176,9 +176,9 @@ async function buildLoggerResponseBlocks(responses: string[]): Promise<JQuery<HT
 
 function buildLoggerStatus(entry: GenerateLogEntry): string {
     if (entry.error) {
-        return 'Error';
+        return '❌Error';
     }
-    return entry.done ? 'Done' : 'Running';
+    return entry.done ? '✅Done' : '🔄Running';
 }
 
 async function buildLoggerTitle(entry: GenerateLogEntry, index: number): Promise<string> {

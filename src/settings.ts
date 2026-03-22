@@ -2242,7 +2242,7 @@ async function testGenerateConnection(): Promise<string> {
         },
     ];
 
-    const response = await runGenerate(messages, new AbortController(), 'custom_generation_connection_test', apiConfig, {}, false);
+    const response = await runGenerate(messages, new AbortController().signal, 'custom_generation_connection_test', apiConfig, {}, false);
     const responseList = Array.isArray(response) ? response : [response];
     return responseList.map(item => String(item ?? '').trim()).find(Boolean) ?? '';
 }

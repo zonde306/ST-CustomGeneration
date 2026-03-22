@@ -35,7 +35,7 @@ interface StreamChunk {
 
 export async function generate(
     messages: ChatCompletionMessage[],
-    abortController: AbortController,
+    singal: AbortSignal,
     taskId: string = '',
     api?: ApiConfig,
     customOptions?: Record<string, any>,
@@ -100,15 +100,15 @@ export async function generate(
     try {
         if(api?.stream) {
             oai_settings.stream_openai = true;
-            const handler = new StreamHandler(taskId, abortController);
-            handler.generator = await sendOpenAIRequest(api?.type || 'quiet', messages, abortController.signal) as typeof handler.generator;
+            const handler = new StreamHandler(taskId, singal);
+            handler.generator = await sendOpenAIRequest(api?.type || 'quiet', messages, singal) as typeof handler.generator;
             if(streaming)
                 result = handler.streaming();
             else
                 result = await handler.generate();
         } else {
             oai_settings.stream_openai = false;
-            const response = await sendOpenAIRequest(api?.type || 'quiet', messages, abortController.signal);
+            const response = await sendOpenAIRequest(api?.type || 'quiet', messages, singal);
             result = await responseHandler(response, taskId);
         }
     } catch(err) {
@@ -132,13 +132,13 @@ export async function generate(
 
 class StreamHandler {
     public generator?: () => AsyncGenerator<StreamChunk, void, void>;
-    public abortController: AbortController;
+    public singal: AbortSignal;
     private buffer: string[];
     private taskId: string;
 
-    constructor(taskId: string, abortController?: AbortController) {
+    constructor(taskId: string, singal?: AbortSignal) {
         this.taskId = taskId;
-        this.abortController = abortController ?? new AbortController();
+        this.singal = singal ?? new AbortController().signal;
         this.buffer = [];
     }
 
@@ -149,6 +149,9 @@ class StreamHandler {
         let lastError = null;
         try {
             for await (const chunk of this.generator()) {
+                if(this.singal.aborted)
+                    break;
+
                 const { swipe, text } = this.parseChunk(chunk);
                 if(!text)
                     continue;
