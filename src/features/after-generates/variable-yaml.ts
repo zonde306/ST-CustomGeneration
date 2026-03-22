@@ -1,5 +1,5 @@
 import { WI_DECORATOR_MAPPING, DecoratorProcessData } from "@/features/after-generated";
-import * as YAML from 'yaml';
+import { yaml } from "@st/lib.js";
 
 const WI_DECORATOR = '@@variables_yaml';
 
@@ -13,6 +13,6 @@ async function processor(data: DecoratorProcessData) {
         last.variables = [];
     if(!last.variables[last.swipe_id ?? 0])
         last.variables[last.swipe_id ?? 0] = {};
-    last.variables[last.swipe_id ?? 0] = _.merge(last.variables[last.swipe_id ?? 0], YAML.parse(data.content));
+    last.variables[last.swipe_id ?? 0] = _.merge(last.variables[last.swipe_id ?? 0], yaml.parse(data.content));
     return true;
 }

@@ -4,7 +4,7 @@ import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { generate as runGenerate, ApiConfig } from '@/functions/generate';
 import { KNOWN_DECORATORS } from '@/functions/worldinfo';
 import { PromptFilter } from '@/functions/message-builder';
-import * as YAML from 'yaml';
+import { yaml } from "@st/lib.js";
 
 export interface PresetPrompt {
     // A name for this prompt. (displayed in the UI)
@@ -634,7 +634,7 @@ function parseYamlRecord(value: unknown): Record<string, unknown> {
         return {};
     }
 
-    const parsed = YAML.parse(text);
+    const parsed = yaml.parse(text);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
         throw new Error('YAML must be an object mapping.');
     }
@@ -647,7 +647,7 @@ function stringifyYamlRecord(value: Record<string, unknown>): string {
         return '';
     }
 
-    return YAML.stringify(value).trimEnd();
+    return yaml.stringify(value).trimEnd();
 }
 
 function uniquePresetName(baseName: string): string {
@@ -1650,9 +1650,9 @@ async function testGenerateConnection(): Promise<string> {
         top_p: settings.topP,
         frequency_penalty: settings.frequencyPenalty,
         presence_penalty: settings.presencePenalty,
-        custom_include_body: YAML.stringify(settings.includeBody),
-        custom_exclude_body: YAML.stringify(settings.excludeBody),
-        custom_include_headers: YAML.stringify(settings.includeHeaders),
+        custom_include_body: yaml.stringify(settings.includeBody),
+        custom_exclude_body: yaml.stringify(settings.excludeBody),
+        custom_include_headers: yaml.stringify(settings.includeHeaders),
     };
 
     const messages: ChatCompletionMessage[] = [

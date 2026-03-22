@@ -169,6 +169,14 @@ export class Context {
         return this.chat[this.chat.length - 1];
     }
 
+    get lastUserMessage(): ChatMessageEx | undefined {
+        return this.chat.findLast(mes => mes.is_user);
+    }
+
+    get lastAssistantMessage(): ChatMessageEx | undefined {
+        return this.chat.findLast(mes => !mes.is_user);
+    }
+
     get variables(): VariableData {
         const last = this.lastMessage;
         if(last == null)

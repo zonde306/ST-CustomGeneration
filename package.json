@@ -12,8 +12,7 @@
     "lodash": "^4.17.21",
     "syntax-error": "^1.4.0",
     "tsc": "^2.0.4",
-    "xxhash-wasm": "^1.1.0",
-    "yaml": "^2.6.1"
+    "xxhash-wasm": "^1.1.0"
   },
   "scripts": {
     "build": "webpack --mode production"
