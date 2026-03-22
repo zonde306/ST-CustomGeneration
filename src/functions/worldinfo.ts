@@ -241,7 +241,7 @@ export function parseDecorators(content: string): [string[], string] {
         return KNOWN_DECORATORS.includes(base);
     };
 
-    if (!content.startsWith('@@')) {
+    if (!content.trim().startsWith('@@')) {
         return [[], content];
     }
 
@@ -251,7 +251,7 @@ export function parseDecorators(content: string): [string[], string] {
     let fallbacked = false;
 
     for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
+        const line = lines[i].trim();
 
         if (line.startsWith('@@')) {
             // Handle escapes: @@@xxx is treated as normal content unless fallbacked
@@ -368,7 +368,7 @@ export function normalizeWorldInfoEntry(entry: WorldInfoEntry): WorldInfoEntry {
     const cloned = { ...raw };
     // modify in place
     cloned.uid = Number(raw.uid);
-    const [decorators, content] = parseDecorators(entry.content);
+    const [decorators, content] = parseDecorators(raw.content);
     cloned.decorators = decorators;
     cloned.content = content;
     cloned.world = entry.world;
