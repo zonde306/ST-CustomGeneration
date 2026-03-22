@@ -31,6 +31,8 @@ type DecoratorProcessor = (e: DecoratorProcessData) => (boolean | Promise<boolea
 
 export const WI_DECORATOR_MAPPING = new Map<string, DecoratorProcessor>();
 
+let isPostGenerating = false;
+
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
     eventSource.on(event_types.GENERATION_ENDED, runAfterGenerates);
@@ -56,7 +58,11 @@ export async function runAfterGenerates() {
 
 async function processMessage(env: Context, override: DataOverride) {
     const messages = env.chat.slice(-world_info_depth);
+
+    isPostGenerating = true;
     const entries = await getActivatedEntries(messages.map(msg => msg.mes ?? ''));
+    isPostGenerating = false;
+
     if(entries.length < 1)
         return;
 
@@ -141,6 +147,11 @@ async function onAppReady() {
 }
 
 async function onWorldInfoLoaded(data: WorldInfoLoaded) {
+    if(isPostGenerating) {
+        console.debug('ignore world info filter event during post generate');
+        return;
+    }
+
     for(let i = data.globalLore.length - 1; i  >= 0; --i) {
         const entry = data.globalLore[i];
         const parsed = new DecoratorParser(entry);
