@@ -40,6 +40,7 @@ export async function setup() {
     eventSource.on(event_types.GENERATION_ENDED, runAfterGenerates);
     eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded);
     eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onGenerateStarting);
+    eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
 
     await setupReplace();
     await setupReplaceDiff();
@@ -220,12 +221,20 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
 
 async function onGenerateStarting(type: string, _options: any, dryRun: boolean) {
     if((type === 'normal' || type === 'regenerate' || type === 'swipe') && !dryRun) {
-        if(abortController) {
-            abortController.abort('canceled by new generate');
-            if(activeTasks > 0) {
-                toastr.warning('Aborting after generate', 'After Generate');
-                activeTasks = 0;
-            }
+        stopActiveTasks();
+    }
+}
+
+async function onChatChanged() {
+    stopActiveTasks();
+}
+
+function stopActiveTasks() {
+    if(abortController) {
+        abortController.abort('canceled by new generate');
+        if(activeTasks > 0) {
+            toastr.warning('Aborting after generate', 'After Generate');
+            activeTasks = 0;
         }
     }
 }
