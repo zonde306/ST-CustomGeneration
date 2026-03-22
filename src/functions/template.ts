@@ -96,8 +96,8 @@ export class TemplateHandler {
         };
     }
 
-    async buildChatHistory(type: string = ''): Promise<ChatMessage[]> {
-        const builder = new MessageBuilder([]);
+    async buildChatHistory(chat: ChatMessage[] = [], type: string = ''): Promise<ChatMessage[]> {
+        const builder = new MessageBuilder(chat);
         builder.regexs = [];
         builder.evaluateMacro = false;
         builder.prompts = this.template.prompts;

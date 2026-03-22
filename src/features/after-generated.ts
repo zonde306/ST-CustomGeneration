@@ -117,7 +117,7 @@ async function processMessage(env: Context, override: DataOverride) {
                 continue;
             }
 
-            const ctx = new Context(await template.buildChatHistory(), env.chat_metadata);
+            const ctx = new Context(await template.buildChatHistory(env.chat), env.chat_metadata);
             ctx.macroOverride.original = parsed.cleanContent;
             ctx.macroOverride.macros = {
                 'lastUserMessage': () => substituteParams(messages.findLast(msg => msg.is_user)?.mes ?? ''),

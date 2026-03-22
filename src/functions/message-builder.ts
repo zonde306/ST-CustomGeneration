@@ -35,7 +35,7 @@ interface ExtensionPrompts {
 };
 
 // Exclude Specific Prompts
-export interface PromptFilter {
+export interface PromptFilter extends Record<string, any> {
     main?: boolean | string | string[] | ChatCompletionMessage[];
     personaDescription?: boolean | string | string[] | ChatCompletionMessage[];
     charDescription?: boolean | string | string[] | ChatCompletionMessage[];
@@ -72,6 +72,10 @@ export class MessageBuilder {
     public prompts: PresetPrompt[];
     public evaluateMacro: boolean;
     public maxChatHistory: number;
+    private worldInfoDepth: string[];
+    private authorsNoteDepth: string;
+    private presetDepth: string[];
+    private charDepth: string;
 
     constructor(chat: ChatMessage[], preset?: Preset) {
         this.chat = chat;
@@ -79,6 +83,10 @@ export class MessageBuilder {
         this.filters = {};
         this.macroOverride = {};
         this.evaluateMacro = true;
+        this.worldInfoDepth = [];
+        this.authorsNoteDepth = '';
+        this.presetDepth = [];
+        this.charDepth = '';
 
         preset = preset ?? settings.presets[Number(settings.currentPreset)] ?? defaultPreset;
         this.regexs = preset.regexs;
@@ -205,6 +213,63 @@ export class MessageBuilder {
                             break;
                         case 'chatHistory':
                             content = historyMessages;
+                            break;
+                        case 'charNote':
+                            content = this.charDepth;
+                            break;
+                        case 'authorsNote':
+                            content = this.authorsNoteDepth;
+                            break;
+                        case 'lastCharMessage':
+                            content = this.chat.findLast(mes => !mes.is_user && !mes.is_system)?.mes ?? '';
+                            break;
+                        case 'lastUserMessage':
+                            content = this.chat.findLast(mes => mes.is_user)?.mes ?? '';
+                            break;
+                        case 'worldInfoDepth0':
+                            content = this.worldInfoDepth[0] ?? '';
+                            break;
+                        case 'worldInfoDepth1':
+                            content = this.worldInfoDepth[1] ?? '';
+                            break;
+                        case 'worldInfoDepth2':
+                            content = this.worldInfoDepth[2] ?? '';
+                            break;
+                        case 'worldInfoDepth3':
+                            content = this.worldInfoDepth[3] ?? '';
+                            break;
+                        case 'worldInfoDepth4':
+                            content = this.worldInfoDepth[4] ?? '';
+                            break;
+                        case 'presetDepth0':
+                            content = this.presetDepth[0] ?? '';
+                            break;
+                        case 'presetDepth1':
+                            content = this.presetDepth[1] ?? '';
+                            break;
+                        case 'presetDepth2':
+                            content = this.presetDepth[2] ?? '';
+                            break;
+                        case 'presetDepth3':
+                            content = this.presetDepth[3] ?? '';
+                            break;
+                        case 'presetDepth4':
+                            content = this.presetDepth[4] ?? '';
+                            break;
+                        case 'chatDepth0':
+                            content = this.chat[this.chat.length - 1]?.mes ?? '';
+                            break;
+                        case 'chatDepth1':
+                            content = this.chat[this.chat.length - 2]?.mes ?? '';
+                            break;
+                        case 'chatDepth2':
+                            content = this.chat[this.chat.length - 3]?.mes ?? '';
+                            break;
+                        case 'chatDepth3':
+                            content = this.chat[this.chat.length - 4]?.mes ?? '';
+                            break;
+                        case 'chatDepth4':
+                            content = this.chat[this.chat.length - 5]?.mes ?? '';
                             break;
                     }
                 }
@@ -423,20 +488,11 @@ export class MessageBuilder {
         this.#removeDepthPrompts();
         this.#flushWIInjections();
 
-        if(this.filters.presetDepth !== false)
-            this.#injectPresetDepthPrompts(prompts, historyMessages, type);
-
-        if(this.filters.charDepth !== false)
-            this.#injectCharacterDepthPrompt(prompts.charDepthPrompt);
-
-        if(this.filters.worldInfoDepth !== false)
-            this.#injectWorldInfoDepth(prompts.worldInfoDepth);
-
-        if(this.filters.worldInfoOutlet !== false)
-            this.#injectOutletEntries(prompts.worldInfoOutletEntries);
-
-        if(this.filters.authorsNoteDepth !== false)
-            this.#injectAuthorsNoteDepthPrompt();
+        this.#injectPresetDepthPrompts(prompts, historyMessages, type);
+        this.#injectCharacterDepthPrompt(prompts.charDepthPrompt);
+        this.#injectWorldInfoDepth(prompts.worldInfoDepth);
+        this.#injectOutletEntries(prompts.worldInfoOutletEntries);
+        this.#injectAuthorsNoteDepthPrompt();
     }
 
     #injectPresetDepthPrompts(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal') {
@@ -470,15 +526,26 @@ export class MessageBuilder {
                 return;
             }
 
-            const extensionRole = this.#normalizeExtensionRole(role);
-            this.#setExtensionPrompt(
-                `${inject_ids.DEPTH_PROMPT}_PRESET_${sequence++}`,
-                text,
-                extension_prompt_types.IN_CHAT,
-                depth,
-                false,
-                extensionRole,
-            );
+            if(this.filters.presetDepth !== false) {
+                const extensionRole = this.#normalizeExtensionRole(role);
+                this.#setExtensionPrompt(
+                    `${inject_ids.DEPTH_PROMPT}_PRESET_${sequence++}`,
+                    text,
+                    extension_prompt_types.IN_CHAT,
+                    depth,
+                    false,
+                    extensionRole,
+                );
+            }
+
+            if(!this.presetDepth[depth])
+                this.presetDepth[depth] = text;
+            else
+                this.presetDepth[depth] += '\n\n' + text;
+
+            if(!this.macroOverride.macros)
+                this.macroOverride.macros = {};
+            this.macroOverride.macros[`preset:${depth}`] = () => this.presetDepth[depth];
         };
 
         for (const { preset } of inChatPrompts) {
@@ -513,6 +580,63 @@ export class MessageBuilder {
                         break;
                     case 'chatHistory':
                         content = historyMessages;
+                        break;
+                    case 'charNote':
+                        content = this.charDepth;
+                        break;
+                    case 'authorsNote':
+                        content = this.authorsNoteDepth;
+                        break;
+                    case 'lastCharMessage':
+                        content = this.chat.findLast(mes => !mes.is_user && !mes.is_system)?.mes ?? '';
+                        break;
+                    case 'lastUserMessage':
+                        content = this.chat.findLast(mes => mes.is_user)?.mes ?? '';
+                        break;
+                    case 'worldInfoDepth0':
+                        content = this.worldInfoDepth[0] ?? '';
+                        break;
+                    case 'worldInfoDepth1':
+                        content = this.worldInfoDepth[1] ?? '';
+                        break;
+                    case 'worldInfoDepth2':
+                        content = this.worldInfoDepth[2] ?? '';
+                        break;
+                    case 'worldInfoDepth3':
+                        content = this.worldInfoDepth[3] ?? '';
+                        break;
+                    case 'worldInfoDepth4':
+                        content = this.worldInfoDepth[4] ?? '';
+                        break;
+                    case 'presetDepth0':
+                        content = this.presetDepth[0] ?? '';
+                        break;
+                    case 'presetDepth1':
+                        content = this.presetDepth[1] ?? '';
+                        break;
+                    case 'presetDepth2':
+                        content = this.presetDepth[2] ?? '';
+                        break;
+                    case 'presetDepth3':
+                        content = this.presetDepth[3] ?? '';
+                        break;
+                    case 'presetDepth4':
+                        content = this.presetDepth[4] ?? '';
+                        break;
+                    case 'chatDepth0':
+                        content = this.chat[this.chat.length - 1]?.mes ?? '';
+                        break;
+                    case 'chatDepth1':
+                        content = this.chat[this.chat.length - 2]?.mes ?? '';
+                        break;
+                    case 'chatDepth2':
+                        content = this.chat[this.chat.length - 3]?.mes ?? '';
+                        break;
+                    case 'chatDepth3':
+                        content = this.chat[this.chat.length - 4]?.mes ?? '';
+                        break;
+                    case 'chatDepth4':
+                        content = this.chat[this.chat.length - 5]?.mes ?? '';
                         break;
                 }
             } else {
@@ -560,14 +684,22 @@ export class MessageBuilder {
             depthPromptConfig?.role ?? depth_prompt_role_default,
         );
 
-        this.#setExtensionPrompt(
-            inject_ids.DEPTH_PROMPT,
-            value,
-            extension_prompt_types.IN_CHAT,
-            depth,
-            false,
-            role,
-        );
+        if(this.filters.charDepth !== false) {
+            this.#setExtensionPrompt(
+                inject_ids.DEPTH_PROMPT,
+                value,
+                extension_prompt_types.IN_CHAT,
+                depth,
+                false,
+                role,
+            );
+        }
+
+        this.charDepth = value;
+
+        if(!this.macroOverride.macros)
+            this.macroOverride.macros = {};
+        this.macroOverride.macros[`charNote`] = () => this.charDepth;
     }
 
     #injectWorldInfoDepth(worldInfoDepth: { depth: number, entries: string[], role: string | number }[]) {
@@ -588,14 +720,25 @@ export class MessageBuilder {
             const depth = this.#normalizeDepth(entry.depth, depth_prompt_depth_default);
             const role = this.#normalizeExtensionRole(entry.role);
 
-            this.#setExtensionPrompt(
-                inject_ids.CUSTOM_WI_DEPTH_ROLE(depth, role),
-                value,
-                extension_prompt_types.IN_CHAT,
-                depth,
-                false,
-                role,
-            );
+            if(this.filters.worldInfoDepth !== false) {
+                this.#setExtensionPrompt(
+                    inject_ids.CUSTOM_WI_DEPTH_ROLE(depth, role),
+                    value,
+                    extension_prompt_types.IN_CHAT,
+                    depth,
+                    false,
+                    role,
+                );
+            }
+
+            if(!this.worldInfoDepth[depth])
+                this.worldInfoDepth[depth] = value;
+            else
+                this.worldInfoDepth[depth] += '\n\n' + value;
+
+            if(!this.macroOverride.macros)
+                this.macroOverride.macros = {};
+            this.macroOverride.macros[`worldinfo:${depth}`] = () => this.worldInfoDepth[depth];
         }
     }
 
@@ -614,12 +757,14 @@ export class MessageBuilder {
                 continue;
             }
 
-            this.#setExtensionPrompt(
-                inject_ids.CUSTOM_WI_OUTLET(key),
-                value,
-                extension_prompt_types.NONE,
-                0,
-            );
+            if(this.filters.worldInfoOutlet !== false) {
+                this.#setExtensionPrompt(
+                    inject_ids.CUSTOM_WI_OUTLET(key),
+                    value,
+                    extension_prompt_types.NONE,
+                    0,
+                );
+            }
         }
     }
 
@@ -632,14 +777,22 @@ export class MessageBuilder {
         const depth = this.#normalizeDepth(chat_metadata[metadata_keys.depth], depth_prompt_depth_default);
         const role = this.#normalizeExtensionRole(chat_metadata[metadata_keys.role]);
 
-        this.#setExtensionPrompt(
-            `${inject_ids.DEPTH_PROMPT}_AUTHOR_NOTE`,
-            prompt,
-            extension_prompt_types.IN_CHAT,
-            depth,
-            false,
-            role,
-        );
+        if(this.filters.authorsNoteDepth !== false) {
+            this.#setExtensionPrompt(
+                `${inject_ids.DEPTH_PROMPT}_AUTHOR_NOTE`,
+                prompt,
+                extension_prompt_types.IN_CHAT,
+                depth,
+                false,
+                role,
+            );
+        }
+
+        this.authorsNoteDepth = prompt;
+
+        if(!this.macroOverride.macros)
+            this.macroOverride.macros = {};
+        this.macroOverride.macros[`authorsNote`] = () => this.authorsNoteDepth;
     }
 
     #normalizeDepth(value: unknown, fallback: number): number {
@@ -913,8 +1066,8 @@ export class MessageBuilder {
                 original: this.macroOverride.original,
                 groupOverride: this.macroOverride.group,
                 dynamicMacros: {
-                    lastUserMessage: () => this.chat.findLast(m => m.is_user)?.mes ?? '',
-                    lastCharMessage: () => this.chat.findLast(m => !m.is_user && !m.is_system)?.mes ?? '',
+                    'lastUserMessage': () => this.chat.findLast(m => m.is_user)?.mes ?? '',
+                    'lastCharMessage': () => this.chat.findLast(m => !m.is_user && !m.is_system)?.mes ?? '',
                     ...(this.macroOverride.macros ?? {}),
                 },
             }
