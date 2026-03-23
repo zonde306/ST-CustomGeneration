@@ -25,6 +25,7 @@ export interface DecoratorProcessData {
     override: DataOverride;
     decorator: DecoratorParser;
     env: Context;
+    messageId: number;
 }
 
 type DecoratorProcessor = (e: DecoratorProcessData) => (boolean | Promise<boolean>);
@@ -143,6 +144,7 @@ async function processMessage(env: Context, override: DataOverride) {
                             override,
                             decorator: parsed,
                             env,
+                            messageId: env.chat.length - 1,
                         })) {
                             return true;
                         }
@@ -153,14 +155,17 @@ async function processMessage(env: Context, override: DataOverride) {
                 return false;
             }, dontCreate: true, abortController }).catch(e => {
                 activeTasks -= 1;
-                toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, 'After Generate');
+
+                if(!abortController?.signal.aborted)
+                    toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, 'After Generate');
+
                 if(activeTasks <= 0) {
-                    toastr.info('All after generate tasks ended', 'After Generate');
+                    toastr.success('All after generate tasks ended', 'After Generate');
                 }
             }).then(() => {
                 activeTasks -= 1;
                 if(activeTasks <= 0) {
-                    toastr.info('All after generate tasks ended', 'After Generate');
+                    toastr.success('All after generate tasks ended', 'After Generate');
                 }
             });
             activeTasks += 1;

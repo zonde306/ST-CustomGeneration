@@ -16,6 +16,10 @@ async function processor(data: DecoratorProcessData) {
         last.variables[last.swipe_id ?? 0] = {};
 
     const patchs = JSON.parse(jsonrepair(data.content));
-    last.variables[last.swipe_id ?? 0] = jsonPatch(last.variables[last.swipe_id ?? 0], patchs);
+    const patched = jsonPatch(last.variables[last.swipe_id ?? 0], patchs);
+
+    console.debug(`update variables: `, last.variables[last.swipe_id ?? 0], patched);
+
+    last.variables[last.swipe_id ?? 0] = patched;
     return true;
 }

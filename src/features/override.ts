@@ -253,22 +253,30 @@ export class DataOverride {
         }
     }
 
-    getOverride(world: string, uid: string | number, depth: number = 0): WIOverride | null {
+    getOverride(world: string, uid: string | number, maxDepth: number = 0): WIOverride | null {
         for(let i = this.chat.length - 1; i >= 0; --i) {
-            if(depth < 0)
+            if(maxDepth < 0)
                 return null;
 
             const message = this.chat[i];
             const override = message.swipe_info?.[message.swipe_id ?? 0]?.wi_overrides?.[world]?.[String(uid)];
             if(override)
                 return override;
+
+            maxDepth -= 1;
         }
 
         return null;
     }
 
-    setOverride(world: string, uid: string | number, type: string, content: string) {
-        const last = this.chat[this.chat.length - 1];
+    setOverride(
+        world: string,
+        uid: string | number,
+        type: string,
+        content: string,
+        messageId: number = this.chat.length - 1
+    ) {
+        const last = this.chat[messageId];
         if(!last.swipe_info)
             last.swipe_info = [];
         if(!last.swipe_info[last.swipe_id ?? 0])
@@ -280,13 +288,13 @@ export class DataOverride {
         last.swipe_info[last.swipe_id ?? 0].wi_overrides[world][String(uid)] = { type, content };
     }
 
-    getChatOverride(message_id: number): string | null {
-        const message = this.chat[message_id];
+    getChatOverride(messageId: number): string | null {
+        const message = this.chat[messageId];
         return message?.swipe_info?.[message.swipe_id ?? 0]?.mes_override ?? null;
     }
 
-    setChatOverride(message_id: number, content: string) {
-        const message = this.chat[message_id];
+    setChatOverride(messageId: number, content: string) {
+        const message = this.chat[messageId];
         if(!message.swipe_info)
             message.swipe_info = [];
         if(!message.swipe_info[message.swipe_id ?? 0])

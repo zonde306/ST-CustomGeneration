@@ -8,14 +8,18 @@ export async function setup() {
 
 async function processor(data: DecoratorProcessData) {
     const original = data.override.getOverride(data.entry.world, data.entry.uid)?.content ?? data.decorator.cleanContent;
-    let final = gitConflictStyle(data.content, original);
-    if(final === false)
-        final = jsonStyle(data.content, original);
+    let result = gitConflictStyle(data.content, original);
+    if(result === false)
+        result = jsonStyle(data.content, original);
 
-    if(final)
-        data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, final);
-
-    console.debug(`WI replace ${data.entry.world}/${data.entry.uid}-${data.entry.comment} to ${final}`);
+    if(result) {
+        data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, result, data.messageId);
+        console.debug(`WI replace ${data.entry.world}/${data.entry.uid}-${data.entry.comment} to ${result}`);
+    } else {
+        console.error(`WI replace ${data.entry.world}/${data.entry.uid}-${data.entry.comment} failed`);
+        return false;
+    }
+    
     return true;
 }
 

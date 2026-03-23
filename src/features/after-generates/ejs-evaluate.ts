@@ -8,8 +8,10 @@ export async function setup() {
 }
 
 async function processor(data: DecoratorProcessData) {
-    await evaluate(data.content, {
+    const result = await evaluate(data.content, {
         ...data.args,
     });
+
+    console.debug(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} evaulate result: ${result}`);
     return true;
 }

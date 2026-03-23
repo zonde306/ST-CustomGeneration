@@ -7,8 +7,8 @@ export async function setup() {
 }
 
 async function processor(data: DecoratorProcessData) {
-    if(data.env.lastAssistantMessage?.mes) {
-        data.env.lastAssistantMessage.mes += data.content;
+    if(data.env.chat[data.messageId]?.mes) {
+        data.env.chat[data.messageId].mes += data.content;
     }
     return true;
 }

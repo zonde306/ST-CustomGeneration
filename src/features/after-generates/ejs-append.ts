@@ -11,8 +11,8 @@ async function processor(data: DecoratorProcessData) {
     const content = await evaluate(data.content, {
         ...data.args,
     });
-    if(data.env.lastAssistantMessage?.mes) {
-        data.env.lastAssistantMessage.mes += content;
+    if(data.env.chat[data.messageId]?.mes) {
+        data.env.chat[data.messageId].mes += content;
     }
     return true;
 }

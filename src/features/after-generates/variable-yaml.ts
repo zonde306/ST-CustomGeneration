@@ -13,6 +13,11 @@ async function processor(data: DecoratorProcessData) {
         last.variables = [];
     if(!last.variables[last.swipe_id ?? 0])
         last.variables[last.swipe_id ?? 0] = {};
-    last.variables[last.swipe_id ?? 0] = _.merge(last.variables[last.swipe_id ?? 0], yaml.parse(data.content));
+
+    const patched = _.merge(last.variables[last.swipe_id ?? 0], yaml.parse(data.content));
+    
+    console.debug(`update variables: `, last.variables[last.swipe_id ?? 0], patched);
+
+    last.variables[last.swipe_id ?? 0] = patched;
     return true;
 }

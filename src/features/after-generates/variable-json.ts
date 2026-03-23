@@ -15,6 +15,10 @@ async function processor(data: DecoratorProcessData) {
         last.variables[last.swipe_id ?? 0] = {};
 
     const merge = JSON.parse(jsonrepair(data.content));
-    last.variables[last.swipe_id ?? 0] = _.merge(last.variables[last.swipe_id ?? 0], merge);
+    const merged = _.merge(last.variables[last.swipe_id ?? 0], merge);
+
+    console.debug(`update variables: `, last.variables[last.swipe_id ?? 0], merged);
+
+    last.variables[last.swipe_id ?? 0] = merged;
     return true;
 }
