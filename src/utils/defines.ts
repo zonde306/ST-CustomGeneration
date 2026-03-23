@@ -1,5 +1,7 @@
 import { ReasoningType } from "@st/scripts/reasoning.js";
 import { PromptFilter } from '@/functions/message-builder';
+import { KNOWN_DECORATORS } from "@/functions/worldinfo"
+import { TEMPLATE_FILTER_OPTIONS } from "@/settings"
 
 type TextContent = {
     type: "text";

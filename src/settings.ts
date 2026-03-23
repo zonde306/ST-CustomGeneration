@@ -11,7 +11,7 @@ export const settings: Settings = clone(defaultSettings);
 
 const DEFAULT_TEMPLATE_DECORATOR = (KNOWN_DECORATORS.find(x => x === '@@record') ?? KNOWN_DECORATORS[0] ?? '@@record') as TemplateDecorator;
 const PROMPT_TRIGGER_OPTIONS = ['normal', 'regenerate', 'swipe', 'continue', ...KNOWN_DECORATORS];
-const TEMPLATE_FILTER_OPTIONS = [
+export const TEMPLATE_FILTER_OPTIONS = [
     'main',
     'personaDescription',
     'charDescription',
@@ -982,6 +982,46 @@ function getTemplateSummary(template: Template): string {
     return `${template.decorator} · ${getTemplateTagLabel(template)}`;
 }
 
+function buildPromptUniqueKey(prompt: PresetPrompt): string {
+    return `${String(prompt.internal ?? '')}:${String(prompt.name ?? '').trim()}`;
+}
+
+function buildRegexUniqueKey(regex: RegEx): string {
+    return String(regex.name ?? '').trim();
+}
+
+function promptUniqueKeyExists(prompts: PresetPrompt[], prompt: PresetPrompt, excludeIndex: number | null = null): boolean {
+    const targetKey = buildPromptUniqueKey(prompt);
+    return prompts.some((item, index) => index !== excludeIndex && buildPromptUniqueKey(item) === targetKey);
+}
+
+function regexUniqueKeyExists(regexs: RegEx[], regex: RegEx, excludeIndex: number | null = null): boolean {
+    const targetKey = buildRegexUniqueKey(regex);
+    return regexs.some((item, index) => index !== excludeIndex && buildRegexUniqueKey(item) === targetKey);
+}
+
+function templateUniqueKeyExists(templates: Record<string, Template>, template: Template, excludeKey: string | null = null): boolean {
+    const targetKey = buildTemplateMatchKey(template);
+    return Object.entries(templates).some(([key, item]) => key !== excludeKey && buildTemplateMatchKey(item) === targetKey);
+}
+
+function getPromptDuplicateMessage(prompt: PresetPrompt): string {
+    const name = String(prompt.name ?? '').trim() || 'Prompt';
+    const internal = String(prompt.internal ?? '').trim();
+    return internal
+        ? `A prompt with the same unique key already exists: ${internal} / ${name}`
+        : `A prompt with the same name already exists: ${name}`;
+}
+
+function getRegexDuplicateMessage(regex: RegEx): string {
+    const name = String(regex.name ?? '').trim() || 'Regex';
+    return `A regex with the same name already exists: ${name}`;
+}
+
+function getTemplateDuplicateMessage(template: Template): string {
+    return `A template with the same unique key already exists: ${buildTemplateMatchKey(template)}`;
+}
+
 function buildPromptDisplayName(prompt: PresetPrompt, index: number): string {
     return prompt.name || `Prompt ${index + 1}`;
 }
@@ -1653,6 +1693,7 @@ function setPromptEditorEnabled(enabled: boolean) {
         '#custom_generation_prompt_enable',
         '#custom_generation_prompt_content',
         '#custom_generation_prompt_delete',
+        '#custom_generation_prompt_save_as',
         '#custom_generation_prompt_save',
     ];
 
@@ -1689,6 +1730,7 @@ function setRegexEditorEnabled(enabled: boolean) {
         '#custom_generation_regex_min_depth',
         '#custom_generation_regex_max_depth',
         '#custom_generation_regex_delete',
+        '#custom_generation_regex_save_as',
         '#custom_generation_regex_save',
     ];
 
@@ -1705,6 +1747,7 @@ function setTemplateEditorEnabled(enabled: boolean) {
         '#custom_generation_template_regex',
         '#custom_generation_template_find_regex',
         '#custom_generation_template_delete',
+        '#custom_generation_template_save_as',
         '#custom_generation_template_save',
     ];
 
@@ -1819,6 +1862,7 @@ function updatePromptEditor() {
         $('#custom_generation_prompt_enable').prop('checked', false);
         $('#custom_generation_prompt_content').val('');
         $('#custom_generation_prompt_delete').toggle(false);
+        $('#custom_generation_prompt_save_as').toggle(false);
         isUpdatingUI = false;
         return;
     }
@@ -1838,6 +1882,7 @@ function updatePromptEditor() {
     $('#custom_generation_prompt_enable').prop('checked', prompt.enabled === true);
     $('#custom_generation_prompt_content').val(prompt.prompt);
     $('#custom_generation_prompt_delete').toggle(!isCreatingPrompt && !isCreatingTemplatePrompt);
+    $('#custom_generation_prompt_save_as').toggle(!isCreatingPrompt && !isCreatingTemplatePrompt);
 
     isUpdatingUI = false;
 }
@@ -1865,6 +1910,7 @@ function updateRegexEditor() {
         $('#custom_generation_regex_min_depth').val('');
         $('#custom_generation_regex_max_depth').val('');
         $('#custom_generation_regex_delete').toggle(false);
+        $('#custom_generation_regex_save_as').toggle(false);
         isUpdatingUI = false;
         return;
     }
@@ -1883,6 +1929,7 @@ function updateRegexEditor() {
     $('#custom_generation_regex_min_depth').val(regex.minDepth ?? '');
     $('#custom_generation_regex_max_depth').val(regex.maxDepth ?? '');
     $('#custom_generation_regex_delete').toggle(!isCreatingRegex);
+    $('#custom_generation_regex_save_as').toggle(!isCreatingRegex);
 
     isUpdatingUI = false;
 }
@@ -1905,6 +1952,7 @@ function updateTemplateEditor() {
         $('#custom_generation_template_regex').val('');
         $('#custom_generation_template_find_regex').val('');
         $('#custom_generation_template_delete').toggle(false);
+        $('#custom_generation_template_save_as').toggle(false);
         updateTemplatePromptList(null);
         isUpdatingUI = false;
         return;
@@ -1914,6 +1962,7 @@ function updateTemplateEditor() {
     const shouldRestoreDraft = templateEditorDraft && templateEditorDraftKey === templateEntry.key;
     setTemplateEditorEnabled(true);
     $('#custom_generation_template_delete').toggle(!isCreatingTemplate);
+    $('#custom_generation_template_save_as').toggle(!isCreatingTemplate);
     if (shouldRestoreDraft && templateEditorDraft) {
         applyTemplateEditorDraft(templateEditorDraft);
     } else {
@@ -1955,7 +2004,7 @@ function closePromptEditor(): void {
     closeDialog('#custom_generation_prompt_dialog');
 }
 
-function savePromptEditor(): void {
+function savePromptEditor(saveAs: boolean = false): void {
     const preset = getCurrentPreset();
     if (promptEditorTarget === 'template') {
         const template = getEditingTemplate();
@@ -1992,6 +2041,25 @@ function savePromptEditor(): void {
 
         const prompt = template.prompts[editingTemplatePromptIndex];
         if (!prompt) {
+            return;
+        }
+
+        if (saveAs) {
+            if (buildPromptUniqueKey(prompt) === buildPromptUniqueKey(nextPrompt)) {
+                window.alert('Save As requires a different unique key from the original prompt.');
+                return;
+            }
+
+            if (promptUniqueKeyExists(template.prompts, nextPrompt)) {
+                window.alert(getPromptDuplicateMessage(nextPrompt));
+                return;
+            }
+
+            template.prompts.push(nextPrompt);
+            selectedTemplatePromptIndex = template.prompts.length - 1;
+            closePromptEditor();
+            updateSettingsUI();
+            saveSettings();
             return;
         }
 
@@ -2042,6 +2110,25 @@ function savePromptEditor(): void {
 
     const prompt = preset.prompts[editingPromptIndex];
     if (!prompt) {
+        return;
+    }
+
+    if (saveAs) {
+        if (buildPromptUniqueKey(prompt) === buildPromptUniqueKey(nextPrompt)) {
+            window.alert('Save As requires a different unique key from the original prompt.');
+            return;
+        }
+
+        if (promptUniqueKeyExists(preset.prompts, nextPrompt)) {
+            window.alert(getPromptDuplicateMessage(nextPrompt));
+            return;
+        }
+
+        preset.prompts.push(nextPrompt);
+        selectedPromptIndex = preset.prompts.length - 1;
+        closePromptEditor();
+        updateSettingsUI();
+        saveSettings();
         return;
     }
 
@@ -2158,7 +2245,7 @@ function closeRegexEditor(): void {
     closeDialog('#custom_generation_regex_dialog');
 }
 
-function saveRegexEditor(): void {
+function saveRegexEditor(saveAs: boolean = false): void {
     const preset = getCurrentPreset();
     const fallbackName = `Regex ${preset.regexs.length + 1}`;
     const nextRegex = normalizeRegex({
@@ -2189,7 +2276,27 @@ function saveRegexEditor(): void {
         return;
     }
 
-    if (!preset.regexs[editingRegexIndex]) {
+    const regex = preset.regexs[editingRegexIndex];
+    if (!regex) {
+        return;
+    }
+
+    if (saveAs) {
+        if (buildRegexUniqueKey(regex) === buildRegexUniqueKey(nextRegex)) {
+            window.alert('Save As requires a different name from the original regex.');
+            return;
+        }
+
+        if (regexUniqueKeyExists(preset.regexs, nextRegex)) {
+            window.alert(getRegexDuplicateMessage(nextRegex));
+            return;
+        }
+
+        preset.regexs.push(nextRegex);
+        selectedRegexIndex = preset.regexs.length - 1;
+        closeRegexEditor();
+        updateSettingsUI();
+        saveSettings();
         return;
     }
 
@@ -2256,7 +2363,7 @@ function closeTemplateEditor(): void {
     closeDialog('#custom_generation_template_dialog');
 }
 
-function saveTemplateEditor(): void {
+function saveTemplateEditor(saveAs: boolean = false): void {
     const preset = getCurrentPreset();
     const nextTemplate = normalizeTemplate({
         decorator: $('#custom_generation_template_decorator').val() as Template['decorator'],
@@ -2289,6 +2396,27 @@ function saveTemplateEditor(): void {
     }
 
     const previousKey = entry.key;
+    if (saveAs) {
+        if (buildTemplateMatchKey(entry.template) === buildTemplateMatchKey(nextTemplate)) {
+            window.alert('Save As requires a different unique key from the original template.');
+            return;
+        }
+
+        if (templateUniqueKeyExists(preset.templates, nextTemplate)) {
+            window.alert(getTemplateDuplicateMessage(nextTemplate));
+            return;
+        }
+
+        const nextKey = getTemplateKey(nextTemplate, Object.keys(preset.templates));
+        preset.templates[nextKey] = nextTemplate;
+        selectedTemplateIndex = getTemplateCount(preset) - 1;
+        resetTemplateEditorDraft();
+        closeTemplateEditor();
+        updateSettingsUI();
+        saveSettings();
+        return;
+    }
+
     const nextKeys = Object.keys(preset.templates).filter(key => key !== previousKey);
     const nextKey = getTemplateKey(nextTemplate, nextKeys, previousKey);
 
@@ -3052,6 +3180,10 @@ function bindEvents() {
         savePromptEditor();
     });
 
+    $('#custom_generation_prompt_save_as').on('click', () => {
+        savePromptEditor(true);
+    });
+
     $('#custom_generation_prompt_delete').on('click', () => {
         deletePromptFromEditor();
     });
@@ -3064,6 +3196,10 @@ function bindEvents() {
         saveRegexEditor();
     });
 
+    $('#custom_generation_regex_save_as').on('click', () => {
+        saveRegexEditor(true);
+    });
+
     $('#custom_generation_regex_delete').on('click', () => {
         deleteRegexFromEditor();
     });
@@ -3074,6 +3210,10 @@ function bindEvents() {
 
     $('#custom_generation_template_save').on('click', () => {
         saveTemplateEditor();
+    });
+
+    $('#custom_generation_template_save_as').on('click', () => {
+        saveTemplateEditor(true);
     });
 
     $('#custom_generation_template_delete').on('click', () => {

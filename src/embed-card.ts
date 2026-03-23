@@ -1,11 +1,12 @@
 import { characters, this_chid, saveCharacterDebounced } from "@st/script.js";
-import { Preset, settings, saveSettings, updateSettingsUI } from '@/settings'
+import { settings, saveSettings, updateSettingsUI } from '@/settings'
 import { eventSource, event_types } from "@st/scripts/events.js";
 import { renderExtensionTemplateAsync } from '@st/scripts/extensions.js';
 import { v1CharData } from "@st/scripts/char-data.js";
 import { power_user } from "@st/scripts/power-user.js";
 import { accountStorage } from "@st/scripts/util/AccountStorage.js";
 import { callGenericPopup, POPUP_TYPE } from "@st/scripts/popup.js";
+import { Preset } from "@/utils/defines";
 
 let isEmbedCardEventsBound = false;
 

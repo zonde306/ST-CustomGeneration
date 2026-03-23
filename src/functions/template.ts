@@ -1,6 +1,7 @@
-import { settings, Template, PresetPrompt } from "@/settings";
+import { settings } from "@/settings";
 import { MessageBuilder } from "@/functions/message-builder";
 import { PromptFilter } from "@/functions/message-builder";
+import { Template, PresetPrompt } from "@/utils/defines";
 
 interface TemplateResult {
     success: boolean;
