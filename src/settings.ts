@@ -328,10 +328,10 @@ function getTemplateKey(template: Template, existingKeys: Iterable<string> = [],
     }
 
     let suffix = 2;
-    let candidate = `${baseKey}#${suffix}`;
+    let candidate = `${baseKey}:${suffix}`;
     while (taken.has(candidate) && candidate !== preferredKey) {
         suffix++;
-        candidate = `${baseKey}#${suffix}`;
+        candidate = `${baseKey}:${suffix}`;
     }
 
     return candidate;
@@ -1175,10 +1175,12 @@ async function importListFromFile(kind: ListExportKind, file: File): Promise<voi
 
     const preset = getCurrentPreset();
     if (kind === 'prompt') {
-        preset.prompts = preset.prompts.concat(normalized.items as PresetPrompt[]);
+        const exists = new Set((normalized.items as PresetPrompt[]).map(p => `${p.internal}:${p.name}`));
+        preset.prompts = preset.prompts.filter(p => !exists.has(`${p.internal}:${p.name}`)).concat(normalized.items as PresetPrompt[]);
         selectedPromptIndex = clamp(preset.prompts.length - 1, 0, Math.max(0, preset.prompts.length - 1));
     } else if (kind === 'regex') {
-        preset.regexs = preset.regexs.concat(normalized.items as RegEx[]);
+        const exists = new Set((normalized.items as RegEx[]).map(re => re.name));
+        preset.regexs = preset.regexs.filter(re => !exists.has(re.name)).concat(normalized.items as RegEx[]);
         selectedRegexIndex = clamp(preset.regexs.length - 1, 0, Math.max(0, preset.regexs.length - 1));
     } else {
         const templateList = normalized.items as Template[];
