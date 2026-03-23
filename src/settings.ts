@@ -877,9 +877,9 @@ function updateModelSelectOptions(): void {
     modelSelect.empty();
 
     if (candidateSet.size === 0) {
-        modelSelect.append('<option value="">(No models loaded)</option>');
+        modelSelect.append('<option value="" data-i18n="(No models loaded)">(No models loaded)</option>');
     } else {
-        modelSelect.append('<option value="">(Select a model)</option>');
+        modelSelect.append('<option value="" data-i18n="(Select a model)">(Select a model)</option>');
         for (const candidate of candidateSet) {
             modelSelect.append(`<option value="${candidate}">${candidate}</option>`);
         }
@@ -1800,7 +1800,7 @@ function updatePromptEditor() {
         internalSelect.empty();
         internalSelect.append('<option value="" data-i18n="none">none</option>');
         TEMPLATE_FILTER_OPTIONS.forEach((option) => {
-            internalSelect.append(`<option value="${option}">${option}</option>`);
+            internalSelect.append(`<option value="${option}" data-i18n="cg_${option}">${option}</option>`);
         });
     }
 
@@ -2499,7 +2499,7 @@ async function ensureModalTemplatesInjected(): Promise<void> {
     const decoratorSelect = $('#custom_generation_template_decorator');
     if (decoratorSelect.length && decoratorSelect.children().length === 0) {
         for (const decorator of KNOWN_DECORATORS) {
-            decoratorSelect.append(`<option value="${decorator}" data-i18n="cg-${decorator}">${decorator}</option>`);
+            decoratorSelect.append(`<option value="${decorator}" data-i18n="cg_${decorator}">${decorator}</option>`);
         }
     }
 

@@ -68,7 +68,7 @@ export class TemplateHandler {
 
         return {
             success: true,
-            content: matchs[1] ?? content,
+            content: matchs.groups?.content ?? matchs[1] ?? matchs[0] ?? content,
             arguments: matchs.groups ?? {},
         };
     }
@@ -91,7 +91,7 @@ export class TemplateHandler {
 
         return {
             success: true,
-            content: matchs[1] ?? content,
+            content: matchs.groups?.content ?? matchs[1] ?? matchs[0] ?? content,
             arguments: matchs.groups ?? {},
         };
     }

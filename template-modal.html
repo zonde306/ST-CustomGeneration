@@ -19,6 +19,9 @@
                 <input id="custom_generation_template_tag" class="text_pole" type="text" />
             </div>
         </div>
+        <small class="text_muted" data-i18n="cg_template_decorator_help">
+            In WI, this is utilized in the form of an `@@decorator` tag; if no matching tag is found, it falls back to an empty tag.
+        </small>
         <div class="completion_prompt_manager_popup_entry_form_control">
             <label for="custom_generation_template_filters">
                 <span data-i18n="Filters (comma separated)">Filters (comma separated)</span>
@@ -30,14 +33,28 @@
                 <span data-i18n="Regex">Regex</span>
             </label>
             <input id="custom_generation_template_regex" class="text_pole textarea_compact" rows="3" />
-            <small class="text_muted" data-i18n="cg_template_regex_help">e.g: /([\s\S]*)/gi</small>
+            <small class="text_muted">
+                <p data-i18n="cg_template_regex_help_1">Extract content from the generated output using a regular expression and process it; if no match is found, the operation is considered a failure.</p>
+                <p data-i18n="cg_template_regex_help_2">Select the content in the following order of priority:</p>
+                <p data-i18n="cg_template_regex_help_3">1. Named capture group `content`</p>
+                <p data-i18n="cg_template_regex_help_4">2. Unnamed capture group $1</p>
+                <p data-i18n="cg_template_regex_help_5">3. Unnamed capture group $0</p>
+                <p data-i18n="cg_template_regex_help_6">Example: /&lt;tag&gt;([\s\S]*)&lt;\/tag&gt;/i</p>
+            </small>
         </div>
         <div class="completion_prompt_manager_popup_entry_form_control">
             <label for="custom_generation_template_find_regex">
                 <span data-i18n="Find Regex">Find Regex</span>
             </label>
             <input id="custom_generation_template_find_regex" class="text_pole textarea_compact" rows="3" />
-            <small class="text_muted" data-i18n="cg_template_find_regex_help">e.g: /([\s\S]*)/gi</small>
+            <small class="text_muted">
+                <p data-i18n="cg_template_find_regex_help_1">Extract content from chat messages using regular expressions, then process it. If no match is found, the operation is considered a failure and no processing is triggered.</p>
+                <p data-i18n="cg_template_find_regex_help_2">Content is selected in the following order:</p>
+                <p data-i18n="cg_template_find_regex_help_3">1. Named capture group `content`</p>
+                <p data-i18n="cg_template_find_regex_help_4">2. Unnamed capture group $1</p>
+                <p data-i18n="cg_template_find_regex_help_5">3. Unnamed capture group $0</p>
+                <p data-i18n="cg_template_find_regex_help_6">Example: /&lt;tag&gt;([\s\S]*)&lt;\/tag&gt;/i</p>
+            </small>
         </div>
         <div class="flex-container alignItemsBaseline">
             <h3 class="margin0 flex1">
