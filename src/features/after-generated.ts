@@ -1,5 +1,5 @@
 import { TemplateHandler } from "@/functions/template";
-import { substituteParams } from "@st/script.js";
+import { substituteParams, messageFormatting, appendMediaToMessage, addCopyToCodeBlocks, name2 } from "@st/script.js";
 import { eventSource, event_types } from "@st/scripts/events.js";
 import { world_info_depth } from "@st/scripts/world-info.js";
 import { getActivatedEntries, DecoratorParser } from "@/functions/worldinfo";
@@ -130,6 +130,7 @@ async function processMessage(env: Context, override: DataOverride) {
 
             // Reduce Attention Depletion
             ctx.filters = template.filters;
+            const messageId = env.chat.length - 1;
             
             generate(ctx, 3, decorator, { validator: async(response) => {
                 response = Array.isArray(response) ? response : [ response ];
@@ -144,7 +145,7 @@ async function processMessage(env: Context, override: DataOverride) {
                             override,
                             decorator: parsed,
                             env,
-                            messageId: env.chat.length - 1,
+                            messageId,
                         })) {
                             return true;
                         }
@@ -161,11 +162,13 @@ async function processMessage(env: Context, override: DataOverride) {
 
                 if(activeTasks <= 0) {
                     toastr.success('All after generate tasks ended', 'After Generate');
+                    refreshMessage(messageId);
                 }
             }).then(() => {
                 activeTasks -= 1;
                 if(activeTasks <= 0) {
                     toastr.success('All after generate tasks ended', 'After Generate');
+                    refreshMessage(messageId);
                 }
             });
             activeTasks += 1;
@@ -252,4 +255,32 @@ function stopActiveTasks() {
             activeTasks = 0;
         }
     }
+}
+
+async function refreshMessage(messageId: number) {
+    const div = $(`[mesid=${messageId}]`);
+    if(!div?.length || !div?.find(".mes_text")?.length)
+        return;
+
+    // If the message is being edited, don't refresh
+    if(div?.find("#curEditTextarea")?.length)
+        return;
+
+    const message = Context.global().chat[messageId];
+    if(!message?.mes)
+        return;
+
+    div.find(".mes_text").empty().append(messageFormatting(
+        message.mes ?? '',
+        message.name ?? name2,
+        message.is_system ?? false,
+        message.is_user ?? false,
+        messageId,
+        {},
+        false,
+    ));
+    appendMediaToMessage(message, div);
+    addCopyToCodeBlocks(div);
+
+    await eventSource.emit(event_types.MESSAGE_UPDATED, messageId);
 }
