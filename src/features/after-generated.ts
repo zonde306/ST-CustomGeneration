@@ -1,5 +1,5 @@
 import { TemplateHandler } from "@/functions/template";
-import { substituteParams, messageFormatting, appendMediaToMessage, addCopyToCodeBlocks, name2 } from "@st/script.js";
+import { substituteParams, messageFormatting, appendMediaToMessage, addCopyToCodeBlocks, name2, saveChatDebounced } from "@st/script.js";
 import { eventSource, event_types } from "@st/scripts/events.js";
 import { world_info_depth } from "@st/scripts/world-info.js";
 import { getActivatedEntries, DecoratorParser } from "@/functions/worldinfo";
@@ -283,4 +283,5 @@ async function refreshMessage(messageId: number) {
     addCopyToCodeBlocks(div);
 
     await eventSource.emit(event_types.MESSAGE_UPDATED, messageId);
+    saveChatDebounced();
 }

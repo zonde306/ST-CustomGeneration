@@ -17,9 +17,32 @@
         </div>
     </form>
     <style>
+        #custom_generation_overrides_dialog {
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        #custom_generation_overrides_dialog[open] {
+            max-height: min(86vh, 760px);
+            overflow: hidden;
+        }
+
         #custom_generation_overrides_dialog .completion_prompt_manager_popup_entry_form {
             width: min(920px, 92vw);
             max-width: 92vw;
+            max-height: min(calc(86vh - 24px), 720px);
+            margin: 5px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        #custom_generation_overrides_dialog .flex-container,
+        #custom_generation_overrides_dialog .completion_prompt_manager_popup_entry_form_control,
+        #custom_generation_overrides_dialog .flex-container > *,
+        #custom_generation_overrides_dialog small {
+            min-width: 0;
+            max-width: 100%;
             box-sizing: border-box;
         }
 
@@ -28,12 +51,18 @@
             max-width: 100%;
             align-items: stretch;
             gap: 10px;
+            max-height: min(calc(86vh - 180px), 560px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 4px;
+            box-sizing: border-box;
         }
 
         #custom_generation_overrides_list > * {
             width: 100%;
             max-width: 100%;
             box-sizing: border-box;
+            flex-shrink: 0;
         }
 
         .custom_generation_overrides_section {
@@ -58,6 +87,7 @@
             flex-direction: column;
             gap: 6px;
             padding: 6px;
+            min-width: 0;
         }
 
         .custom_generation_overrides_entry {
@@ -73,6 +103,7 @@
             gap: 8px;
             padding: 4px 6px;
             cursor: pointer;
+            min-width: 0;
         }
 
         .custom_generation_overrides_summary::-webkit-details-marker {
@@ -86,6 +117,7 @@
         .custom_generation_overrides_caret {
             transition: transform var(--animation-duration-2x);
             opacity: 0.7;
+            flex-shrink: 0;
         }
 
         .custom_generation_overrides_entry[open] .custom_generation_overrides_caret {
@@ -121,6 +153,7 @@
             align-items: center;
             gap: 6px;
             flex-shrink: 0;
+            min-width: 0;
         }
 
         .custom_generation_overrides_badge {
@@ -129,6 +162,7 @@
             border: 1px solid var(--SmartThemeBorderColor);
             border-radius: 999px;
             opacity: 0.9;
+            max-width: 100%;
         }
 
         .custom_generation_overrides_body {
@@ -136,6 +170,7 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
+            min-width: 0;
         }
 
         .custom_generation_overrides_info {
@@ -143,15 +178,18 @@
             flex-wrap: wrap;
             gap: 6px 12px;
             font-size: 0.9em;
+            min-width: 0;
         }
 
         .custom_generation_overrides_info_item {
             display: flex;
             gap: 6px;
+            min-width: 0;
         }
 
         .custom_generation_overrides_info_label {
             opacity: 0.75;
+            flex-shrink: 0;
         }
 
         .custom_generation_overrides_block_title {
@@ -161,14 +199,17 @@
 
         .custom_generation_overrides_pre {
             white-space: pre-wrap;
+            overflow-wrap: anywhere;
             background-color: var(--SmartThemeBlurTintColor);
             border: 1px solid var(--SmartThemeBorderColor);
             border-radius: 5px;
             padding: 6px 8px;
-            max-height: 320px;
+            max-height: min(32vh, 320px);
             overflow: auto;
             font-family: var(--mono-font, monospace);
             font-size: 0.85em;
+            max-width: 100%;
+            box-sizing: border-box;
         }
     </style>
 </dialog>
