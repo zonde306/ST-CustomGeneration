@@ -1175,17 +1175,46 @@ async function importListFromFile(kind: ListExportKind, file: File): Promise<voi
 
     const preset = getCurrentPreset();
     if (kind === 'prompt') {
-        const exists = new Set((normalized.items as PresetPrompt[]).map(p => `${p.internal}:${p.name}`));
-        preset.prompts = preset.prompts.filter(p => !exists.has(`${p.internal}:${p.name}`)).concat(normalized.items as PresetPrompt[]);
+        const incomingPrompts = normalized.items as PresetPrompt[];
+        const promptIndexMap = new Map(preset.prompts.map((p, index) => [`${p.internal}:${p.name}`, index]));
+        for (const prompt of incomingPrompts) {
+            const key = `${prompt.internal}:${prompt.name}`;
+            const existingIndex = promptIndexMap.get(key);
+            if (existingIndex !== undefined) {
+                preset.prompts[existingIndex] = prompt;
+            } else {
+                promptIndexMap.set(key, preset.prompts.length);
+                preset.prompts.push(prompt);
+            }
+        }
         selectedPromptIndex = clamp(preset.prompts.length - 1, 0, Math.max(0, preset.prompts.length - 1));
     } else if (kind === 'regex') {
-        const exists = new Set((normalized.items as RegEx[]).map(re => re.name));
-        preset.regexs = preset.regexs.filter(re => !exists.has(re.name)).concat(normalized.items as RegEx[]);
+        const incomingRegexs = normalized.items as RegEx[];
+        const regexIndexMap = new Map(preset.regexs.map((re, index) => [re.name, index]));
+        for (const regex of incomingRegexs) {
+            const existingIndex = regexIndexMap.get(regex.name);
+            if (existingIndex !== undefined) {
+                preset.regexs[existingIndex] = regex;
+            } else {
+                regexIndexMap.set(regex.name, preset.regexs.length);
+                preset.regexs.push(regex);
+            }
+        }
         selectedRegexIndex = clamp(preset.regexs.length - 1, 0, Math.max(0, preset.regexs.length - 1));
     } else {
         const templateList = normalized.items as Template[];
-        const templateMap = buildTemplateMap(templateList, Object.keys(preset.templates));
-        Object.assign(preset.templates, templateMap);
+        const existingTemplateKeys = Object.keys(preset.templates);
+        const templateMap = buildTemplateMap(templateList, existingTemplateKeys);
+        const mergedTemplates: typeof preset.templates = {};
+        for (const key of existingTemplateKeys) {
+            mergedTemplates[key] = templateMap[key] ?? preset.templates[key];
+        }
+        for (const key of Object.keys(templateMap)) {
+            if (!(key in mergedTemplates)) {
+                mergedTemplates[key] = templateMap[key];
+            }
+        }
+        preset.templates = mergedTemplates;
         selectedTemplateIndex = clamp(getTemplateCount(preset) - 1, 0, Math.max(0, getTemplateCount(preset) - 1));
     }
 
