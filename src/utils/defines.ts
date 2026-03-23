@@ -1,4 +1,5 @@
 import { ReasoningType } from "@st/scripts/reasoning.js";
+import { PromptFilter } from '@/functions/message-builder';
 
 type TextContent = {
     type: "text";
@@ -283,3 +284,227 @@ export interface WorldInfoLoaded {
     chatLore: WorldInfoEntry[];
     personaLore: WorldInfoEntry[];
 }
+
+
+export interface PresetPrompt {
+    // A name for this prompt. (displayed in the UI)
+    name: string;
+
+    // To whom this message will be attributed.
+    role: 'user' | 'assistant' | 'system';
+
+    // Filter to specific generation types. empty means all.
+    triggers: (typeof KNOWN_DECORATORS[number] | string)[];
+
+    // content (User-defined only)
+    prompt: string;
+
+    // Relative (to other prompts in prompt manager) or In-chat @ Depth.
+    injectionPosition: 'relative' | 'inChat';
+
+    // null will not be displayed in the list.
+    enabled: boolean | null;
+
+    // built-in prompts or user-defined
+    internal: (typeof TEMPLATE_FILTER_OPTIONS[number]) | null;
+
+    // (for inChat injectionPosition) 0 = after the last message, 1 = before the last message, etc.
+    injectionDepth: number;
+
+    // (for inChat injectionPosition) Ordered from low/top to high/bottom, and at same order: Assistant, User, System.
+    injectionOrder: number;
+
+    // How many messages to retain (chatHistory only)
+    maxDepth: number;
+}
+
+export interface RegEx {
+    // Script name  (displayed in the UI)
+    name: string;
+
+    // Find Regex (/.../ or plain text)
+    regex: string;
+
+    // Replace Regex (use $1, $2, ... to refer to the matched groups)
+    replace: string;
+
+    // affects for user input
+    userInput: boolean;
+
+    // affects for AI output (assistant)
+    aiOutput: boolean;
+
+    // affects for world info
+    worldInfo: boolean;
+
+    enabled: boolean;
+
+    // Min Depth
+    minDepth: number | null;
+
+    // Max Depth
+    maxDepth: number | null;
+
+    // The original text will not be modified.
+    ephemerality: boolean;
+
+    // affects for generation request
+    request: boolean;
+
+    // affects for generation response
+    response: boolean;
+}
+
+export interface Template {
+    // e.g: @@record, must in KNOWN_DECORATORS lists
+    decorator: typeof KNOWN_DECORATORS[number];
+
+    // can be empty, used by (@@<decorator> <tag>)
+    tag: string;
+
+    // template prompts
+    prompts: PresetPrompt[];
+
+    // Generate a result that matches the regex, and pass Capture Group 1.
+    // if regex is empty, will not be used.
+    regex: string;
+
+    // Processing is triggered only when the regex matches, treating the captured group as {{lastCharMessage}}.
+    // if regex is empty, will not be used.
+    findRegex: string;
+
+    // Disable specific prompts, see PromptFilter
+    filters: (keyof PromptFilter)[];
+}
+
+export interface Preset {
+    // preset group name (displayed in the UI)
+    name: string;
+
+    // preset prompts
+    prompts: PresetPrompt[];
+
+    // preset regexs
+    regexs: RegEx[];
+
+    // templates
+    templates: Record<string, Template>;
+}
+
+export interface Settings {
+    // Custom Endpoint (Base URL)
+    baseUrl: string;
+
+    // Custom API Key (Optional)
+    apiKey: string;
+
+    // Model ID
+    model: string;
+
+    // Context Size (tokens)
+    contextSize: number;
+
+    // Max Response Length (tokens)
+    maxTokens: number;
+
+    // temperature 0.00~2.00
+    temperature: number;
+
+    // top-k sampling 0~40
+    topK: number;
+
+    // Top P sampling 0.00~1.00
+    topP: number;
+
+    // Frequency Penalty -2.00~2.00
+    frequencyPenalty: number;
+
+    // Presence Penalty -2.00~2.00
+    presencePenalty: number;
+
+    // streaming mode
+    stream: boolean;
+
+    // Additional Parameters: request headers
+    includeHeaders: Record<string, unknown>;
+
+    // Additional Parameters: body
+    includeBody: Record<string, unknown>;
+
+    // Additional Parameters: exclude body
+    excludeBody: Record<string, unknown>;
+
+    // Prompt Post-Processing
+    // like: https://docs.sillytavern.app/usage/api-connections/openai/#prompt-post-processing
+    promptPostProcessing: 'none' | 'merge' | 'semi' | 'strict' | 'single';
+
+    // openai presets, cannot be empty
+    presets: Record<string, Preset>;
+
+    // default preset (current active preset)
+    currentPreset: string;
+}
+
+export interface ExportPayload {
+    version: string;
+    presets: Preset[];
+    currentPreset: number;
+    apiConnection?: {
+        baseUrl: string;
+        model: string;
+        contextSize: number;
+        maxTokens: number;
+        temperature: number;
+        topK: number;
+        topP: number;
+        frequencyPenalty: number;
+        presencePenalty: number;
+        promptPostProcessing: Settings['promptPostProcessing'];
+        includeHeaders: Record<string, unknown>;
+        includeBody: Record<string, unknown>;
+        excludeBody: Record<string, unknown>;
+    };
+}
+
+export type ListExportKind = 'prompt' | 'regex' | 'template';
+
+export type ListExportItem = {
+    id: string;
+    label: string;
+    checked: boolean;
+    data: PresetPrompt | RegEx | Template;
+};
+
+export type ListExportDialogState = {
+    kind: ListExportKind | null;
+    items: ListExportItem[];
+};
+
+export interface ListExportPayload {
+    version: string;
+    kind: ListExportKind;
+    items: Array<PresetPrompt | RegEx | Template>;
+}
+
+export interface ImportPayload {
+    version?: unknown;
+    presets?: unknown;
+    currentPreset?: unknown;
+    apiConnection?: {
+        baseUrl?: unknown;
+        model?: unknown;
+        contextSize?: unknown;
+        maxTokens?: unknown;
+        temperature?: unknown;
+        topK?: unknown;
+        topP?: unknown;
+        frequencyPenalty?: unknown;
+        presencePenalty?: unknown;
+        promptPostProcessing?: unknown;
+        includeHeaders?: unknown;
+        includeBody?: unknown;
+        excludeBody?: unknown;
+        apiKey?: unknown;
+    };
+}
+

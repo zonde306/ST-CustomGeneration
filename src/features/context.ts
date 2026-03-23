@@ -10,13 +10,15 @@ import {
     substituteParams,
     refreshSwipeButtons,
 } from '@st/script.js';
-import { settings, Preset, defaultPreset } from '@/settings';
+import { settings } from '@/settings';
 import { generate as runGenerate, ApiConfig } from '@/functions/generate';
 import { MessageBuilder, PromptFilter, MacroOverride } from '@/functions/message-builder';
 import { ContextRole } from '@/utils/defines'
 import { runRegexScript, substitute_find_regex } from "@/../../../regex/engine.js";
 import { eventTypes } from '@/utils/events';
 import { DynamicMacroValue } from "@st/scripts/macros/engine/MacroEnv.types.js";
+import { Preset } from '@/utils/defines';
+import { defaultPreset } from '@/utils/default-settings';
 
 type VariableData = Record<string, any>;
 type ChatMessageEx = ChatMessage & { variables?: VariableData[] };

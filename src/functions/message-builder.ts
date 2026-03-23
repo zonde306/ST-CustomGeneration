@@ -20,10 +20,11 @@ import { world_info_depth } from '@st/scripts/world-info.js';
 import { inject_ids } from '@st/scripts/constants.js';
 import { settings } from '@/settings';
 import { GenerateOptionsLite, ContextRole } from "@/utils/defines";
-import { Preset, defaultPreset, RegEx, PresetPrompt } from "@/settings";
+import { Preset, RegEx, PresetPrompt } from "@/utils/defines";
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
 import { wi_anchor_position } from '@st/scripts/world-info.js';
 import { DynamicMacroValue } from '@st/scripts/macros/engine/MacroEnv.types.js';
+import { defaultPreset } from "@/utils/default-settings";
 
 interface ExtensionPrompts {
     value: string,
