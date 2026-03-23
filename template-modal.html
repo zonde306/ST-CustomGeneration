@@ -33,7 +33,7 @@
                 <span data-i18n="Regex">Regex</span>
             </label>
             <input id="custom_generation_template_regex" class="text_pole textarea_compact" rows="3" />
-            <small class="text_muted">
+            <small class="text_muted p_compact">
                 <p data-i18n="cg_template_regex_help_1">Extract content from the generated output using a regular expression and process it; if no match is found, the operation is considered a failure.</p>
                 <p data-i18n="cg_template_regex_help_2">Select the content in the following order of priority:</p>
                 <p data-i18n="cg_template_regex_help_3">1. Named capture group `content`</p>
@@ -47,7 +47,7 @@
                 <span data-i18n="Find Regex">Find Regex</span>
             </label>
             <input id="custom_generation_template_find_regex" class="text_pole textarea_compact" rows="3" />
-            <small class="text_muted">
+            <small class="text_muted p_compact">
                 <p data-i18n="cg_template_find_regex_help_1">Extract content from chat messages using regular expressions, then process it. If no match is found, the operation is considered a failure and no processing is triggered.</p>
                 <p data-i18n="cg_template_find_regex_help_2">Content is selected in the following order:</p>
                 <p data-i18n="cg_template_find_regex_help_3">1. Named capture group `content`</p>
@@ -74,4 +74,11 @@
             </div>
         </div>
     </form>
+
+    <style>
+        .p_compact > p {
+            margin: 0px;
+            padding: 0px;
+        }
+    </style>
 </dialog>
