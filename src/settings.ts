@@ -238,7 +238,7 @@ export const defaultTemplate: Template = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enabled: false,
+            enabled: true,
             internal: 'charNote',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
@@ -250,7 +250,7 @@ export const defaultTemplate: Template = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enabled: false,
+            enabled: true,
             internal: 'authorsNote',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
@@ -262,7 +262,7 @@ export const defaultTemplate: Template = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enabled: false,
+            enabled: true,
             internal: 'worldInfoDepth4',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
@@ -286,7 +286,7 @@ export const defaultTemplate: Template = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enabled: false,
+            enabled: true,
             internal: 'worldInfoDepth3',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
@@ -310,7 +310,7 @@ export const defaultTemplate: Template = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enabled: false,
+            enabled: true,
             internal: 'worldInfoDepth2',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
@@ -334,7 +334,7 @@ export const defaultTemplate: Template = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enabled: false,
+            enabled: true,
             internal: 'worldInfoDepth1',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
@@ -358,7 +358,7 @@ export const defaultTemplate: Template = {
             triggers: [],
             prompt: '',
             injectionPosition: 'relative',
-            enabled: false,
+            enabled: true,
             internal: 'worldInfoDepth0',
             injectionDepth: DEFAULT_DEPTH,
             injectionOrder: DEFAULT_WEIGHT,
@@ -1220,13 +1220,27 @@ function normalizeSelectValues(value: unknown): string[] {
     return [];
 }
 
-function ensureSelectOptions(select: JQuery, options: string[]): void {
+function normalizePromptInternal(value: unknown): PresetPrompt['internal'] {
+    const text = String(value ?? '').trim();
+    return text ? text as PresetPrompt['internal'] : null;
+}
+
+function ensurePromptInternalOption(select: JQuery, value: PresetPrompt['internal']): void {
+    const normalized = String(value ?? '').trim();
+    if (!normalized) {
+        return;
+    }
+
+    ensureSelectOption(select, normalized);
+}
+
+function ensureSelectOptions(select: JQuery, options: Array<string | number>): void {
     options.forEach((option) => {
         ensureSelectOption(select, option);
     });
 }
 
-function ensureSelectOption(select: JQuery, option: string): void {
+function ensureSelectOption(select: JQuery, option: string | number): void {
     const value = String(option);
     const exists = select.find('option').toArray().some(item => String($(item).val()) === value);
     if (!exists) {
@@ -1238,7 +1252,7 @@ function getSelectValues(selector: string): string[] {
     return normalizeSelectValues($(selector).val());
 }
 
-function setSelectValues(selector: string, values: string[]): void {
+function setSelectValues(selector: string, values: Array<string | number>): void {
     const select = $(selector);
     const normalized = values.map(value => String(value).trim()).filter(Boolean);
     normalized.forEach(value => ensureSelectOption(select, value));
@@ -1354,7 +1368,7 @@ function normalizePrompt(input: Partial<PresetPrompt>, fallbackName: string): Pr
         prompt: String(input.prompt ?? ''),
         injectionPosition,
         enabled: enable,
-        internal: input.internal ?? null,
+        internal: normalizePromptInternal(input.internal),
         injectionDepth,
         injectionOrder,
         maxDepth,
@@ -2426,7 +2440,6 @@ function buildPromptRow(prompt: PresetPrompt, index: number) {
     const editButton = $('<i class="menu_button fa-solid fa-pen-to-square" title="Edit" data-i18n="[title]Edit"></i>');
     const exportButton = $('<i class="menu_button fa-solid fa-file-export" title="Export" data-i18n="[title]Export"></i>');
     const deleteButton = $('<i class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></i>');
-    deleteButton.toggle(prompt.internal === null);
     actions.append(editButton, exportButton, deleteButton);
 
     row.on('click', () => {
@@ -2699,6 +2712,7 @@ function setPromptEditorEnabled(enabled: boolean) {
         '#custom_generation_prompt_injection_order',
         '#custom_generation_prompt_max_depth',
         '#custom_generation_prompt_triggers',
+        '#custom_generation_prompt_internal',
         '#custom_generation_prompt_enable',
         '#custom_generation_prompt_content',
         '#custom_generation_prompt_delete',
@@ -2715,12 +2729,12 @@ function updatePromptInjectionControlsVisibility(position: string): void {
     $('#custom_generation_prompt_inchat_controls').toggle(isInChat);
 }
 
-function updatePromptChatHistoryControlsVisibility(prompt: PresetPrompt | null): void {
-    const shouldShow = Boolean(prompt?.internal === 'chatHistory');
-    const controls = $('#custom_generation_prompt_chat_history_controls');
-    const maxDepthInput = $('#custom_generation_prompt_max_depth');
-    controls.toggle(shouldShow);
-    maxDepthInput.prop('disabled', !shouldShow);
+function updatePromptInternalControls(internal: PresetPrompt['internal']): void {
+    const shouldShowChatHistoryControls = internal === 'chatHistory';
+    const isNonMainInternalPrompt = internal !== null && internal !== 'main';
+    $('#custom_generation_prompt_chat_history_controls').toggle(shouldShowChatHistoryControls);
+    $('#custom_generation_prompt_max_depth').prop('disabled', !shouldShowChatHistoryControls);
+    $('#custom_generation_prompt_content').prop('disabled', isNonMainInternalPrompt);
 }
 
 function setRegexEditorEnabled(enabled: boolean) {
@@ -2844,6 +2858,15 @@ function updatePromptEditor() {
 
     isUpdatingUI = true;
 
+    const internalSelect = $('#custom_generation_prompt_internal');
+    if (internalSelect.length) {
+        internalSelect.empty();
+        internalSelect.append('<option value="" data-i18n="none">none</option>');
+        TEMPLATE_FILTER_OPTIONS.forEach((option) => {
+            internalSelect.append(`<option value="${option}">${option}</option>`);
+        });
+    }
+
     if (!prompt) {
         setPromptEditorEnabled(false);
         $('#custom_generation_prompt_name').val('');
@@ -2853,16 +2876,18 @@ function updatePromptEditor() {
         $('#custom_generation_prompt_injection_order').val(DEFAULT_WEIGHT);
         $('#custom_generation_prompt_max_depth').val(999);
         updatePromptInjectionControlsVisibility('relative');
-        updatePromptChatHistoryControlsVisibility(null);
+        $('#custom_generation_prompt_internal').val('');
+        updatePromptInternalControls(null);
         setSelectValues('#custom_generation_prompt_triggers', []);
         $('#custom_generation_prompt_enable').prop('checked', false);
         $('#custom_generation_prompt_content').val('');
-        $('#custom_generation_prompt_max_depth').prop('disabled', true);
+        $('#custom_generation_prompt_delete').toggle(false);
         isUpdatingUI = false;
         return;
     }
 
     setPromptEditorEnabled(true);
+    ensurePromptInternalOption(internalSelect, prompt.internal);
     $('#custom_generation_prompt_name').val(prompt.name);
     $('#custom_generation_prompt_role').val(prompt.role);
     $('#custom_generation_prompt_injection_position').val(prompt.injectionPosition);
@@ -2870,15 +2895,12 @@ function updatePromptEditor() {
     $('#custom_generation_prompt_injection_order').val(parseNumber(prompt.injectionOrder, DEFAULT_WEIGHT, -1_000_000, 1_000_000, true));
     $('#custom_generation_prompt_max_depth').val(parseNumber(prompt.maxDepth, 999, 0, 9999, true));
     updatePromptInjectionControlsVisibility(prompt.injectionPosition);
-    updatePromptChatHistoryControlsVisibility(prompt);
+    $('#custom_generation_prompt_internal').val(String(prompt.internal ?? ''));
+    updatePromptInternalControls(prompt.internal);
     setSelectValues('#custom_generation_prompt_triggers', prompt.triggers);
     $('#custom_generation_prompt_enable').prop('checked', prompt.enabled === true);
     $('#custom_generation_prompt_content').val(prompt.prompt);
-
-    const isInternalPrompt = prompt.internal !== null;
-    const isNonMainInternalPrompt = prompt.internal !== null && prompt.internal !== 'main';
-    $('#custom_generation_prompt_content').prop('disabled', isNonMainInternalPrompt);
-    $('#custom_generation_prompt_delete').toggle(!isInternalPrompt && !isCreatingPrompt && !isCreatingTemplatePrompt);
+    $('#custom_generation_prompt_delete').toggle(!isCreatingPrompt && !isCreatingTemplatePrompt);
 
     isUpdatingUI = false;
 }
@@ -3012,7 +3034,7 @@ function savePromptEditor(): void {
             prompt: String($('#custom_generation_prompt_content').val() ?? ''),
             injectionPosition: String($('#custom_generation_prompt_injection_position').val() ?? 'relative') as PresetPrompt['injectionPosition'],
             enabled: Boolean($('#custom_generation_prompt_enable').prop('checked')),
-            internal: null,
+            internal: normalizePromptInternal($('#custom_generation_prompt_internal').val()),
             injectionDepth: parseNumber($('#custom_generation_prompt_injection_depth').val(), DEFAULT_DEPTH, 0, 9999, true),
             injectionOrder: parseNumber($('#custom_generation_prompt_injection_order').val(), DEFAULT_WEIGHT, -1_000_000, 1_000_000, true),
             maxDepth: parseNumber($('#custom_generation_prompt_max_depth').val(), 999, 0, 9999, true),
@@ -3042,6 +3064,7 @@ function savePromptEditor(): void {
         prompt.prompt = nextPrompt.prompt;
         prompt.injectionPosition = nextPrompt.injectionPosition;
         prompt.enabled = nextPrompt.enabled;
+        prompt.internal = nextPrompt.internal;
         prompt.injectionDepth = nextPrompt.injectionDepth;
         prompt.injectionOrder = nextPrompt.injectionOrder;
         prompt.maxDepth = nextPrompt.maxDepth;
@@ -3061,7 +3084,7 @@ function savePromptEditor(): void {
         prompt: String($('#custom_generation_prompt_content').val() ?? ''),
         injectionPosition: String($('#custom_generation_prompt_injection_position').val() ?? 'relative') as PresetPrompt['injectionPosition'],
         enabled: Boolean($('#custom_generation_prompt_enable').prop('checked')),
-        internal: null,
+        internal: normalizePromptInternal($('#custom_generation_prompt_internal').val()),
         injectionDepth: parseNumber($('#custom_generation_prompt_injection_depth').val(), DEFAULT_DEPTH, 0, 9999, true),
         injectionOrder: parseNumber($('#custom_generation_prompt_injection_order').val(), DEFAULT_WEIGHT, -1_000_000, 1_000_000, true),
         maxDepth: parseNumber($('#custom_generation_prompt_max_depth').val(), 999, 0, 9999, true),
@@ -3091,6 +3114,7 @@ function savePromptEditor(): void {
     prompt.prompt = nextPrompt.prompt;
     prompt.injectionPosition = nextPrompt.injectionPosition;
     prompt.enabled = nextPrompt.enabled;
+    prompt.internal = nextPrompt.internal;
     prompt.injectionDepth = nextPrompt.injectionDepth;
     prompt.injectionOrder = nextPrompt.injectionOrder;
     prompt.maxDepth = nextPrompt.maxDepth;
@@ -4072,6 +4096,15 @@ function bindEvents() {
 
         const position = String($('#custom_generation_prompt_injection_position').val() ?? 'relative');
         updatePromptInjectionControlsVisibility(position);
+    });
+
+    $('#custom_generation_prompt_internal').on('change', () => {
+        if (isUpdatingUI) {
+            return;
+        }
+
+        const internal = normalizePromptInternal($('#custom_generation_prompt_internal').val());
+        updatePromptInternalControls(internal);
     });
 
     $('#custom_generation_prompt_cancel').on('click', () => {
