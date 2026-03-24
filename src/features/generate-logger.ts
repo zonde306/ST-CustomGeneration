@@ -200,14 +200,59 @@ function buildLoggerInfoItem(label: string, value: string): JQuery<HTMLElement> 
     return item;
 }
 
+async function copyTextToClipboard(text: string): Promise<void> {
+    if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'readonly');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+
+    const host = document.body ?? document.documentElement;
+    host.append(textarea);
+    textarea.focus();
+    textarea.select();
+
+    const copied = document.execCommand('copy');
+    textarea.remove();
+
+    if (!copied) {
+        throw new Error('Copy failed');
+    }
+}
+
+function createCopyButton(content: string): JQuery<HTMLElement> {
+    const button = $('<button class="menu_button fa-solid fa-copy custom_generation_copy_button" type="button" title="Copy" data-i18n="[title]Copy"></button>');
+    button.on('click', async (event: JQuery.ClickEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        try {
+            await copyTextToClipboard(content);
+            toastr.success('Copied to clipboard', 'Copy');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error ?? 'Copy failed');
+            toastr.error(message, 'Copy');
+        }
+    });
+    return button;
+}
+
 function buildLoggerBlock(title: string, content: string, blockClass?: string): JQuery<HTMLElement> {
     const block = $('<div></div>');
     if (blockClass) {
         block.addClass(blockClass);
     }
+    const header = $('<div class="custom_generation_logger_block_header_row"></div>');
     const titleEl = $('<div class="custom_generation_logger_block_title"></div>').text(title);
+    const copyButton = createCopyButton(content);
     const pre = $('<pre class="custom_generation_logger_pre"></pre>').text(content);
-    block.append(titleEl, pre);
+    header.append(titleEl, copyButton);
+    block.append(header, pre);
     return block;
 }
 
