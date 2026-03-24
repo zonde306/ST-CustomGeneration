@@ -48,18 +48,27 @@
         }
 
         #custom_generation_overrides_dialog .justifySpaceBetween {
-            flex-wrap: wrap;
+            width: 100%;
+            justify-content: flex-end;
+            align-items: center;
             gap: 8px;
         }
 
         #custom_generation_overrides_dialog .justifySpaceBetween > :first-child {
-            flex: 1 1 auto;
+            display: none;
         }
 
         #custom_generation_overrides_dialog .justifySpaceBetween > .flex-container:last-child {
-            margin-left: auto;
-            flex-wrap: wrap;
+            width: 100%;
+            max-width: 100%;
+            display: flex;
             justify-content: flex-end;
+        }
+
+        #custom_generation_overrides_close {
+            margin: 0;
+            min-width: 0;
+            max-width: 100%;
         }
 
         #custom_generation_overrides_list {
