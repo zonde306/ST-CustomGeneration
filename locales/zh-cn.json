@@ -60,5 +60,6 @@
 	"During response": "响应的内容",
 	"cg_prompt_internal_help": "在生成时动态获取提示词内容，而不是自己填写",
 	"(No models loaded)": "(没有模型加载)",
-	"(Select a model)": "(选择一个模型)"
+	"(Select a model)": "(选择一个模型)",
+	"Save As": "另存为"
 }

@@ -110,7 +110,7 @@ async function processMessage(env: Context, override: DataOverride) {
                 continue;
             }
 
-            const messageContent = messages.findLast(msg => !msg.is_system && !msg.is_user)?.mes ?? messages[messages.length - 1]?.mes ?? '';
+            const messageContent = messages.filter(msg => !msg.is_system && !msg.is_user)?.map(msg => msg.mes ?? '').join('\n\n');
             const testing = template.test(messageContent);
             if(!testing.success) {
                 console.warn(`Failed to test message for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
@@ -126,6 +126,7 @@ async function processMessage(env: Context, override: DataOverride) {
                 'message': substituteParams(testing.content ?? ''),
                 'original': substituteParams(parsed.cleanContent),
                 'current': () => substituteParams(override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent),
+                ...testing.arguments ?? {},
             };
 
             // Reduce Attention Depletion
