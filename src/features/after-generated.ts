@@ -31,15 +31,22 @@ export interface DecoratorProcessData {
 type DecoratorProcessor = (e: DecoratorProcessData) => (boolean | Promise<boolean>);
 
 export const WI_DECORATOR_MAPPING = new Map<string, DecoratorProcessor>();
+export const WI_DECORATOR_BEFORE_MAPPING = new Map<string, DecoratorProcessor>();
 
 // Execute only; do not participate in generation.
 export const NOT_ALLOWED_DECORATORS = [
     '@@variables_json',
+    '@@variables_json_before',
     '@@variables_yaml',
+    '@@variables_yaml_before',
     '@@variables_jsonpatch',
+    '@@variables_jsonpatch_before',
     '@@evaluate_ejs',
+    '@@evaluate_ejs_before',
     '@@append_output',
+    '@@append_output_before',
     '@@append_output_ejs',
+    '@@append_output_ejs_before',
 ];
 
 let isPostGenerating = false;
@@ -68,10 +75,10 @@ export async function setup() {
 export async function runAfterGenerates() {
     const env = Context.global();
     const override = new DataOverride(env.chat, env.chat_metadata);
-    await processMessage(env, override);
+    await processMessage(env, override, false);
 }
 
-async function processMessage(env: Context, override: DataOverride) {
+async function processMessage(env: Context, override: DataOverride, before: boolean = false) {
     const messages = env.chat.slice(-world_info_depth);
 
     isPostGenerating = true;
@@ -84,17 +91,18 @@ async function processMessage(env: Context, override: DataOverride) {
     if(activeTasks > 0 && !abortController?.signal?.aborted) {
         abortController?.abort();
         activeTasks = 0;
-        toastr.warning(`Aborting previous after-generate`);
+        toastr.warning(`Aborting previous ${before ? 'before' : 'after'}-generate`);
     }
 
     abortController = new AbortController();
-    toastr.info(`Running after-generate`);
+    toastr.info(`Running ${before ? 'before' : 'after'}-generate`);
 
     const cache = new Map<string, TemplateHandler>();
+    const tasks: Promise<void>[] = [];
     for(const entry of entries) {
         const parsed = new DecoratorParser(entry);
         for(const [idx, decorator] of Object.entries(parsed.decorators)) {
-            const processor = WI_DECORATOR_MAPPING.get(decorator);
+            const processor = before ? WI_DECORATOR_BEFORE_MAPPING.get(decorator) : WI_DECORATOR_MAPPING.get(decorator);
             if(!processor)
                 continue;
 
@@ -114,7 +122,7 @@ async function processMessage(env: Context, override: DataOverride) {
             const testing = template.test(messageContent);
             if(!testing.success) {
                 console.warn(`Failed to test message for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
-                toastr.warning(`Failed to test message for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`, 'After Generate');
+                toastr.warning(`Failed to test message for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`, `${before ? 'Before' : 'After'} Generate`);
                 continue;
             }
 
@@ -133,7 +141,7 @@ async function processMessage(env: Context, override: DataOverride) {
             ctx.filters = template.filters;
             const messageId = env.chat.length - 1;
             
-            generate(ctx, 3, decorator, { validator: async(response) => {
+            tasks.push(generate(ctx, 3, decorator, { validator: async(response) => {
                 response = Array.isArray(response) ? response : [ response ];
 
                 for(const content of response) {
@@ -159,23 +167,28 @@ async function processMessage(env: Context, override: DataOverride) {
                 activeTasks -= 1;
 
                 if(!abortController?.signal.aborted)
-                    toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, 'After Generate');
+                    toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, `${before ? 'Before' : 'After'} Generate`);
 
                 if(activeTasks <= 0) {
-                    toastr.success('All after generate tasks ended', 'After Generate');
+                    toastr.success('All after generate tasks ended', `${before ? 'Before' : 'After'} Generate`);
                     refreshMessage(messageId);
                 }
             }).then(() => {
                 activeTasks -= 1;
                 if(activeTasks <= 0) {
-                    toastr.success('All after generate tasks ended', 'After Generate');
+                    toastr.success('All after generate tasks ended', `${before ? 'Before' : 'After'} Generate`);
                     refreshMessage(messageId);
                 }
-            });
+            }));
             activeTasks += 1;
 
             console.log(`After Generate: ${entry.world}/${entry.uid}-${entry.comment} - ${decorator}`);
         }
+    }
+
+    if(before) {
+        console.log(`Waiting for before generate tasks to finish `, tasks.length);
+        await Promise.allSettled(tasks);
     }
 }
 
@@ -208,7 +221,7 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
         const parsed = new DecoratorParser(entry);
         if(parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
             data.globalLore.splice(i, 1);
-            console.debug(`remove global lore ${entry.world}/${entry.uid}-${entry.comment} used for after-generate`);
+            console.debug(`remove global lore ${entry.world}/${entry.uid}-${entry.comment} used for after/before-generate`);
         }
     }
     for(let i = 0; i < data.personaLore.length; ++i) {
@@ -216,7 +229,7 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
         const parsed = new DecoratorParser(entry);
         if(parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
             data.personaLore.splice(i, 1);
-            console.debug(`remove persona lore ${entry.world}/${entry.uid}-${entry.comment} used for after-generate`);
+            console.debug(`remove persona lore ${entry.world}/${entry.uid}-${entry.comment} used for after/before-generate`);
         }
     }
     for(let i = 0; i < data.characterLore.length; ++i) {
@@ -224,7 +237,7 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
         const parsed = new DecoratorParser(entry);
         if(parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
             data.characterLore.splice(i, 1);
-            console.debug(`remove character lore ${entry.world}/${entry.uid}-${entry.comment} used for after-generate`);
+            console.debug(`remove character lore ${entry.world}/${entry.uid}-${entry.comment} used for after/before-generate`);
         }
     }
     for(let i = 0; i < data.chatLore.length; ++i) {
@@ -232,7 +245,7 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
         const parsed = new DecoratorParser(entry);
         if(parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
             data.chatLore.splice(i, 1);
-            console.debug(`remove chat lore ${entry.world}/${entry.uid}-${entry.comment} used for after-generate`);
+            console.debug(`remove chat lore ${entry.world}/${entry.uid}-${entry.comment} used for after/before-generate`);
         }
     }
     
@@ -241,6 +254,10 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
 async function onGenerateStarting(type: string, _options: any, dryRun: boolean) {
     if((type === 'normal' || type === 'regenerate' || type === 'swipe') && !dryRun) {
         stopActiveTasks();
+
+        const env = Context.global();
+        const override = new DataOverride(env.chat, env.chat_metadata);
+        await processMessage(env, override, true);
     }
 }
 
@@ -252,7 +269,7 @@ function stopActiveTasks() {
     if(abortController) {
         abortController.abort('canceled by new generate');
         if(activeTasks > 0) {
-            toastr.warning('Aborting after generate', 'After Generate');
+            toastr.warning('Aborting after/before generate', 'after/before Generate');
             activeTasks = 0;
         }
     }

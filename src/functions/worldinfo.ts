@@ -10,15 +10,25 @@ import { GENERATION_TYPE_TRIGGERS } from '@st/scripts/constants.js';
 
 export const KNOWN_DECORATORS = [
     '@@replace',             // Full-Text Replacement Update
+    '@@replace_before',             // Full-Text Replacement Update
     '@@replace_diff',        // Unified Diff-based Text Updates
+    '@@replace_diff_before',        // Unified Diff-based Text Updates
     '@@replace_search',      // Search & Replace-based Text Updates
+    '@@replace_search_before',      // Search & Replace-based Text Updates
     '@@variables_json',      // JSON-based Variables Updates (Merge)
+    '@@variables_json_before',      // JSON-based Variables Updates (Merge)
     '@@variables_yaml',      // Yaml-based Variables Updates (Merge)
+    '@@variables_yaml_before',      // Yaml-based Variables Updates (Merge)
     '@@variables_jsonpatch', // JSON-Patch-based Variables Updates (Merge)
+    '@@variables_jsonpatch_before', // JSON-Patch-based Variables Updates (Merge)
     '@@evaluate_ejs',        // Execute EJS code without replacing the content.
+    '@@evaluate_ejs_before',        // Execute EJS code without replacing the content.
     '@@replace_ejs',         // Execute EJS code and replace the content.
+    '@@replace_ejs_before',         // Execute EJS code and replace the content.
     '@@append_output',       // Append the result to the output.
+    '@@append_output_before',       // Append the result to the output.
     '@@append_output_ejs',   // Process the results using EJS and append them to the output.
+    '@@append_output_ejs_before',   // Process the results using EJS and append them to the output.
 ];
 
 /**
