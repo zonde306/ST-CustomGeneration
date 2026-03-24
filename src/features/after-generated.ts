@@ -307,7 +307,7 @@ async function refreshMessage(messageId: number) {
 }
 
 async function onGenerateAfter(data: { type: string, context: Context, error: Error | null }) {
-    if((data.type === 'normal' || data.type === 'regenerate' || data.type === 'swipe') && !data.error) {
+    if((data.type === 'normal' || data.type === 'regenerate' || data.type === 'swipe') && !data.error && !data.context.isGlobal) {
         const override = new DataOverride(data.context.chat, data.context.chat_metadata);
         await processMessage(data.context, override, false);
     }
