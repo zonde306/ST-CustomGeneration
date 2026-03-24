@@ -330,6 +330,9 @@ export class Context {
                 }
 
                 await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: buffers, context: self, streaming: true, apiConfig });
+
+                if(self.isGlobal)
+                    await eventSource.emit(event_types.GENERATION_ENDED, self.chat.length);
             }
 
             return stream();
@@ -361,6 +364,9 @@ export class Context {
 
         const data = { type, options, taskId, error: null, responses: result, context: self, streaming: false, apiConfig };
         await eventSource.emit(eventTypes.GENERATE_AFTER, data);
+
+        if(this.isGlobal)
+            await eventSource.emit(event_types.GENERATION_ENDED, this.chat.length);
 
         if(options.allResponses) {
             return data.responses;

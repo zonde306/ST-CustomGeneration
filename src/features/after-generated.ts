@@ -17,6 +17,7 @@ import { setup as setupReplaceEjs } from "@/features/after-generates/ejs-replace
 import { setup as setupReplaceSearch } from "@/features/after-generates/replace-search";
 import { setup as setupAppendMessage } from "@/features/after-generates/append-message";
 import { setup as setupAppendEjs } from "@/features/after-generates/ejs-append";
+import { eventTypes } from "@/utils/events";
 
 export interface DecoratorProcessData {
     entry: WorldInfoEntry;
@@ -59,6 +60,7 @@ export async function setup() {
     eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded);
     eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onGenerateStarting);
     eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
+    eventSource.on(eventTypes.GENERATE_AFTER, onGenerateAfter);
 
     await setupReplace();
     await setupReplaceDiff();
@@ -251,11 +253,11 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
     
 }
 
-async function onGenerateStarting(type: string, _options: any, dryRun: boolean) {
+async function onGenerateStarting(type: string, options: any, dryRun: boolean) {
     if((type === 'normal' || type === 'regenerate' || type === 'swipe') && !dryRun) {
         stopActiveTasks();
 
-        const env = Context.global();
+        const env = options.context ?? Context.global();
         const override = new DataOverride(env.chat, env.chat_metadata);
         await processMessage(env, override, true);
     }
@@ -302,4 +304,11 @@ async function refreshMessage(messageId: number) {
 
     await eventSource.emit(event_types.MESSAGE_UPDATED, messageId);
     saveChatDebounced();
+}
+
+async function onGenerateAfter(data: { type: string, context: Context, error: Error | null }) {
+    if((data.type === 'normal' || data.type === 'regenerate' || data.type === 'swipe') && !data.error) {
+        const override = new DataOverride(data.context.chat, data.context.chat_metadata);
+        await processMessage(data.context, override, false);
+    }
 }
