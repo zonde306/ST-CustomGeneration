@@ -372,7 +372,7 @@ export class Context {
             return data.responses;
         }
 
-        return data.responses.find(mes => !!mes.trim()) ?? '';
+        return data.responses.findLast(mes => !!mes.trim()) ?? '';
     }
 
     #buildApiConfig(type: string): ApiConfig | undefined {

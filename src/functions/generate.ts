@@ -23,6 +23,8 @@ export interface ApiConfig {
     custom_exclude_body?: string; // yaml
     custom_include_body?: string; // yaml
     custom_include_headers?: string; // yaml
+
+    include_reasoning?: boolean;
 };
 
 interface StreamChunk {
@@ -100,7 +102,7 @@ export async function generate(
     try {
         if(api?.stream) {
             oai_settings.stream_openai = true;
-            const handler = new StreamHandler(taskId, singal);
+            const handler = new StreamHandler(taskId, singal, api?.include_reasoning ?? false);
             handler.generator = await sendOpenAIRequest(api?.type || 'quiet', messages, singal) as typeof handler.generator;
             if(streaming)
                 result = handler.streaming();
@@ -109,7 +111,7 @@ export async function generate(
         } else {
             oai_settings.stream_openai = false;
             const response = await sendOpenAIRequest(api?.type || 'quiet', messages, singal);
-            result = await responseHandler(response, taskId);
+            result = await responseHandler(response, taskId, api?.include_reasoning ?? false);
         }
     } catch(err) {
         console.error(`Error on generating`, err);
@@ -135,11 +137,13 @@ class StreamHandler {
     public singal: AbortSignal;
     private buffer: string[];
     private taskId: string;
+    private reasoning: boolean;
 
-    constructor(taskId: string, singal?: AbortSignal) {
+    constructor(taskId: string, singal?: AbortSignal, reasoning: boolean = false) {
         this.taskId = taskId;
         this.singal = singal ?? new AbortController().signal;
         this.buffer = [];
+        this.reasoning = reasoning;
     }
 
     async generate() : Promise<string | string[]> {
@@ -208,15 +212,22 @@ class StreamHandler {
     }
 
     parseChunk(chunk: StreamChunk): { swipe: number, text: string } {
-        if(chunk.text) {
+        if(this.reasoning && chunk.state.reasoning) {
             const lastLength = this.buffer[0]?.length ?? 0;
             this.buffer[0] = chunk.text;
             return { swipe: 0, text: chunk.text.substring(lastLength) };
+        } else if(chunk.text) {
+            // If reasoning is captured, then [0] is reasoning and [1] is text; otherwise, [0] is text.
+            const lastLength = this.buffer[Number(this.reasoning)]?.length ?? 0;
+            this.buffer[Number(this.reasoning)] = chunk.text;
+            return { swipe: Number(this.reasoning), text: chunk.text.substring(lastLength) };
         } else if(chunk.swipes?.length > 0) {
-            for(const i in chunk.swipes) {
-                const lastLength = this.buffer[i]?.length ?? 0;
-                this.buffer[i] = chunk.swipes[i];
-                return { swipe: Number(i), text: chunk.swipes[i].substring(lastLength) };
+            for(const [ i, text ] of Object.entries(chunk.swipes)) {
+                // If reasoning is captured, then [0] is reasoning and [1...n] is text; otherwise, [0...n] is text.
+                const idx = Number(i) + Number(this.reasoning);
+                const lastLength = this.buffer[idx]?.length ?? 0;
+                this.buffer[idx] = text;
+                return { swipe: Number(idx), text: text.substring(lastLength) };
             }
         }
 
@@ -224,8 +235,8 @@ class StreamHandler {
     }
 }
 
-async function responseHandler(response: any, taskId: string): Promise<string[] | string> {
-    const result = extractText(response);
+async function responseHandler(response: any, taskId: string, reasoning: boolean = false): Promise<string[] | string> {
+    const result = extractText(response, reasoning);
 
     await eventSource.emit(eventTypes.GENERATION_END, {
         taskId,
@@ -236,21 +247,35 @@ async function responseHandler(response: any, taskId: string): Promise<string[] 
     return result.length === 1 ? result[0] : result;
 }
 
-function extractText(data: any): string[] {
-    if(typeof data === 'string')
+function extractText(data: any, reasoning: boolean = false): string[] {
+    if(typeof data === 'string') {
+        if(reasoning)
+            return [ '', data ];
         return [ data ];
+    }
 
     let result : string[] = [];
     if(data?.choices?.length > 0) {
-        for(const i in data.choices) {
-            result[Number(i)] = data.choices[i].message?.content ?? data.choices[i].text ?? '';
+        for(const [ i, candidate ] of Object.entries(data.choices)) {
+            if(reasoning) // @ts-expect-error: 18046
+                result[0] = candidate.message?.reasoning_content ?? candidate.reasoning_content ?? '';
+            
+            // @ts-expect-error: 18046
+            result[Number(i) + Number(reasoning)] = candidate.message?.content ?? candidate.text ?? '';
         }
     } else if(data?.message?.content?.length > 0) {
-        for(const i in data.message.content) {
-            result[Number(i)] = data.message.content[i].text ?? '';
+        for(const [i, candidate] of Object.entries(data.message.content)) {
+            if(reasoning) // @ts-expect-error: 18046
+                result[0] = candidate.reasoning_content ?? '';
+
+            // @ts-expect-error: 18046
+            result[Number(i) + Number(reasoning)] = candidate.text ?? '';
         }
     } else {
-        result[0] = data.text ?? data?.message?.tool_plan ?? '';
+        if(reasoning)
+            result[0] = data.reasoning_content ?? '';
+
+        result[Number(reasoning)] = data.text ?? data?.message?.tool_plan ?? '';
     }
 
     return result;
