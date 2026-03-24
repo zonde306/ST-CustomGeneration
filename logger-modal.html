@@ -37,6 +37,31 @@
             margin: 5px;
         }
 
+        #custom_generation_logger_dialog .flex-container,
+        #custom_generation_logger_dialog .completion_prompt_manager_popup_entry_form_control,
+        #custom_generation_logger_dialog .flex-container > *,
+        #custom_generation_logger_dialog small,
+        #custom_generation_logger_dialog button {
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        #custom_generation_logger_dialog .justifySpaceBetween {
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        #custom_generation_logger_dialog .justifySpaceBetween > :first-child {
+            flex: 1 1 auto;
+        }
+
+        #custom_generation_logger_dialog .justifySpaceBetween > .flex-container:last-child {
+            margin-left: auto;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
         #custom_generation_logger_list {
             width: 100%;
             max-width: 100%;

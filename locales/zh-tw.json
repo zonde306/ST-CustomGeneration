@@ -59,5 +59,6 @@
 	"During generation": "生成的提示詞",
 	"During response": "回應的內容",
 	"cg_prompt_internal_help": "在生成時動態獲取提示詞內容，而不是自己填寫",
-	"Save As": "另存為"
+	"Save As": "另存為",
+	"Close": "關閉"
 }
