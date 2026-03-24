@@ -119,6 +119,8 @@
             max-height: min(30vh, 260px);
             overflow-y: auto;
             overflow-x: hidden;
+            padding-right: 4px;
+            box-sizing: border-box;
         }
 
         #custom_generation_template_prompt_list > * {
@@ -126,6 +128,14 @@
             max-width: 100%;
             box-sizing: border-box;
             flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            #custom_generation_template_prompt_list {
+                max-height: none;
+                overflow: visible;
+                padding-right: 0;
+            }
         }
 
         .p_compact {
