@@ -340,7 +340,7 @@ export class Context {
 
         result = (Array.isArray(result) ? result : [ result ]) as string[];
         if(result.length < 1) {
-            toastr.error('Generate failed, empty responses');
+            console.error('Generate failed, empty responses');
             return '';
         }
 

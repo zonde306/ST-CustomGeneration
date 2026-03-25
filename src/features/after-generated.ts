@@ -97,7 +97,6 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     }
 
     abortController = new AbortController();
-    toastr.info(`Running ${before ? 'before' : 'after'}-generate`);
 
     const cache = new Map<string, TemplateHandler>();
     const tasks: Promise<void>[] = [];
@@ -171,13 +170,13 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                 if(!abortController?.signal.aborted)
                     toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, `${before ? 'Before' : 'After'} Generate`);
 
-                if(activeTasks <= 0) {
+                if(activeTasks <= 0 && !abortController?.signal.aborted) {
                     toastr.success('All after generate tasks ended', `${before ? 'Before' : 'After'} Generate`);
                     refreshMessage(messageId);
                 }
             }).then(() => {
                 activeTasks -= 1;
-                if(activeTasks <= 0) {
+                if(activeTasks <= 0 && !abortController?.signal.aborted) {
                     toastr.success('All after generate tasks ended', `${before ? 'Before' : 'After'} Generate`);
                     refreshMessage(messageId);
                 }
@@ -186,6 +185,10 @@ async function processMessage(env: Context, override: DataOverride, before: bool
 
             console.log(`After Generate: ${entry.world}/${entry.uid}-${entry.comment} - ${decorator}`);
         }
+    }
+
+    if(tasks.length) {
+        toastr.info(`Running ${before ? 'before' : 'after'}-generate, ${tasks.length} tasks`, `${before ? 'Before' : 'After'} Generate`);
     }
 
     if(before) {
@@ -268,7 +271,7 @@ async function onChatChanged() {
 }
 
 function stopActiveTasks() {
-    if(abortController) {
+    if(abortController?.signal.aborted === false) {
         abortController.abort('canceled by new generate');
         if(activeTasks > 0) {
             toastr.warning('Aborting after/before generate', 'after/before Generate');
