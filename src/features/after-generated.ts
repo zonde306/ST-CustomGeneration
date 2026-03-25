@@ -166,6 +166,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
             }, dontCreate: true, abortController }).catch(e => {
                 if(abortController?.signal.aborted === false) {
                     toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, `${before ? 'Before' : 'After'} Generate`);
+                    console.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, e);
                 }
             }));
 
@@ -186,6 +187,8 @@ async function processMessage(env: Context, override: DataOverride, before: bool
         });
 
         toastr.info(`Running ${before ? 'before' : 'after'}-generate, ${tasks.length} tasks`, `${before ? 'Before' : 'After'} Generate`);
+    } else {
+        console.log(`No ${before ? 'before' : 'after'} generate tasks found`);
     }
 
     if(before) {
