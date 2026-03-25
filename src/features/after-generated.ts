@@ -187,13 +187,22 @@ async function processMessage(env: Context, override: DataOverride, before: bool
         }
     }
 
+    let collect = Promise.allSettled(tasks);
+
     if(tasks.length) {
-        toastr.info(`Running ${before ? 'before' : 'after'}-generate, ${tasks.length} tasks`, `${before ? 'Before' : 'After'} Generate`);
+        collect = collect.then((v) => {
+            if(abortController?.signal.aborted === false) {
+                toastr.info(`Running ${before ? 'before' : 'after'}-generate, ${tasks.length} tasks`, `${before ? 'Before' : 'After'} Generate`);
+            }
+            activeTasks = 0;
+            abortController = null;
+            return v;
+        });
     }
 
     if(before) {
         console.log(`Waiting for before generate tasks to finish `, tasks.length);
-        await Promise.allSettled(tasks);
+        await collect;
     }
 }
 
