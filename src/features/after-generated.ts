@@ -52,7 +52,6 @@ export const NOT_ALLOWED_DECORATORS = [
 
 let isPostGenerating = false;
 let abortController: AbortController | null = null;
-let activeTasks = 0;
 
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
@@ -90,16 +89,17 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     if(entries.length < 1)
         return;
 
-    if(activeTasks > 0 && !abortController?.signal?.aborted) {
+    if(abortController?.signal?.aborted === false) {
         abortController?.abort();
-        activeTasks = 0;
         toastr.warning(`Aborting previous ${before ? 'before' : 'after'}-generate`);
     }
 
     abortController = new AbortController();
 
     const cache = new Map<string, TemplateHandler>();
-    const tasks: Promise<void>[] = [];
+    const tasks: Promise<any>[] = [];
+    const messageId = env.chat.length - 1;
+
     for(const entry of entries) {
         const parsed = new DecoratorParser(entry);
         for(const [idx, decorator] of Object.entries(parsed.decorators)) {
@@ -140,7 +140,6 @@ async function processMessage(env: Context, override: DataOverride, before: bool
 
             // Reduce Attention Depletion
             ctx.filters = template.filters;
-            const messageId = env.chat.length - 1;
             
             tasks.push(generate(ctx, 3, decorator, { validator: async(response) => {
                 response = Array.isArray(response) ? response : [ response ];
@@ -165,23 +164,10 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                 console.warn(`Unknown error: `, response, template, entry);
                 return false;
             }, dontCreate: true, abortController }).catch(e => {
-                activeTasks -= 1;
-
-                if(!abortController?.signal.aborted)
+                if(abortController?.signal.aborted === false) {
                     toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, `${before ? 'Before' : 'After'} Generate`);
-
-                if(activeTasks <= 0 && !abortController?.signal.aborted) {
-                    toastr.success('All after generate tasks ended', `${before ? 'Before' : 'After'} Generate`);
-                    refreshMessage(messageId);
-                }
-            }).then(() => {
-                activeTasks -= 1;
-                if(activeTasks <= 0 && !abortController?.signal.aborted) {
-                    toastr.success('All after generate tasks ended', `${before ? 'Before' : 'After'} Generate`);
-                    refreshMessage(messageId);
                 }
             }));
-            activeTasks += 1;
 
             console.log(`After Generate: ${entry.world}/${entry.uid}-${entry.comment} - ${decorator}`);
         }
@@ -192,12 +178,14 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     if(tasks.length) {
         collect = collect.then((v) => {
             if(abortController?.signal.aborted === false) {
-                toastr.info(`Running ${before ? 'before' : 'after'}-generate, ${tasks.length} tasks`, `${before ? 'Before' : 'After'} Generate`);
+                toastr.success('All after generate tasks ended', `${before ? 'Before' : 'After'} Generate`);
+                refreshMessage(messageId);
             }
-            activeTasks = 0;
             abortController = null;
             return v;
         });
+
+        toastr.info(`Running ${before ? 'before' : 'after'}-generate, ${tasks.length} tasks`, `${before ? 'Before' : 'After'} Generate`);
     }
 
     if(before) {
@@ -282,10 +270,7 @@ async function onChatChanged() {
 function stopActiveTasks() {
     if(abortController?.signal.aborted === false) {
         abortController.abort('canceled by new generate');
-        if(activeTasks > 0) {
-            toastr.warning('Aborting after/before generate', 'after/before Generate');
-            activeTasks = 0;
-        }
+        toastr.warning('Aborting after/before generate', 'after/before Generate');
     }
 }
 
