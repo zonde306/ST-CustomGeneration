@@ -38,7 +38,6 @@ interface GenerateLogEntry {
 const MAX_LOG_COUNT = 100;
 export const loggers: GenerateLogEntry[] = [];
 
-const PREVIEW_LIMIT = 120;
 let isLoggerEventsBound = false;
 
 export async function setup() {
@@ -84,10 +83,6 @@ function safeStringify(value: unknown): string {
     } catch {
         return String(value ?? '');
     }
-}
-
-function getPreviewText(text: string): string {
-    return String(text ?? '').trim().replace(/\s+/g, ' ').slice(0, PREVIEW_LIMIT);
 }
 
 function formatMessageContent(content: unknown): string {
@@ -259,10 +254,9 @@ function buildLoggerBlock(title: string, content: string, blockClass?: string): 
 async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise<JQuery<HTMLElement>> {
     const container = $('<div class="custom_generation_logger_entry"></div>');
     const summary = $('<div class="custom_generation_logger_summary"></div>');
-    const caret = $('<i class="fa-solid fa-chevron-right custom_generation_logger_caret"></i>');
 
     const left = $('<div class="custom_generation_logger_summary_left"></div>');
-    const title = $('<div class="custom_generation_logger_title"></div>').text(await buildLoggerTitle(entry, index));
+    const title = $('<div class="custom_generation_logger_title"><i class="fa-solid fa-chevron-right custom_generation_logger_caret">&nbsp;</i></div>').append(document.createTextNode(await buildLoggerTitle(entry, index)));
     const meta = $('<div class="custom_generation_logger_meta"></div>').text(buildLoggerMeta(entry));
     left.append(title, meta);
 
@@ -271,7 +265,7 @@ async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise
     const status = $('<span class="custom_generation_logger_status"></span>').text(buildLoggerStatus(entry));
     right.append(modelBadge, status);
 
-    summary.append(caret, left, right);
+    summary.append(left, right);
 
     const body = $('<div class="custom_generation_logger_body"></div>');
     const info = $('<div class="custom_generation_logger_info"></div>');
