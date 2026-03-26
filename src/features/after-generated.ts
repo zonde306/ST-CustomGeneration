@@ -99,6 +99,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     const cache = new Map<string, TemplateHandler>();
     const tasks: Promise<any>[] = [];
     const messageId = env.chat.length - 1;
+    let activeTasks = 0;
 
     for(const entry of entries) {
         const parsed = new DecoratorParser(entry);
@@ -141,33 +142,44 @@ async function processMessage(env: Context, override: DataOverride, before: bool
             // Reduce Attention Depletion
             ctx.filters = template.filters;
             
-            tasks.push(generate(ctx, 3, decorator, { validator: async(response) => {
-                response = Array.isArray(response) ? response : [ response ];
+            tasks.push(generate(ctx, 3, decorator, {
+                validator: async(response) => {
+                    response = Array.isArray(response) ? response : [ response ];
 
-                for(const content of response) {
-                    const processed = template.process(content);
-                    if(processed.success) {
-                        if (await processor({
-                            entry,
-                            content: processed.content ?? content,
-                            args: processed.arguments ?? {},
-                            override,
-                            decorator: parsed,
-                            env,
-                            messageId,
-                        })) {
-                            return true;
+                    for(const content of response) {
+                        const processed = template.process(content);
+                        if(processed.success) {
+                            if (await processor({
+                                entry,
+                                content: processed.content ?? content,
+                                args: processed.arguments ?? {},
+                                override,
+                                decorator: parsed,
+                                env,
+                                messageId,
+                            })) {
+                                return true;
+                            }
                         }
                     }
-                }
 
-                console.warn(`Unknown error: `, response, template, entry);
-                return false;
-            }, dontCreate: true, abortController }).catch(e => {
+                    console.warn(`Unknown error: `, response, template, entry);
+                    return false;
+                },
+                dontCreate: true,
+                abortController,
+            }).catch(e => {
                 if(abortController?.signal.aborted === false) {
+                    activeTasks -= 1;
                     toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, `${before ? 'Before' : 'After'} Generate`);
-                    console.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, e);
+                    console.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}, ${activeTasks} tasks remaining`, e);
                 }
+            }).then(r => {
+                if(abortController?.signal.aborted === false) {
+                    activeTasks -= 1;
+                    console.log(`Task completed: ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}, ${activeTasks} tasks remaining`);
+                }
+                return r;
             }));
 
             console.log(`After Generate: ${entry.world}/${entry.uid}-${entry.comment} - ${decorator}`);
