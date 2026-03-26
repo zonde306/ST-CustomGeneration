@@ -125,9 +125,8 @@ function buildLoggerSection(title: string, blocks: JQuery<HTMLElement>[]): JQuer
 
 function buildLoggerAccordionBlock(title: string, content: string, blockClass?: string): JQuery<HTMLElement>[] {
     const header = $('<div class="custom_generation_logger_block_header"></div>');
-    const caret = $('<i class="fa-solid fa-chevron-right custom_generation_logger_block_caret"></i>');
-    const titleEl = $('<div class="custom_generation_logger_block_title"></div>').text(title);
-    header.append(caret, titleEl);
+    const titleEl = $('<div class="custom_generation_logger_block_title"><i class="fa-solid fa-chevron-right custom_generation_logger_block_caret"></i></div>').append(document.createTextNode(title));
+    header.append(titleEl);
 
     const panel = $('<div class="custom_generation_logger_block_panel"></div>');
     const pre = $('<pre class="custom_generation_logger_pre"></pre>').text(content);
