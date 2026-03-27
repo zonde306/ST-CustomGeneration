@@ -52,6 +52,7 @@ export const NOT_ALLOWED_DECORATORS = [
 
 let isPostGenerating = false;
 let abortController: AbortController | null = null;
+let isGenerationCancelled = false;
 
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
@@ -74,6 +75,11 @@ export async function setup() {
 }
 
 export async function runAfterGenerates() {
+    if(isGenerationCancelled) {
+        isGenerationCancelled = false;
+        return;
+    }
+
     const env = Context.global();
     const override = new DataOverride(env.chat, env.chat_metadata);
     await processMessage(env, override, false);
@@ -225,6 +231,13 @@ async function onAppReady() {
             toastr.info('After Generate Starting');
         });
     }
+
+    $("#mes_stop").off("click", onGenerateCancelled).on("click", onGenerateCancelled);
+    
+    const viewer = document.evaluate("//div[@id='extensionsMenu']//*[text()='提示词查看器']/..", document)?.iterateNext();
+    if(viewer) {
+        $(viewer).off("click", onGenerateCancelled).on("click", onGenerateCancelled);
+    }
 }
 
 async function onWorldInfoLoaded(data: WorldInfoLoaded) {
@@ -323,4 +336,8 @@ async function onGenerateAfter(data: { type: string, context: Context, error: Er
         const override = new DataOverride(data.context.chat, data.context.chat_metadata);
         await processMessage(data.context, override, false);
     }
+}
+
+function onGenerateCancelled() {
+    isGenerationCancelled = true;
 }
