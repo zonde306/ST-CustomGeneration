@@ -69,7 +69,7 @@ let isEventsBound = false;
 let isSettingsLoadedListenerBound = false;
 let modelCandidates: string[] = [];
 let isConnectionActionInProgress = false;
-let templateEditorDraft: { decorator: string; tag: string; filters: string[]; regex: string; findRegex: string } | null = null;
+let templateEditorDraft: { decorator: string; tag: string; filters: string[]; regex: string; findRegex: string; retryCount: number; retryInterval: number } | null = null;
 let templateEditorDraftKey: string | null = null;
 
 const exportSchemaVersion = '1.0.0';
@@ -442,6 +442,8 @@ function normalizeTemplate(input: Partial<Template>): Template {
         filters: Array.isArray(input.filters)
             ? input.filters.map(value => String(value).trim()).filter(Boolean) as Template['filters']
             : [],
+        retryCount: parseNumber(input.retryCount, defaultTemplate.retryCount, 0, 9999, true),
+        retryInterval: parseNumber(input.retryInterval, defaultTemplate.retryInterval, 0, 86_400_000, true),
     };
 }
 
@@ -1746,6 +1748,8 @@ function setTemplateEditorEnabled(enabled: boolean) {
         '#custom_generation_template_filters',
         '#custom_generation_template_regex',
         '#custom_generation_template_find_regex',
+        '#custom_generation_template_retry_count',
+        '#custom_generation_template_retry_interval',
         '#custom_generation_template_delete',
         '#custom_generation_template_save_as',
         '#custom_generation_template_save',
@@ -1763,22 +1767,26 @@ function resetTemplateEditorDraft(): void {
     templateEditorDraftKey = null;
 }
 
-function readTemplateEditorDraft(): { decorator: string; tag: string; filters: string[]; regex: string; findRegex: string } {
+function readTemplateEditorDraft(): { decorator: string; tag: string; filters: string[]; regex: string; findRegex: string; retryCount: number; retryInterval: number } {
     return {
         decorator: String($('#custom_generation_template_decorator').val() ?? DEFAULT_TEMPLATE_DECORATOR),
         tag: String($('#custom_generation_template_tag').val() ?? ''),
         filters: getSelectValues('#custom_generation_template_filters'),
         regex: String($('#custom_generation_template_regex').val() ?? ''),
         findRegex: String($('#custom_generation_template_find_regex').val() ?? ''),
+        retryCount: parseNumber($('#custom_generation_template_retry_count').val(), defaultTemplate.retryCount, 0, 9999, true),
+        retryInterval: parseNumber($('#custom_generation_template_retry_interval').val(), defaultTemplate.retryInterval, 0, 86_400_000, true),
     };
 }
 
-function applyTemplateEditorDraft(draft: { decorator: string; tag: string; filters: string[]; regex: string; findRegex: string }): void {
+function applyTemplateEditorDraft(draft: { decorator: string; tag: string; filters: string[]; regex: string; findRegex: string; retryCount: number; retryInterval: number }): void {
     $('#custom_generation_template_decorator').val(draft.decorator);
     $('#custom_generation_template_tag').val(draft.tag);
     setSelectValues('#custom_generation_template_filters', draft.filters);
     $('#custom_generation_template_regex').val(draft.regex);
     $('#custom_generation_template_find_regex').val(draft.findRegex);
+    $('#custom_generation_template_retry_count').val(draft.retryCount);
+    $('#custom_generation_template_retry_interval').val(draft.retryInterval);
 }
 
 function syncTemplateEditorDraft(): void {
@@ -1951,6 +1959,8 @@ function updateTemplateEditor() {
         setSelectValues('#custom_generation_template_filters', []);
         $('#custom_generation_template_regex').val('');
         $('#custom_generation_template_find_regex').val('');
+        $('#custom_generation_template_retry_count').val(defaultTemplate.retryCount);
+        $('#custom_generation_template_retry_interval').val(defaultTemplate.retryInterval);
         $('#custom_generation_template_delete').toggle(false);
         $('#custom_generation_template_save_as').toggle(false);
         updateTemplatePromptList(null);
@@ -1971,6 +1981,8 @@ function updateTemplateEditor() {
         setSelectValues('#custom_generation_template_filters', template.filters ?? []);
         $('#custom_generation_template_regex').val(template.regex);
         $('#custom_generation_template_find_regex').val(template.findRegex);
+        $('#custom_generation_template_retry_count').val(template.retryCount);
+        $('#custom_generation_template_retry_interval').val(template.retryInterval);
         templateEditorDraft = readTemplateEditorDraft();
         templateEditorDraftKey = templateEntry.key;
     }
@@ -2371,6 +2383,8 @@ function saveTemplateEditor(saveAs: boolean = false): void {
         filters: getSelectValues('#custom_generation_template_filters') as Template['filters'],
         regex: String($('#custom_generation_template_regex').val() ?? ''),
         findRegex: String($('#custom_generation_template_find_regex').val() ?? ''),
+        retryCount: parseNumber($('#custom_generation_template_retry_count').val(), defaultTemplate.retryCount, 0, 9999, true),
+        retryInterval: parseNumber($('#custom_generation_template_retry_interval').val(), defaultTemplate.retryInterval, 0, 86_400_000, true),
         prompts: getEditingTemplate()?.prompts ?? [],
     });
 
@@ -3226,6 +3240,8 @@ function bindEvents() {
         '#custom_generation_template_filters',
         '#custom_generation_template_regex',
         '#custom_generation_template_find_regex',
+        '#custom_generation_template_retry_count',
+        '#custom_generation_template_retry_interval',
     ];
 
     for (const selector of templateDraftSelectors) {
@@ -3450,3 +3466,4 @@ export function saveSettings() {
 function onSettingsLoaded() {
     loadSettings();
 }
+

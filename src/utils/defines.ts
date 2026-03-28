@@ -377,6 +377,12 @@ export interface Template {
 
     // Disable specific prompts, see PromptFilter
     filters: (keyof PromptFilter)[];
+
+    // Retry count
+    retryCount: number;
+
+    // Retry interval (ms)
+    retryInterval: number;
 }
 
 export interface Preset {

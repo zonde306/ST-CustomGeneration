@@ -4,13 +4,14 @@ type Validator = (s: string | string[]) => (boolean | Promise<boolean>);
 
 export async function generate(
     ctx: Context,
-    retries: number = 3,
     type: string = 'normal',
     options: GenerateOptionsLite & { validator?: Validator } = {},
     dryRun: boolean = false,
+    retries: number = 3,
+    interval: number = 100,
 ): Promise<string | string[] | AsyncGenerator<{ swipe: number, text: string } | string>> {
     let result: string | string[] | AsyncGenerator<{ swipe: number, text: string } | string> | null = null;
-    let lastError = null;
+    let lastError: Error | null = null;
 
     for(let i = 0; i < retries; i++) {
         try {
@@ -18,7 +19,7 @@ export async function generate(
         } catch (e) {
             if(e instanceof Error)
                 e.cause = lastError ?? undefined;
-            lastError = e;
+            lastError = e as Error;
             console.error(`Failed to generate content, retrying...`, e);
             continue;
         }
@@ -34,10 +35,17 @@ export async function generate(
         } catch(e) {
             if(e instanceof Error)
                 e.cause = lastError ?? undefined;
-            lastError = e;
+            lastError = e as Error;
             console.error(`Failed to validate content, retrying...`, e);
             continue;
         }
+
+        if(!ctx.macroOverride.macros)
+            ctx.macroOverride.macros = {};
+
+        ctx.macroOverride.macros.lastError = lastError?.message ?? '';
+
+        await new Promise(resolve => setTimeout(resolve, interval));
     }
 
     if(!result) {

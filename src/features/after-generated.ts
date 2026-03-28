@@ -148,33 +148,40 @@ async function processMessage(env: Context, override: DataOverride, before: bool
             // Reduce Attention Depletion
             ctx.filters = template.filters;
             
-            tasks.push(generate(ctx, 3, decorator, {
-                validator: async(response) => {
-                    response = Array.isArray(response) ? response : [ response ];
+            tasks.push(generate(
+                ctx,
+                decorator,
+                {
+                    validator: async(response) => {
+                        response = Array.isArray(response) ? response : [ response ];
 
-                    for(const content of response) {
-                        const processed = template.process(content);
-                        if(processed.success) {
-                            if (await processor({
-                                entry,
-                                content: processed.content ?? content,
-                                args: processed.arguments ?? {},
-                                override,
-                                decorator: parsed,
-                                env,
-                                messageId,
-                            })) {
-                                return true;
+                        for(const content of response) {
+                            const processed = template.process(content);
+                            if(processed.success) {
+                                if (await processor({
+                                    entry,
+                                    content: processed.content ?? content,
+                                    args: processed.arguments ?? {},
+                                    override,
+                                    decorator: parsed,
+                                    env,
+                                    messageId,
+                                })) {
+                                    return true;
+                                }
                             }
                         }
-                    }
 
-                    console.warn(`Unknown error: `, response, template, entry);
-                    return false;
+                        console.warn(`Unknown error: `, response, template, entry);
+                        return false;
+                    },
+                    dontCreate: true,
+                    abortController,
                 },
-                dontCreate: true,
-                abortController,
-            }).catch(e => {
+                false,
+                template.retries,
+                template.interval,
+            ).catch(e => {
                 if(abortController?.signal.aborted === false) {
                     activeTasks -= 1;
                     toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, `${before ? 'Before' : 'After'} Generate`);

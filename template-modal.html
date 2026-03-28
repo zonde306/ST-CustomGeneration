@@ -22,6 +22,20 @@
         <small class="text_muted" data-i18n="cg_template_decorator_help">
             In WI, this is utilized in the form of an `@@decorator` tag; if no matching tag is found, it falls back to an empty tag.
         </small>
+        <div class="flex-container">
+            <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                <label for="custom_generation_template_retry_count">
+                    <span data-i18n="Retry Count">Retry Count</span>
+                </label>
+                <input id="custom_generation_template_retry_count" class="text_pole" type="number" min="0" step="1" />
+            </div>
+            <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                <label for="custom_generation_template_retry_interval">
+                    <span data-i18n="Retry Interval (ms)">Retry Interval (ms)</span>
+                </label>
+                <input id="custom_generation_template_retry_interval" class="text_pole" type="number" min="0" step="1" />
+            </div>
+        </div>
         <div class="completion_prompt_manager_popup_entry_form_control">
             <label for="custom_generation_template_filters">
                 <span data-i18n="Filters (comma separated)">Filters (comma separated)</span>

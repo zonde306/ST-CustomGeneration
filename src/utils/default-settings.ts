@@ -533,7 +533,9 @@ export const defaultPreset: Preset = {
                 "authorsNoteDepth",
                 "presetDepth",
                 "charDepth"
-            ]
+            ],
+            "retryCount": 3,
+            "retryInterval": 1000,
         },
         "@@replace_diff:": {
             "decorator": "@@replace_diff",
@@ -727,7 +729,9 @@ export const defaultPreset: Preset = {
                 "authorsNoteDepth",
                 "presetDepth",
                 "charDepth"
-            ]
+            ],
+            "retryCount": 3,
+            "retryInterval": 1000,
         },
         "@@replace_search:": {
             "decorator": "@@replace_search",
@@ -921,7 +925,9 @@ export const defaultPreset: Preset = {
                 "authorsNoteDepth",
                 "presetDepth",
                 "charDepth"
-            ]
+            ],
+            "retryCount": 3,
+            "retryInterval": 1000,
         },
         "@@variables_json:": {
             "decorator": "@@variables_json",
@@ -1115,7 +1121,9 @@ export const defaultPreset: Preset = {
                 "authorsNoteDepth",
                 "presetDepth",
                 "charDepth"
-            ]
+            ],
+            "retryCount": 3,
+            "retryInterval": 1000,
         },
         "@@variables_yaml:": {
             "decorator": "@@variables_yaml",
@@ -1309,7 +1317,9 @@ export const defaultPreset: Preset = {
                 "authorsNoteDepth",
                 "presetDepth",
                 "charDepth"
-            ]
+            ],
+            "retryCount": 3,
+            "retryInterval": 1000,
         },
         "@@variables_jsonpatch:": {
             "decorator": "@@variables_jsonpatch",
@@ -1503,7 +1513,9 @@ export const defaultPreset: Preset = {
                 "authorsNoteDepth",
                 "presetDepth",
                 "charDepth"
-            ]
+            ],
+            "retryCount": 3,
+            "retryInterval": 1000,
         },
         "@@evaluate_ejs:": {
             "decorator": "@@evaluate_ejs",
@@ -1697,7 +1709,9 @@ export const defaultPreset: Preset = {
                 "authorsNoteDepth",
                 "presetDepth",
                 "charDepth"
-            ]
+            ],
+            "retryCount": 3,
+            "retryInterval": 1000,
         },
         "@@replace_ejs:": {
             "decorator": "@@replace_ejs",
@@ -1891,7 +1905,9 @@ export const defaultPreset: Preset = {
                 "authorsNoteDepth",
                 "presetDepth",
                 "charDepth"
-            ]
+            ],
+            "retryCount": 3,
+            "retryInterval": 1000,
         },
         "@@append_output:": {
             "decorator": "@@append_output",
@@ -2085,7 +2101,9 @@ export const defaultPreset: Preset = {
                 "authorsNoteDepth",
                 "presetDepth",
                 "charDepth"
-            ]
+            ],
+            "retryCount": 3,
+            "retryInterval": 1000,
         },
         "@@append_output_ejs:": {
             "decorator": "@@append_output_ejs",
@@ -2279,7 +2297,9 @@ export const defaultPreset: Preset = {
                 "authorsNoteDepth",
                 "presetDepth",
                 "charDepth"
-            ]
+            ],
+            "retryCount": 3,
+            "retryInterval": 1000,
         },
     },
 };

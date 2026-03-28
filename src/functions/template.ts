@@ -74,7 +74,7 @@ export class TemplateHandler {
         };
     }
 
-    process(content: string): TemplateResult {
+    process(content: string, raise: boolean = false): TemplateResult {
         if(!this.template.regex)
             return { success: true, content };
 
@@ -87,8 +87,12 @@ export class TemplateHandler {
         }
 
         const matchs = regexp.exec(content);
-        if(!matchs)
+        if(!matchs) {
+            console.error(`Failed to match regex for ${this.template.decorator}:${this.template.tag}`);
+            if(raise)
+                throw new Error(`Failed to match regex for ${this.template.regex}`);
             return { success: false };
+        }
 
         return {
             success: true,
@@ -116,6 +120,14 @@ export class TemplateHandler {
             filters[filter as keyof PromptFilter] = false;
         }
         return filters;
+    }
+
+    get retries() {
+        return this.template.retryCount;
+    }
+
+    get interval() {
+        return this.template.retryInterval;
     }
 }
 
