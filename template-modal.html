@@ -47,13 +47,8 @@
                 <span data-i18n="Regex">Regex</span>
             </label>
             <input id="custom_generation_template_regex" class="text_pole textarea_compact" rows="3" />
-            <small class="text_muted p_compact">
-                <p data-i18n="cg_template_regex_help_1">Extract content from the generated output using a regular expression and process it; if no match is found, the operation is considered a failure.</p>
-                <p data-i18n="cg_template_regex_help_2">Select the content in the following order of priority:</p>
-                <p data-i18n="cg_template_regex_help_3">1. Named capture group `content`</p>
-                <p data-i18n="cg_template_regex_help_4">2. Unnamed capture group $1</p>
-                <p data-i18n="cg_template_regex_help_5">3. Unnamed capture group $0</p>
-                <p data-i18n="cg_template_regex_help_6">Example: /&lt;tag&gt;([\s\S]*)&lt;\/tag&gt;/i</p>
+            <small class="text_muted p_compact" data-i18n="cg_template_regex_help">
+                If the AI ​​outputs an expression that does not match, it will retry.
             </small>
         </div>
         <div class="completion_prompt_manager_popup_entry_form_control">
@@ -61,13 +56,8 @@
                 <span data-i18n="Find Regex">Find Regex</span>
             </label>
             <input id="custom_generation_template_find_regex" class="text_pole textarea_compact" rows="3" />
-            <small class="text_muted p_compact">
-                <p data-i18n="cg_template_find_regex_help_1">Extract content from chat messages using regular expressions, then process it. If no match is found, the operation is considered a failure and no processing is triggered.</p>
-                <p data-i18n="cg_template_find_regex_help_2">Content is selected in the following order:</p>
-                <p data-i18n="cg_template_find_regex_help_3">1. Named capture group `content`</p>
-                <p data-i18n="cg_template_find_regex_help_4">2. Unnamed capture group $1</p>
-                <p data-i18n="cg_template_find_regex_help_5">3. Unnamed capture group $0</p>
-                <p data-i18n="cg_template_find_regex_help_6">Example: /&lt;tag&gt;([\s\S]*)&lt;\/tag&gt;/i</p>
+            <small class="text_muted p_compact" data-i18n="cg_template_find_regex_help">
+                If the chat message does not match the expression, it will not trigger.
             </small>
         </div>
         <div class="flex-container alignItemsBaseline">
@@ -142,6 +132,34 @@
             max-width: 100%;
             box-sizing: border-box;
             flex-shrink: 0;
+        }
+
+        #custom_generation_template_dialog #custom_generation_template_prompt_list .custom_generation_list_row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-height: 34px;
+            padding: 4px 6px;
+            border: 1px solid var(--SmartThemeBorderColor);
+            border-radius: 6px;
+            background-color: var(--SmartThemeBlurTintColor);
+            color: var(--SmartThemeBodyColor);
+            visibility: visible;
+            opacity: 1;
+        }
+
+        #custom_generation_template_dialog #custom_generation_template_prompt_list .custom_generation_list_row > .flex-container,
+        #custom_generation_template_dialog #custom_generation_template_prompt_list .custom_generation_list_row .flex1 {
+            min-width: 0;
+        }
+
+        #custom_generation_template_dialog #custom_generation_template_prompt_list .custom_generation_list_row .menu_button,
+        #custom_generation_template_dialog #custom_generation_template_prompt_list .custom_generation_list_row input,
+        #custom_generation_template_dialog #custom_generation_template_prompt_list .custom_generation_list_row div {
+            color: inherit;
+            opacity: 1;
+            visibility: visible;
         }
 
         @media (max-width: 768px) {

@@ -60,5 +60,9 @@
 	"During response": "回應的內容",
 	"cg_prompt_internal_help": "在生成時動態獲取提示詞內容，而不是自己填寫",
 	"Save As": "另存為",
-	"Close": "關閉"
+	"Close": "關閉",
+	"cg_template_regex_help": "AI 輸出內容不匹配就重試",
+	"cg_template_find_regex_help": "樓層訊息不匹配就不觸發",
+	"Retry Count": "失敗重試次數",
+	"Retry Interval (ms)": "失敗重試間隔（毫秒）"
 }

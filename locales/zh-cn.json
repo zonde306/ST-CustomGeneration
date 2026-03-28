@@ -62,5 +62,9 @@
 	"(No models loaded)": "(没有模型加载)",
 	"(Select a model)": "(选择一个模型)",
 	"Save As": "另存为",
-	"Close": "关闭"
+	"Close": "关闭",
+	"cg_template_regex_help": "AI输出内容不匹配就重试",
+	"cg_template_find_regex_help": "楼层消息不匹配就不触发",
+	"Retry Count": "失败重试次数",
+	"Retry Interval (ms)": "失败重试间隔（毫秒）"
 }

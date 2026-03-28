@@ -358,20 +358,20 @@ function normalizeTemplatePrompts(raw: unknown): PresetPrompt[] {
         ));
     }
 
-    if (raw !== undefined && raw !== null) {
-        const content = String(raw ?? '');
-        return [normalizePrompt({
-            name: 'Template Prompt',
-            role: 'user',
-            triggers: [],
-            prompt: content,
-            injectionPosition: 'relative',
-            enabled: true,
-            internal: null,
-        }, 'Template Prompt')];
+    if (raw === undefined || raw === null) {
+        return clone(defaultTemplate.prompts);
     }
 
-    return [];
+    const content = String(raw ?? '');
+    return [normalizePrompt({
+        name: 'Template Prompt',
+        role: 'user',
+        triggers: [],
+        prompt: content,
+        injectionPosition: 'relative',
+        enabled: true,
+        internal: null,
+    }, 'Template Prompt')];
 }
 
 function normalizeListExportPrompt(raw: unknown, index: number): PresetPrompt {
