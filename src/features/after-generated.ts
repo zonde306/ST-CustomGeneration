@@ -142,6 +142,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                 'message': substituteParams(testing.content ?? ''),
                 'original': substituteParams(parsed.cleanContent),
                 'current': () => substituteParams(override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent),
+                'lastError': '',
                 ...testing.arguments ?? {},
             };
 
