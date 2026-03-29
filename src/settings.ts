@@ -604,16 +604,6 @@ function normalizePresetMap(raw: unknown): Record<string, Preset> {
     return result;
 }
 
-function getPresetGroups(): Preset[] {
-    const groups: Preset[] = [];
-    Object.values(settings.presets ?? {}).forEach(preset => {
-        if (preset) {
-            groups.push(preset);
-        }
-    });
-    return groups;
-}
-
 function getPresetKeys(): string[] {
     return Object.keys(settings.presets ?? {});
 }
@@ -2483,7 +2473,7 @@ function deleteTemplateFromEditor(): void {
 function buildExportPayload(includeApiConnection: boolean): ExportPayload {
     const payload: ExportPayload = {
         version: exportSchemaVersion,
-        presets: clone(getPresetGroups()),
+        presets: clone([settings.presets[settings.currentPreset]]),
         currentPreset: 0,
     };
 
@@ -2589,10 +2579,9 @@ async function importPresetsFromFile(file: File): Promise<void> {
     const presetMap = normalizePresetMap(normalized.presets);
     const mapKeys = Object.keys(presetMap);
 
-    settings.presets = mapKeys.length > 0
-        ? presetMap
-        : { [defaultPreset.name]: clone(defaultPreset) };
-    settings.currentPreset = mapKeys[normalized.currentPreset] ?? mapKeys[0] ?? defaultPreset.name;
+    Object.assign(settings.presets, presetMap);
+
+    settings.currentPreset = mapKeys[normalized.currentPreset] ?? mapKeys[0] ?? settings.currentPreset;
     selectedPromptIndex = 0;
     selectedRegexIndex = 0;
     selectedTemplateIndex = 0;
