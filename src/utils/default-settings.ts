@@ -189,6 +189,8 @@ export const defaultTemplate: Template = {
     regex: '',
     findRegex: '',
     filters: ['worldInfoDepth', 'authorsNoteDepth', 'charDepth', 'presetDepth'],
+    retryCount: 3,
+    retryInterval: 1000,
 }
 
 export const defaultPreset: Preset = {

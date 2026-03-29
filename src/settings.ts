@@ -2630,7 +2630,7 @@ async function ensureModalTemplatesInjected(): Promise<void> {
     const decoratorSelect = $('#custom_generation_template_decorator');
     if (decoratorSelect.length && decoratorSelect.children().length === 0) {
         for (const decorator of KNOWN_DECORATORS) {
-            decoratorSelect.append(`<option value="${decorator}" data-i18n="cg_${decorator}">${decorator}</option>`);
+            decoratorSelect.append(`<option value="${decorator}" data-i18n="cg_${decorator.substring(2)}">${decorator}</option>`);
         }
     }
 
