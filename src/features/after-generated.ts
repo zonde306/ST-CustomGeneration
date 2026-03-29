@@ -29,7 +29,13 @@ export interface DecoratorProcessData {
     messageId: number;
 }
 
-type DecoratorProcessor = (e: DecoratorProcessData) => (boolean | Promise<boolean>);
+interface DecoratorProcessor {
+    // Check if processing is allowed.
+    checker: (e: DecoratorProcessData) => (boolean | Promise<boolean>);
+
+    // Start processing content
+    processor: (e: DecoratorProcessData) => (boolean | Promise<boolean>);
+};
 
 export const WI_DECORATOR_MAPPING = new Map<string, DecoratorProcessor>();
 export const WI_DECORATOR_BEFORE_MAPPING = new Map<string, DecoratorProcessor>();
@@ -148,6 +154,25 @@ async function processMessage(env: Context, override: DataOverride, before: bool
 
             // Reduce Attention Depletion
             ctx.filters = template.filters;
+
+            try {
+                if(!await processor.checker({
+                    entry,
+                    content: testing.content ?? parsed.cleanContent,
+                    args: testing.arguments ?? {},
+                    override,
+                    decorator: parsed,
+                    env,
+                    messageId,
+                })) {
+                    console.info(`The inspection failed for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
+                    continue;
+                }
+            } catch (e) {
+                console.error(`An error occurred during the check for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`, e);
+                toastr.error(`An error occurred during the check for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`, `${before ? 'Before' : 'After'} Generate`);
+                continue;
+            }
             
             tasks.push(generate(
                 ctx,
@@ -159,7 +184,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                         for(const content of response) {
                             const processed = template.process(content);
                             if(processed.success) {
-                                if (await processor({
+                                if (await processor.processor({
                                     entry,
                                     content: processed.content ?? content,
                                     args: processed.arguments ?? {},
@@ -173,7 +198,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                             }
                         }
 
-                        console.warn(`Unknown error: `, response, template, entry);
+                        // retry
                         return false;
                     },
                     dontCreate: true,

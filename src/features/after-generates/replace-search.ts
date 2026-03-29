@@ -3,8 +3,13 @@ import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData
 const WI_DECORATOR = '@@replace_search';
 
 export async function setup() {
-    WI_DECORATOR_MAPPING.set(WI_DECORATOR, processor);
-    WI_DECORATOR_BEFORE_MAPPING.set(`${WI_DECORATOR}_before`, processor);
+    WI_DECORATOR_MAPPING.set(WI_DECORATOR, { processor, checker });
+    WI_DECORATOR_BEFORE_MAPPING.set(`${WI_DECORATOR}_before`, { processor, checker });
+}
+
+async function checker(data: DecoratorProcessData) {
+    const content = data.override.getOverride(data.entry.world, data.entry.uid)?.content ?? '';
+    return content.trim().length > 0;
 }
 
 async function processor(data: DecoratorProcessData) {

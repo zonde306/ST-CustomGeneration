@@ -1,4 +1,8 @@
 
+export function isEjsAvailable() {
+    // @ts-expect-error: 7017
+    return globalThis.EjsTemplate != null;
+}
 
 export async function evaluate(content: string, context: Record<string, any>): Promise<string> {
     // @ts-expect-error: 7017
