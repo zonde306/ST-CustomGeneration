@@ -159,15 +159,8 @@ function ensureSelectOption(select: JQuery, option: string | number): void {
     const value = String(option);
     const exists = select.find('option').toArray().some(item => String($(item).val()) === value);
     if (!exists) {
-        let i18nKey = value.startsWith('@@') ? value.substring(2) : value;
-        if(i18nKey in [ 'normal', 'regenerate', 'swipe', 'continue' ]) {
-            // Built-in translation
-            i18nKey = `${i18nKey.toUpperCase().substring(0, 1)}${i18nKey.substring(1)}`;
-        } else {
-            // Translation by extension
-            i18nKey = `cg_${i18nKey}`;
-        }
-        select.append($(`<option data-i18n="${i18nKey}"></option>`).val(value).text(value));
+        const i18nKey = value.startsWith('@@') ? value.substring(2) : value;
+        select.append($(`<option data-i18n="cg_${i18nKey}"></option>`).val(value).text(value));
     }
 }
 
