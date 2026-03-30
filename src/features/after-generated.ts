@@ -158,7 +158,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
             try {
                 if(!await processor.checker({
                     entry,
-                    content: testing.content ?? parsed.cleanContent,
+                    content: testing.content || parsed.cleanContent,
                     args: testing.arguments ?? {},
                     override,
                     decorator: parsed,

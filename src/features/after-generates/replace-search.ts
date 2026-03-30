@@ -8,8 +8,12 @@ export async function setup() {
 }
 
 async function checker(data: DecoratorProcessData) {
-    const content = data.override.getOverride(data.entry.world, data.entry.uid)?.content ?? '';
-    return content.trim().length > 0;
+    const content = data.override.getOverride(data.entry.world, data.entry.uid)?.content || data.content;
+    if(content.trim().length)
+        return true;
+
+    console.warn(`No content to replace for ${data.entry.world}/${data.entry.uid}-${data.entry.comment}`);
+    return false;
 }
 
 async function processor(data: DecoratorProcessData) {
