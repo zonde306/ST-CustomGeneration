@@ -1,4 +1,4 @@
-import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/after-generated";
+import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
 
 const WI_DECORATOR = '@@replace_search';
 
@@ -8,6 +8,7 @@ export async function setup() {
 }
 
 async function checker(data: DecoratorProcessData) {
+    // Unable to search and replace empty content
     const content = data.override.getOverride(data.entry.world, data.entry.uid)?.content || data.content;
     if(content.trim().length)
         return true;

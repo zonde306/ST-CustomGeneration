@@ -4,8 +4,8 @@ import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { generate as runGenerate, ApiConfig } from '@/functions/generate';
 import { KNOWN_DECORATORS } from '@/functions/worldinfo';
 import { PresetPrompt, RegEx, Template, Preset, Settings, ExportPayload, ListExportKind, ListExportItem, ListExportDialogState, ListExportPayload, ImportPayload } from '@/utils/defines';
-import { yaml } from "@st/lib.js";
 import { defaultSettings, defaultTemplate, defaultPreset } from './utils/default-settings';
+import { yaml } from "@st/lib.js";
 
 export const settings: Settings = clone(defaultSettings);
 
@@ -159,7 +159,7 @@ function ensureSelectOption(select: JQuery, option: string | number): void {
     const value = String(option);
     const exists = select.find('option').toArray().some(item => String($(item).val()) === value);
     if (!exists) {
-        select.append($('<option></option>').val(value).text(value));
+        select.append($(`<option data-i18n="cg_${value}"></option>`).val(value).text(value));
     }
 }
 
@@ -1839,7 +1839,7 @@ function updatePromptEditor() {
     const internalSelect = $('#custom_generation_prompt_internal');
     if (internalSelect.length) {
         internalSelect.empty();
-        internalSelect.append('<option value="" data-i18n="none">none</option>');
+        internalSelect.append('<option value="" data-i18n="cg_none">none</option>');
         TEMPLATE_FILTER_OPTIONS.forEach((option) => {
             internalSelect.append(`<option value="${option}" data-i18n="cg_${option}">${option}</option>`);
         });
@@ -2630,7 +2630,7 @@ async function ensureModalTemplatesInjected(): Promise<void> {
     const decoratorSelect = $('#custom_generation_template_decorator');
     if (decoratorSelect.length && decoratorSelect.children().length === 0) {
         for (const decorator of KNOWN_DECORATORS) {
-            decoratorSelect.append(`<option value="${decorator}" data-i18n="cg_${decorator.substring(2)}">${decorator}</option>`);
+            decoratorSelect.append(`<option value="${decorator}" data-i18n="cg_${decorator.substring(2)}">${decorator.substring(2)}</option>`);
         }
     }
 
@@ -3104,7 +3104,7 @@ function bindEvents() {
     $('#custom_generation_add_prompt').on('click', () => {
         resetPromptCreationState();
         creatingPromptDraft = normalizePrompt({
-            name: '',
+            name: 'Unnamed Prompt',
             role: 'system',
             triggers: [],
             prompt: '',

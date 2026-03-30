@@ -1,12 +1,13 @@
 import { Template, Preset, Settings } from '@/utils/defines';
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
+import { t } from "@st/scripts/i18n.js"
 
 export const defaultTemplate: Template = {
     decorator: '@@record',
     tag: '',
     prompts: [
         {
-            name: 'Character Note',
+            name: t`Character Note`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -18,7 +19,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'Author\'s Note',
+            name: t`Author's Note`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -30,7 +31,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'World info Depth 4',
+            name: t`World info Depth 4`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -42,7 +43,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'Prompt Depth 4',
+            name: t`Prompt Depth 4`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -54,7 +55,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'World info Depth 3',
+            name: t`World info Depth 3`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -66,7 +67,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'Prompt Depth 3',
+            name: t`Prompt Depth 3`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -78,7 +79,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'World info Depth 2',
+            name: t`World info Depth 2`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -90,7 +91,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'Prompt Depth 2',
+            name: t`Prompt Depth 2`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -102,7 +103,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'World info Depth 1',
+            name: t`World info Depth 1`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -114,7 +115,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'Prompt Depth 1',
+            name: t`Prompt Depth 1`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -126,7 +127,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'World info Depth 0',
+            name: t`World info Depth 0`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -138,7 +139,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'Prompt Depth 0',
+            name: t`Prompt Depth 0`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -150,7 +151,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'Last User Message',
+            name: t`Last User Message`,
             role: 'user',
             triggers: [],
             prompt: '',
@@ -162,7 +163,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'Last Character Message',
+            name: t`Last Character Message`,
             role: 'assistant',
             triggers: [],
             prompt: '',
@@ -174,7 +175,7 @@ export const defaultTemplate: Template = {
             maxDepth: 999,
         },
         {
-            name: 'Instruction',
+            name: t`Instruction`,
             role: 'user',
             triggers: [],
             prompt: 'Based on the above, update the following outdated information:\n\n{{original}}\n\nOutput only the updated content.',
@@ -194,10 +195,10 @@ export const defaultTemplate: Template = {
 }
 
 export const defaultPreset: Preset = {
-    name: 'Default',
+    name: t`Default`,
     prompts: [
         {
-            name: 'Main Prompt',
+            name: t`Main Prompt`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -209,7 +210,7 @@ export const defaultPreset: Preset = {
             maxDepth: 999,
         },
         {
-            name: 'World Info (before)',
+            name: t`World Info (before)`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -221,7 +222,7 @@ export const defaultPreset: Preset = {
             maxDepth: 999,
         },
         {
-            name: 'Persona Description',
+            name: t`Persona Description`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -233,7 +234,7 @@ export const defaultPreset: Preset = {
             maxDepth: 999,
         },
         {
-            name: 'Char Description',
+            name: t`Char Description`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -245,7 +246,7 @@ export const defaultPreset: Preset = {
             maxDepth: 999,
         },
         {
-            name: 'Char Personality',
+            name: t`Char Personality`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -257,7 +258,7 @@ export const defaultPreset: Preset = {
             maxDepth: 999,
         },
         {
-            name: 'Scenario',
+            name: t`Scenario`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -269,7 +270,7 @@ export const defaultPreset: Preset = {
             maxDepth: 999,
         },
         {
-            name: 'Enhance Definitions',
+            name: t`Enhance Definitions`,
             role: 'system',
             triggers: [],
             prompt: 'If you have more knowledge of {{char}}, add to the character\'s lore and personality to enhance them but keep the Character Sheet\'s definitions absolute.',
@@ -281,7 +282,7 @@ export const defaultPreset: Preset = {
             maxDepth: 999,
         },
         {
-            name: 'Auxiliary Prompt',
+            name: t`Auxiliary Prompt`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -293,7 +294,7 @@ export const defaultPreset: Preset = {
             maxDepth: 999,
         },
         {
-            name: 'World Info (after)',
+            name: t`World Info (after)`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -305,7 +306,7 @@ export const defaultPreset: Preset = {
             maxDepth: 999,
         },
         {
-            name: 'Chat Examples',
+            name: t`Chat Examples`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -317,7 +318,7 @@ export const defaultPreset: Preset = {
             maxDepth: 999,
         },
         {
-            name: 'Chat History',
+            name: t`Chat History`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -329,7 +330,7 @@ export const defaultPreset: Preset = {
             maxDepth: 65535,
         },
         {
-            name: 'Post-History Instructions (jailbreak)',
+            name: t`Post-History Instructions (jailbreak)`,
             role: 'system',
             triggers: [],
             prompt: '',
@@ -348,7 +349,7 @@ export const defaultPreset: Preset = {
             "tag": "",
             "prompts": [
                 {
-                    name: 'Character Note',
+                    name: t`Character Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -360,7 +361,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Author\'s Note',
+                    name: t`Author\'s Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -372,7 +373,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 4',
+                    name: t`World info Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -384,7 +385,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 4',
+                    name: t`Prompt Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -396,7 +397,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 3',
+                    name: t`World info Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -408,7 +409,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 3',
+                    name: t`Prompt Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -420,7 +421,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 2',
+                    name: t`World info Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -432,7 +433,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 2',
+                    name: t`Prompt Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -444,7 +445,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 1',
+                    name: t`World info Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -456,7 +457,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 1',
+                    name: t`Prompt Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -468,7 +469,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 0',
+                    name: t`World info Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -480,7 +481,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 0',
+                    name: t`Prompt Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -492,31 +493,31 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    "name": "Last User Message",
+                    name: t`Last User Message`,
                     "role": "user",
                     "triggers": [],
-                    "prompt": "{{lastUserMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastUserMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Last Character Message",
+                    name: t`Last Character Message`,
                     "role": "assistant",
                     "triggers": [],
-                    "prompt": "{{lastCharMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastCharMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Instruction",
+                    name: t`Instruction`,
                     "role": "user",
                     "triggers": [],
                     "prompt": "Based on the above, update the following document:\n<doc>\n{{current}}\n</doc>\n\nOutput only the updated document content, and it must be wrapped in `<doc>` tags.\nFor example:\n<doc>\nLatest document content\n</doc>\n\n\nIf no update is needed, output the original content as is.",
@@ -544,7 +545,7 @@ export const defaultPreset: Preset = {
             "tag": "",
             "prompts": [
                 {
-                    name: 'Character Note',
+                    name: t`Character Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -556,7 +557,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Author\'s Note',
+                    name: t`Author\'s Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -568,7 +569,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 4',
+                    name: t`World info Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -580,7 +581,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 4',
+                    name: t`Prompt Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -592,7 +593,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 3',
+                    name: t`World info Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -604,7 +605,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 3',
+                    name: t`Prompt Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -616,7 +617,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 2',
+                    name: t`World info Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -628,7 +629,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 2',
+                    name: t`Prompt Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -640,7 +641,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 1',
+                    name: t`World info Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -652,7 +653,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 1',
+                    name: t`Prompt Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -664,7 +665,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 0',
+                    name: t`World info Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -676,7 +677,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 0',
+                    name: t`Prompt Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -688,31 +689,31 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    "name": "Last User Message",
+                    name: t`Last User Message`,
                     "role": "user",
                     "triggers": [],
-                    "prompt": "{{lastUserMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastUserMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Last Character Message",
+                    name: t`Last Character Message`,
                     "role": "assistant",
                     "triggers": [],
-                    "prompt": "{{lastCharMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastCharMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Instruction",
+                    name: t`Instruction`,
                     "role": "user",
                     "triggers": [],
                     "prompt": "Based on the content above, update the following document:\n<doc>\n{{current}}\n</doc>\n\nThe `<doc>` tags serve only to mark the beginning and end of the document; they are not part of the document itself and should not be used for patch positioning.\nGenerate the diff patch using the `git diff -u` (Unified Diff) format, and enclose it within `<diff>` tags.\nLine numbers should be calculated relative to the line immediately following `<doc>` as 0, and the line immediately preceding `</doc>` as EOF.\nUse `text.txt` as the filename.\n\nFor example:\n<diff>\n--- a/text.txt\n+++ b/text.txt\n@@ -1,3 +1,3 @@\nHello\n-World\n+World!\nHow are you?\n</diff>\n\nIf no updates are required, output an empty patch.",
@@ -740,7 +741,7 @@ export const defaultPreset: Preset = {
             "tag": "",
             "prompts": [
                 {
-                    name: 'Character Note',
+                    name: t`Character Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -752,7 +753,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Author\'s Note',
+                    name: t`Author\'s Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -764,7 +765,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 4',
+                    name: t`World info Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -776,7 +777,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 4',
+                    name: t`Prompt Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -788,7 +789,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 3',
+                    name: t`World info Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -800,7 +801,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 3',
+                    name: t`Prompt Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -812,7 +813,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 2',
+                    name: t`World info Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -824,7 +825,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 2',
+                    name: t`Prompt Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -836,7 +837,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 1',
+                    name: t`World info Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -848,7 +849,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 1',
+                    name: t`Prompt Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -860,7 +861,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 0',
+                    name: t`World info Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -872,7 +873,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 0',
+                    name: t`Prompt Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -884,31 +885,31 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    "name": "Last User Message",
+                    name: t`Last User Message`,
                     "role": "user",
                     "triggers": [],
-                    "prompt": "{{lastUserMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastUserMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Last Character Message",
+                    name: t`Last Character Message`,
                     "role": "assistant",
                     "triggers": [],
-                    "prompt": "{{lastCharMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastCharMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Instruction",
+                    name: t`Instruction`,
                     "role": "user",
                     "triggers": [],
                     "prompt": "Based on the above, update the following document:\n<doc>\n{{current}}\n</doc>\n\nThe `<doc>` tag is solely used to mark the beginning and end of the document; it is not part of the document content itself.\nOutput the modified document content using Git conflict syntax, enclosed within `<edit>` tags.\nMultiple Git conflict blocks are permitted, and the content may include line breaks.\n\nFor example:\n<edit>\n<<<<<<< SEARCH\nold content 1\n=======\nnew content 1\n>>>>>>> REPLACE\n<<<<<<< SEARCH\nold content 2\n=======\nnew content 2\n>>>>>>> REPLACE\n</edit>\n\nIf no updates are required, output an empty `<edit>` tag.",
@@ -936,7 +937,7 @@ export const defaultPreset: Preset = {
             "tag": "",
             "prompts": [
                 {
-                    name: 'Character Note',
+                    name: t`Character Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -948,7 +949,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Author\'s Note',
+                    name: t`Author\'s Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -960,7 +961,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 4',
+                    name: t`World info Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -972,7 +973,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 4',
+                    name: t`Prompt Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -984,7 +985,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 3',
+                    name: t`World info Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -996,7 +997,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 3',
+                    name: t`Prompt Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1008,7 +1009,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 2',
+                    name: t`World info Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1020,7 +1021,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 2',
+                    name: t`Prompt Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1032,7 +1033,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 1',
+                    name: t`World info Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1044,7 +1045,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 1',
+                    name: t`Prompt Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1056,7 +1057,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 0',
+                    name: t`World info Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1068,7 +1069,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 0',
+                    name: t`Prompt Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1080,31 +1081,31 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    "name": "Last User Message",
+                    name: t`Last User Message`,
                     "role": "user",
                     "triggers": [],
-                    "prompt": "{{lastUserMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastUserMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Last Character Message",
+                    name: t`Last Character Message`,
                     "role": "assistant",
                     "triggers": [],
-                    "prompt": "{{lastCharMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastCharMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Instruction",
+                    name: t`Instruction`,
                     "role": "user",
                     "triggers": [],
                     "prompt": "Update the following JSON document based on the content above:\n<json>\n{{current}}\n</json>\n\nThe `<json>` tags serve only to delimit the start and end of the document and are not part of the document itself.\nOutput a patch in accordance with the `RFC 7396: JSON Merge Patch` standard to update the JSON document, enclosed within `<json>` tags.\n\nFor example:\n<json>\n{ \"a\": 1, \"b\": { \"c\": 2 } }\n</json>\n\nIf no updates are required, output an empty JSON object.",
@@ -1132,7 +1133,7 @@ export const defaultPreset: Preset = {
             "tag": "",
             "prompts": [
                 {
-                    name: 'Character Note',
+                    name: t`Character Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1144,7 +1145,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Author\'s Note',
+                    name: t`Author\'s Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1156,7 +1157,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 4',
+                    name: t`World info Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1168,7 +1169,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 4',
+                    name: t`Prompt Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1180,7 +1181,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 3',
+                    name: t`World info Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1192,7 +1193,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 3',
+                    name: t`Prompt Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1204,7 +1205,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 2',
+                    name: t`World info Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1216,7 +1217,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 2',
+                    name: t`Prompt Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1228,7 +1229,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 1',
+                    name: t`World info Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1240,7 +1241,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 1',
+                    name: t`Prompt Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1252,7 +1253,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 0',
+                    name: t`World info Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1264,7 +1265,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 0',
+                    name: t`Prompt Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1276,31 +1277,31 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    "name": "Last User Message",
+                    name: t`Last User Message`,
                     "role": "user",
                     "triggers": [],
-                    "prompt": "{{lastUserMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastUserMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Last Character Message",
+                    name: t`Last Character Message`,
                     "role": "assistant",
                     "triggers": [],
-                    "prompt": "{{lastCharMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastCharMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Instruction",
+                    name: t`Instruction`,
                     "role": "user",
                     "triggers": [],
                     "prompt": "Based on the above content, update the following YAML document:\n<yaml>\n{{current}}\n</yaml>\n\nThe `<yaml>` tags serve only to delimit the start and end of the document and are not part of the document itself.\nOutput the content of the fields requiring updates; the updates will be applied in a format similar to `RFC 7396: JSON Merge Patch`, enclosed within `<yaml>` tags.\n\nFor example:\n<yaml>\na: 1\nb:\n  c: 2\n</yaml>\n\nIf no updates are required, output an empty YAML document.",
@@ -1328,7 +1329,7 @@ export const defaultPreset: Preset = {
             "tag": "",
             "prompts": [
                 {
-                    name: 'Character Note',
+                    name: t`Character Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1340,7 +1341,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Author\'s Note',
+                    name: t`Author\'s Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1352,7 +1353,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 4',
+                    name: t`World info Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1364,7 +1365,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 4',
+                    name: t`Prompt Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1376,7 +1377,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 3',
+                    name: t`World info Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1388,7 +1389,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 3',
+                    name: t`Prompt Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1400,7 +1401,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 2',
+                    name: t`World info Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1412,7 +1413,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 2',
+                    name: t`Prompt Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1424,7 +1425,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 1',
+                    name: t`World info Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1436,7 +1437,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 1',
+                    name: t`Prompt Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1448,7 +1449,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 0',
+                    name: t`World info Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1460,7 +1461,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 0',
+                    name: t`Prompt Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1472,31 +1473,31 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    "name": "Last User Message",
+                    name: t`Last User Message`,
                     "role": "user",
                     "triggers": [],
-                    "prompt": "{{lastUserMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastUserMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Last Character Message",
+                    name: t`Last Character Message`,
                     "role": "assistant",
                     "triggers": [],
-                    "prompt": "{{lastCharMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastCharMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Instruction",
+                    name: t`Instruction`,
                     "role": "user",
                     "triggers": [],
                     "prompt": "Update the following JSON document based on the content above:\n<json>\n{{current}}\n</json>\n\nThe `<json>` tags serve only to delimit the start and end of the document and are not part of the document itself.\nOutput the update patch in the format of `RFC 6902: JSON Patch`, wrapping the output content within `<patch>` tags.\n\nFor example:\n<patch>\n[\n  { \"op\": \"replace\", \"path\": \"/a/b/c\", \"value\": 42 },\n  { \"op\": \"add\", \"path\": \"/d/e/f\", \"value\": [ \"foo\", \"bar\" ] },\n  { \"op\": \"replace\", \"path\": \"/g/h/i\", \"value\": 42 }\n]\n</patch>\n\nIf no updates are required, output an empty JSON object.",
@@ -1524,7 +1525,7 @@ export const defaultPreset: Preset = {
             "tag": "",
             "prompts": [
                 {
-                    name: 'Character Note',
+                    name: t`Character Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1536,7 +1537,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Author\'s Note',
+                    name: t`Author\'s Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1548,7 +1549,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 4',
+                    name: t`World info Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1560,7 +1561,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 4',
+                    name: t`Prompt Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1572,7 +1573,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 3',
+                    name: t`World info Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1584,7 +1585,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 3',
+                    name: t`Prompt Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1596,7 +1597,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 2',
+                    name: t`World info Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1608,7 +1609,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 2',
+                    name: t`Prompt Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1620,7 +1621,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 1',
+                    name: t`World info Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1632,7 +1633,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 1',
+                    name: t`Prompt Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1644,7 +1645,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 0',
+                    name: t`World info Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1656,7 +1657,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 0',
+                    name: t`Prompt Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1668,31 +1669,31 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    "name": "Last User Message",
+                    name: t`Last User Message`,
                     "role": "user",
                     "triggers": [],
-                    "prompt": "{{lastUserMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastUserMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Last Character Message",
+                    name: t`Last Character Message`,
                     "role": "assistant",
                     "triggers": [],
-                    "prompt": "{{lastCharMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastCharMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Instruction",
+                    name: t`Instruction`,
                     "role": "user",
                     "triggers": [],
                     "prompt": "Based on the information provided above and the following requirements, generate EJS code:\n\n{{original}}\n\nThe output EJS code must be wrapped within an outermost `<ejs>` tag, with code blocks enclosed using `<%% ... %%>` internally.\n\nFor example:\n<ejs>\n<%% setvar('stat_data.var1', 1) %%>\n</ejs>\n\nIf the code cannot be generated, output an empty `<ejs>` block.",
@@ -1720,7 +1721,7 @@ export const defaultPreset: Preset = {
             "tag": "",
             "prompts": [
                 {
-                    name: 'Character Note',
+                    name: t`Character Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1732,7 +1733,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Author\'s Note',
+                    name: t`Author\'s Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1744,7 +1745,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 4',
+                    name: t`World info Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1756,7 +1757,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 4',
+                    name: t`Prompt Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1768,7 +1769,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 3',
+                    name: t`World info Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1780,7 +1781,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 3',
+                    name: t`Prompt Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1792,7 +1793,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 2',
+                    name: t`World info Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1804,7 +1805,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 2',
+                    name: t`Prompt Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1816,7 +1817,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 1',
+                    name: t`World info Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1828,7 +1829,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 1',
+                    name: t`Prompt Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1840,7 +1841,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 0',
+                    name: t`World info Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1852,7 +1853,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 0',
+                    name: t`Prompt Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1864,31 +1865,31 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    "name": "Last User Message",
+                    name: t`Last User Message`,
                     "role": "user",
                     "triggers": [],
-                    "prompt": "{{lastUserMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastUserMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Last Character Message",
+                    name: t`Last Character Message`,
                     "role": "assistant",
                     "triggers": [],
-                    "prompt": "{{lastCharMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastCharMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Instruction",
+                    name: t`Instruction`,
                     "role": "user",
                     "triggers": [],
                     "prompt": "Based on the information provided above and the following requirements, generate EJS code:\n\n{{original}}\n\nThe output EJS code must be wrapped within an outermost `<ejs>` tag, with code blocks enclosed using `<%% ... %%>` internally.\n\nFor example:\n<ejs>\n<%% setvar('stat_data.var1', 1) %%>\n</ejs>\n\nIf the code cannot be generated, output an empty `<ejs>` block.",
@@ -1916,7 +1917,7 @@ export const defaultPreset: Preset = {
             "tag": "",
             "prompts": [
                 {
-                    name: 'Character Note',
+                    name: t`Character Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1928,7 +1929,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Author\'s Note',
+                    name: t`Author\'s Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1940,7 +1941,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 4',
+                    name: t`World info Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1952,7 +1953,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 4',
+                    name: t`Prompt Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1964,7 +1965,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 3',
+                    name: t`World info Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1976,7 +1977,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 3',
+                    name: t`Prompt Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -1988,7 +1989,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 2',
+                    name: t`World info Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2000,7 +2001,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 2',
+                    name: t`Prompt Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2012,7 +2013,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 1',
+                    name: t`World info Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2024,7 +2025,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 1',
+                    name: t`Prompt Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2036,7 +2037,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 0',
+                    name: t`World info Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2048,7 +2049,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 0',
+                    name: t`Prompt Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2060,31 +2061,31 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    "name": "Last User Message",
+                    name: t`Last User Message`,
                     "role": "user",
                     "triggers": [],
-                    "prompt": "{{lastUserMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastUserMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Last Character Message",
+                    name: t`Last Character Message`,
                     "role": "assistant",
                     "triggers": [],
-                    "prompt": "{{lastCharMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastCharMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Instruction",
+                    name: t`Instruction`,
                     "role": "user",
                     "triggers": [],
                     "prompt": "{{original}}",
@@ -2112,7 +2113,7 @@ export const defaultPreset: Preset = {
             "tag": "",
             "prompts": [
                 {
-                    name: 'Character Note',
+                    name: t`Character Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2124,7 +2125,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Author\'s Note',
+                    name: t`Author\'s Note`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2136,7 +2137,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 4',
+                    name: t`World info Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2148,7 +2149,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 4',
+                    name: t`Prompt Depth 4`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2160,7 +2161,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 3',
+                    name: t`World info Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2172,7 +2173,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 3',
+                    name: t`Prompt Depth 3`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2184,7 +2185,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 2',
+                    name: t`World info Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2196,7 +2197,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 2',
+                    name: t`Prompt Depth 2`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2208,7 +2209,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 1',
+                    name: t`World info Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2220,7 +2221,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 1',
+                    name: t`Prompt Depth 1`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2232,7 +2233,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'World info Depth 0',
+                    name: t`World info Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2244,7 +2245,7 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    name: 'Prompt Depth 0',
+                    name: t`Prompt Depth 0`,
                     role: 'system',
                     triggers: [],
                     prompt: '',
@@ -2256,31 +2257,31 @@ export const defaultPreset: Preset = {
                     maxDepth: 999,
                 },
                 {
-                    "name": "Last User Message",
+                    name: t`Last User Message`,
                     "role": "user",
                     "triggers": [],
-                    "prompt": "{{lastUserMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastUserMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Last Character Message",
+                    name: t`Last Character Message`,
                     "role": "assistant",
                     "triggers": [],
-                    "prompt": "{{lastCharMessage}}",
+                    "prompt": "",
                     "injectionPosition": "relative",
                     "enabled": true,
-                    "internal": null,
+                    "internal": "lastCharMessage",
                     "injectionDepth": 4,
                     "injectionOrder": 100,
                     "maxDepth": 999
                 },
                 {
-                    "name": "Instruction",
+                    name: t`Instruction`,
                     "role": "user",
                     "triggers": [],
                     "prompt": "{{original}}",
