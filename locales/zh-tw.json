@@ -138,5 +138,7 @@
 	"cg_normal": "普通生成",
 	"cg_regenerate": "重新生成",
 	"cg_swipe": "滑動生成",
-	"cg_continue": "繼續生成"
+	"cg_continue": "繼續生成",
+
+	"Drag to reorder": "拖曳重新排序"
 }

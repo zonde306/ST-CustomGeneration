@@ -6,6 +6,7 @@ import { KNOWN_DECORATORS } from '@/functions/worldinfo';
 import { PresetPrompt, RegEx, Template, Preset, Settings, ExportPayload, ListExportKind, ListExportItem, ListExportDialogState, ListExportPayload, ImportPayload } from '@/utils/defines';
 import { defaultSettings, defaultTemplate, defaultPreset } from './utils/default-settings';
 import { yaml } from "@st/lib.js";
+import { t } from "@st/scripts/i18n.js";
 
 export const settings: Settings = clone(defaultSettings);
 
@@ -968,7 +969,7 @@ function getPreviewText(content: string): string {
 
 function getTemplateTagLabel(template: Pick<Template, 'tag'>): string {
     const normalized = String(template.tag ?? '').trim();
-    return normalized || 'default';
+    return normalized || t`Default`;
 }
 
 function getTemplateSummary(template: Template): string {
