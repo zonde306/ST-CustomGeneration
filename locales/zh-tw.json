@@ -117,5 +117,26 @@
 	"cg_chatDepth1": "樓層深度@D1（僅預設）",
 	"cg_chatDepth2": "樓層深度@D2（僅預設）",
 	"cg_chatDepth3": "樓層深度@D3（僅預設）",
-	"cg_chatDepth4": "樓層深度@D4（僅預設）"
+	"cg_chatDepth4": "樓層深度@D4（僅預設）",
+
+	"Character Note": "角色備註",
+	"Author's Note": "作者註釋",
+	"World info Depth 4": "世界書 D4",
+	"Prompt Depth 4": "提示詞 D4",
+	"World info Depth 3": "世界書 D3",
+	"Prompt Depth 3": "提示詞 D3",
+	"World info Depth 2": "世界書 D2",
+	"Prompt Depth 2": "提示詞 D2",
+	"World info Depth 1": "世界書 D1",
+	"Prompt Depth 1": "提示詞 D1",
+	"World info Depth 0": "世界書 D0",
+	"Prompt Depth 0": "提示詞 D0",
+	"Last User Message": "最新用戶消息",
+	"Last Character Message": "最新角色消息",
+	"Instruction": "指令",
+
+	"cg_normal": "普通生成",
+	"cg_regenerate": "重新生成",
+	"cg_swipe": "滑動生成",
+	"cg_continue": "繼續生成"
 }

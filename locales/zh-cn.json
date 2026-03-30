@@ -137,7 +137,7 @@
 	"Last Character Message": "最新角色消息",
 	"Instruction": "指令",
 
-	"cg_normal": "普通",
+	"cg_normal": "普通生成",
 	"cg_regenerate": "重新生成",
 	"cg_swipe": "滑动生成",
 	"cg_continue": "继续生成"
