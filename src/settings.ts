@@ -10,9 +10,9 @@ import { t } from "@st/scripts/i18n.js";
 
 export const settings: Settings = clone(defaultSettings);
 
-const KNOWN_DECORATORS = Array.from(WI_DECORATOR_MAPPING.keys()).concat(Array.from(WI_DECORATOR_BEFORE_MAPPING.keys()));
-const DEFAULT_TEMPLATE_DECORATOR = (KNOWN_DECORATORS.find(x => x === '@@record') ?? KNOWN_DECORATORS[0] ?? '@@record') as TemplateDecorator;
-const PROMPT_TRIGGER_OPTIONS = ['normal', 'regenerate', 'swipe', 'continue', ...KNOWN_DECORATORS];
+const ALL_DECORATORS = Array.from(WI_DECORATOR_MAPPING.keys()).concat(Array.from(WI_DECORATOR_BEFORE_MAPPING.keys()));
+const DEFAULT_TEMPLATE_DECORATOR = (ALL_DECORATORS.find(x => x === '@@record') ?? ALL_DECORATORS[0] ?? '@@record') as TemplateDecorator;
+const PROMPT_TRIGGER_OPTIONS = ['normal', 'regenerate', 'swipe', 'continue', ...ALL_DECORATORS];
 export const TEMPLATE_FILTER_OPTIONS = [
     'main',
     'personaDescription',
@@ -429,7 +429,7 @@ function normalizeListExportPayload(raw: unknown): { kind: ListExportKind; items
 
 function normalizeTemplate(input: Partial<Template>): Template {
     const decoratorRaw = String(input.decorator ?? DEFAULT_TEMPLATE_DECORATOR);
-    const decorator = KNOWN_DECORATORS.includes(decoratorRaw as TemplateDecorator)
+    const decorator = ALL_DECORATORS.includes(decoratorRaw as TemplateDecorator)
         ? decoratorRaw as TemplateDecorator
         : DEFAULT_TEMPLATE_DECORATOR;
 
@@ -2633,7 +2633,7 @@ async function ensureModalTemplatesInjected(): Promise<void> {
 
     const decoratorSelect = $('#custom_generation_template_decorator');
     if (decoratorSelect.length && decoratorSelect.children().length === 0) {
-        for (const decorator of KNOWN_DECORATORS) {
+        for (const decorator of ALL_DECORATORS) {
             decoratorSelect.append(`<option value="${decorator}" data-i18n="cg_${decorator.substring(2)}">${decorator.substring(2)}</option>`);
         }
     }
