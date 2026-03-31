@@ -207,11 +207,13 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                 false,
                 template.retries,
                 template.interval,
-            ).catch(e => {
+            ).catch((e: Error) => {
                 if(abortController?.signal.aborted === false) {
                     activeTasks -= 1;
-                    toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, `${before ? 'Before' : 'After'} Generate`);
-                    console.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}, ${activeTasks} tasks remaining`, e);
+                    if(!e.message.includes('canceled')) {
+                        toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, `${before ? 'Before' : 'After'} Generate`);
+                        console.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}, ${activeTasks} tasks remaining`, e);
+                    }
                 }
             }).then(r => {
                 if(abortController?.signal.aborted === false) {
@@ -234,6 +236,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                 refreshMessage(messageId);
             }
             abortController = null;
+            activeTasks = 0;
             return v;
         });
 
@@ -245,6 +248,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     if(before) {
         console.log(`Waiting for before generate tasks to finish `, tasks.length);
         await collect;
+        activeTasks = 0;
     }
 }
 
@@ -332,6 +336,7 @@ function stopActiveTasks() {
     if(abortController?.signal.aborted === false) {
         abortController.abort('canceled by new generate');
         toastr.warning('Aborting after/before generate', 'after/before Generate');
+        abortController = null;
     }
 }
 

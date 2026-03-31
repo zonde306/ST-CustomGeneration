@@ -2,7 +2,7 @@ import { eventSource, event_types, saveSettingsDebounced } from '@st/script.js';
 import { extension_settings, renderExtensionTemplateAsync } from '@st/scripts/extensions.js';
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { generate as runGenerate, ApiConfig } from '@/functions/generate';
-import { KNOWN_DECORATORS } from '@/functions/worldinfo';
+import { WI_DECORATOR_BEFORE_MAPPING, WI_DECORATOR_MAPPING } from '@/features/generate-processor';
 import { PresetPrompt, RegEx, Template, Preset, Settings, ExportPayload, ListExportKind, ListExportItem, ListExportDialogState, ListExportPayload, ImportPayload } from '@/utils/defines';
 import { defaultSettings, defaultTemplate, defaultPreset } from './utils/default-settings';
 import { yaml } from "@st/lib.js";
@@ -10,6 +10,7 @@ import { t } from "@st/scripts/i18n.js";
 
 export const settings: Settings = clone(defaultSettings);
 
+const KNOWN_DECORATORS = Array.from(WI_DECORATOR_MAPPING.keys()).concat(Array.from(WI_DECORATOR_BEFORE_MAPPING.keys()));
 const DEFAULT_TEMPLATE_DECORATOR = (KNOWN_DECORATORS.find(x => x === '@@record') ?? KNOWN_DECORATORS[0] ?? '@@record') as TemplateDecorator;
 const PROMPT_TRIGGER_OPTIONS = ['normal', 'regenerate', 'swipe', 'continue', ...KNOWN_DECORATORS];
 export const TEMPLATE_FILTER_OPTIONS = [
