@@ -140,5 +140,6 @@
 	"cg_swipe": "滑動生成",
 	"cg_continue": "繼續生成",
 
-	"Drag to reorder": "拖曳重新排序"
+	"Drag to reorder": "拖拽重新排序",
+	"Max Concurrency": "最大並行數"
 }
