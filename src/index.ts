@@ -8,7 +8,7 @@ import { setup as setupAfterGenerate } from "@/features/generate-processor";
 import { setup as setupReplace } from "@/features/after-generates/replace";
 import { setup as setupOverrides } from "@/features/override";
 import { setup as setupLogger } from "@/features/generate-logger";
-import { runAfterGenerates } from "@/features/generate-processor";
+import { runAfterGenerates, isGenerating } from "@/features/generate-processor";
 
 // jQuery
 $(async () => {
@@ -32,6 +32,7 @@ $(async () => {
         },
         eventTypes,
         runAfterGenerates,
+        isWorldInfoGenerating: isGenerating,
     };
     
     console.log('Custom generation initialized');

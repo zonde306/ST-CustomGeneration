@@ -107,9 +107,12 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     if(abortController?.signal?.aborted === false) {
         abortController?.abort();
         toastr.warning(`Aborting previous ${before ? 'before' : 'after'}-generate`);
+        await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'regenerate', results: [] });
     }
 
     abortController = new AbortController();
+
+    await eventSource.emit(eventTypes.GENERATION_WORLDINFO_START, { abortController, entries });
 
     const cache = new Map<string, TemplateHandler>();
     const tasks: Promise<any>[] = [];
@@ -233,14 +236,16 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     let collect = Promise.allSettled(tasks);
 
     if(tasks.length) {
-        collect = collect.then((v) => {
+        collect = collect.then(async(results) => {
             if(abortController?.signal.aborted === false) {
                 toastr.success('All after generate tasks ended', `${before ? 'Before' : 'After'} Generate`);
                 refreshMessage(messageId);
             }
             abortController = null;
             activeTasks = 0;
-            return v;
+
+            await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: before ? 'before' : 'after', reason: 'done', results });
+            return results;
         });
 
         toastr.info(`Running ${before ? 'before' : 'after'}-generate, ${tasks.length} tasks`, `${before ? 'Before' : 'After'} Generate`);
@@ -323,7 +328,7 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
 
 async function onGenerateStarting(type: string, options: any, dryRun: boolean) {
     if((type === 'normal' || type === 'regenerate' || type === 'swipe') && !dryRun) {
-        stopActiveTasks();
+        await stopActiveTasks();
 
         const env = options.context ?? Context.global();
         const override = new DataOverride(env.chat, env.chat_metadata);
@@ -331,11 +336,12 @@ async function onGenerateStarting(type: string, options: any, dryRun: boolean) {
     }
 }
 
-function stopActiveTasks() {
+async function stopActiveTasks() {
     if(abortController?.signal.aborted === false) {
         abortController.abort('canceled by new generate');
         toastr.warning('Aborting after/before generate', 'after/before Generate');
         abortController = null;
+        await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'regenerate', results: [] });
     }
 }
 
@@ -377,4 +383,8 @@ async function onGenerateAfter(data: { type: string, context: Context, error: Er
 
 function onGenerateCancelled() {
     isGenerationCancelled = true;
+}
+
+export function isGenerating(): boolean {
+    return abortController?.signal.aborted === false;
 }
