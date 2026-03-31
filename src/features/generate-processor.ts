@@ -18,6 +18,8 @@ import { setup as setupReplaceSearch } from "@/features/after-generates/replace-
 import { setup as setupAppendMessage } from "@/features/after-generates/append-message";
 import { setup as setupAppendEjs } from "@/features/after-generates/ejs-append";
 import { eventTypes } from "@/utils/events";
+import { execute as batchExecute } from "@/utils/concurrency-limiter";
+import { settings } from "@/settings";
 
 export interface DecoratorProcessData {
     entry: WorldInfoEntry;
@@ -122,7 +124,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     const messageId = env.chat.length - 1;
 
     for(const [ batch, entrites ] of Object.entries(groups)) {
-        const tasks: Promise<any>[] = [];
+        const tasks: (() => Promise<any>)[] = [];
         let activeTasks = 0;
         
         // It should be wrapped as a separate function, but that seems a bit difficult.
@@ -183,59 +185,63 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                 continue;
             }
             
-            tasks.push(generate(
-                ctx,
-                decorator,
-                {
-                    validator: async(response) => {
-                        response = Array.isArray(response) ? response : [ response ];
+            // A concurrency limiter should be added to it.
+            tasks.push(() => {
+                console.log(`After Generate: ${entry.world}/${entry.uid}-${entry.comment} - ${decorator}`);
+                return generate(
+                    ctx,
+                    decorator,
+                    {
+                        validator: async(response) => {
+                            response = Array.isArray(response) ? response : [ response ];
 
-                        for(const content of response) {
-                            const processed = template.process(content);
-                            if(processed.success) {
-                                if (await processor.processor({
-                                    entry,
-                                    content: processed.content ?? content,
-                                    args: processed.arguments ?? {},
-                                    override,
-                                    decorator: parsed,
-                                    env,
-                                    messageId,
-                                })) {
-                                    return true;
+                            for(const content of response) {
+                                const processed = template.process(content);
+                                if(processed.success) {
+                                    if (await processor.processor({
+                                        entry,
+                                        content: processed.content ?? content,
+                                        args: processed.arguments ?? {},
+                                        override,
+                                        decorator: parsed,
+                                        env,
+                                        messageId,
+                                    })) {
+                                        return true;
+                                    }
                                 }
                             }
-                        }
 
-                        // retry
-                        return false;
+                            // retry
+                            return false;
+                        },
+                        dontCreate: true,
+                        abortController: abortController ?? undefined,
                     },
-                    dontCreate: true,
-                    abortController,
-                },
-                false,
-                template.retries,
-                template.interval,
-            ).catch((e: Error) => {
-                if(abortController?.signal.aborted === false) {
-                    activeTasks -= 1;
-                    if(!e.message.includes('canceled')) {
-                        toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, `${before ? 'Before' : 'After'} Generate`);
-                        console.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}, ${activeTasks} tasks remaining`, e);
+                    false,
+                    template.retries,
+                    template.interval,
+                ).catch((e: Error) => {
+                    if(abortController?.signal.aborted === false) {
+                        activeTasks -= 1;
+                        if(!e.message.includes('canceled')) {
+                            toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, `${before ? 'Before' : 'After'} Generate`);
+                            console.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}, ${activeTasks} tasks remaining`, e);
+                        }
                     }
-                }
-            }).then(r => {
-                if(abortController?.signal.aborted === false) {
-                    activeTasks -= 1;
-                    console.log(`Task completed: ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}, ${activeTasks} tasks remaining`);
-                }
-                return r;
-            }));
+                }).then(r => {
+                    if(abortController?.signal.aborted === false) {
+                        activeTasks -= 1;
+                        console.log(`Task completed: ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}, ${activeTasks} tasks remaining`);
+                    }
+                    return r;
+                });
+            });
 
-            console.log(`After Generate: ${entry.world}/${entry.uid}-${entry.comment} - ${decorator}`);
         }
 
-        let collected = Promise.allSettled(tasks);
+        // Waiting for batch completion
+        let collected = batchExecute(tasks, settings.maxConcurrency);
 
         if(tasks.length) {
             collected = collected.then(async(results) => {

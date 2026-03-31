@@ -451,6 +451,9 @@ export interface Settings {
 
     // default preset (current active preset)
     currentPreset: string;
+
+    // max concurrency for world info generation
+    maxConcurrency: number;
 }
 
 export interface ExportPayload {

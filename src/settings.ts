@@ -643,6 +643,7 @@ function ensureSettingsIntegrity(resetSelections: boolean = false) {
     settings.includeBody = normalizeRecord(settings.includeBody);
     settings.excludeBody = normalizeRecord(settings.excludeBody);
     settings.promptPostProcessing = parsePromptPostProcessing(settings.promptPostProcessing);
+    settings.maxConcurrency = parseNumber(settings.maxConcurrency, defaultSettings.maxConcurrency, 1, 100, true);
 
     settings.presets = normalizePresetMap(settings.presets);
     if (Object.keys(settings.presets).length === 0) {
@@ -2704,6 +2705,11 @@ function bindEvents() {
         saveSettings();
     });
 
+    $('#custom_generation_max_concurrency').on('input', () => {
+        settings.maxConcurrency = parseNumber($('#custom_generation_max_concurrency').val(), defaultSettings.maxConcurrency, 1, 100, true);
+        saveSettings();
+    });
+
     $('#custom_generation_model_select').on('change', () => {
         const value = String($('#custom_generation_model_select').val() ?? '').trim();
         if (!value) {
@@ -3364,6 +3370,7 @@ export function updateSettingsUI() {
     $('#custom_generation_frequency_penalty').val(settings.frequencyPenalty);
     $('#custom_generation_presence_penalty').val(settings.presencePenalty);
     $('#custom_generation_stream').prop('checked', settings.stream);
+    $('#custom_generation_max_concurrency').val(settings.maxConcurrency);
     $('#custom_generation_prompt_post_processing').val(settings.promptPostProcessing);
     $('#custom_generation_include_headers_yaml').val(stringifyYamlRecord(settings.includeHeaders));
     $('#custom_generation_include_body_yaml').val(stringifyYamlRecord(settings.includeBody));

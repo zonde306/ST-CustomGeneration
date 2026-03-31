@@ -2327,4 +2327,5 @@ export const defaultSettings: Settings = {
     includeHeaders: {},
     includeBody: {},
     excludeBody: {},
+    maxConcurrency: 1,
 };
