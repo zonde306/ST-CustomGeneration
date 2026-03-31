@@ -91,42 +91,45 @@ export async function runAfterGenerates() {
 
     const env = Context.global();
     const override = new DataOverride(env.chat, env.chat_metadata);
-    await processMessage(env, override, false);
+
+    // Runs in the background, no waiting required.
+    processMessage(env, override, false);
 }
 
 async function processMessage(env: Context, override: DataOverride, before: boolean = false) {
-    const messages = env.chat.slice(-world_info_depth);
-
-    isPostGenerating = true;
-    const entries = await getActivatedEntries(messages.map(msg => msg.mes ?? ''));
-    isPostGenerating = false;
-
-    if(entries.length < 1)
-        return;
-
     if(abortController?.signal?.aborted === false) {
         abortController?.abort();
         toastr.warning(`Aborting previous ${before ? 'before' : 'after'}-generate`);
-        await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'regenerate', results: [] });
+        await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'regenerate' });
     }
+
+    const messages = env.chat.slice(-world_info_depth);
+    const groups = await getSortedEntries(
+        messages.map(msg => msg.mes ?? ''),
+        before,
+        before ? 'cg-before' : 'cg-after',
+        false
+    );
+
+    if(groups.length < 1)
+        return;
 
     abortController = new AbortController();
 
-    await eventSource.emit(eventTypes.GENERATION_WORLDINFO_START, { abortController, entries });
+    await eventSource.emit(eventTypes.GENERATION_WORLDINFO_START, { abortController, entries: groups });
 
     const cache = new Map<string, TemplateHandler>();
-    const tasks: Promise<any>[] = [];
     const messageId = env.chat.length - 1;
-    let activeTasks = 0;
 
-    for(const entry of entries) {
-        const parsed = new DecoratorParser(entry);
-        for(const [idx, decorator] of Object.entries(parsed.decorators)) {
-            const processor = before ? WI_DECORATOR_BEFORE_MAPPING.get(decorator) : WI_DECORATOR_MAPPING.get(decorator);
-            if(!processor)
-                continue;
+    for(const [ batch, entrites ] of Object.entries(groups)) {
+        const tasks: Promise<any>[] = [];
+        let activeTasks = 0;
+        
+        // It should be wrapped as a separate function, but that seems a bit difficult.
+        for(const ent of entrites) {
+            const { entry, decorator, parsed, processor } = ent;
 
-            const tag = parsed.arguments[Number(idx)] ?? '';
+            const tag = parsed.parameters[decorator]?.[0] ?? '';
             const cacheKey = `${decorator}:${tag}`;
             let template: TemplateHandler = cache.get(cacheKey)!;
             if(template === undefined) {
@@ -231,33 +234,32 @@ async function processMessage(env: Context, override: DataOverride, before: bool
 
             console.log(`After Generate: ${entry.world}/${entry.uid}-${entry.comment} - ${decorator}`);
         }
-    }
 
-    let collect = Promise.allSettled(tasks);
+        let collected = Promise.allSettled(tasks);
 
-    if(tasks.length) {
-        collect = collect.then(async(results) => {
-            if(abortController?.signal.aborted === false) {
-                toastr.success('All after generate tasks ended', `${before ? 'Before' : 'After'} Generate`);
-                refreshMessage(messageId);
-            }
-            abortController = null;
-            activeTasks = 0;
+        if(tasks.length) {
+            collected = collected.then(async(results) => {
+                if(abortController?.signal.aborted === false) {
+                    toastr.success(`All generate tasks ended`, `${before ? 'Before' : 'After'} Generate`);
+                    refreshMessage(messageId);
+                }
+                abortController = null;
+                activeTasks = 0;
 
-            await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: before ? 'before' : 'after', reason: 'done', results });
-            return results;
-        });
+                return results;
+            });
 
-        toastr.info(`Running ${before ? 'before' : 'after'}-generate, ${tasks.length} tasks`, `${before ? 'Before' : 'After'} Generate`);
-    } else {
-        console.log(`No ${before ? 'before' : 'after'} generate tasks found`);
-    }
+            toastr.info(`Batch ${batch + 1}/${_.size(groups)} batch, ${tasks.length} tasks`, `${before ? 'Before' : 'After'} Generate`);
+        } else {
+            console.log(`No ${before ? 'before' : 'after'} generate tasks found`);
+        }
 
-    if(before) {
-        console.log(`Waiting for before generate tasks to finish `, tasks.length);
-        await collect;
+        console.log(`Waiting for the ${batch + 1} batch of ${before ? 'before' : 'after'} generate tasks to complete`, tasks.length);
+        await collected;
         activeTasks = 0;
     }
+
+    await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: before ? 'before' : 'after', reason: 'done' });
 }
 
 async function onAppReady() {
@@ -287,7 +289,7 @@ async function onAppReady() {
 
 async function onWorldInfoLoaded(data: WorldInfoLoaded) {
     if(isPostGenerating) {
-        console.debug('ignore world info filter event during post generate');
+        console.debug('Skip WI entry filtering when performing custom WI processing');
         return;
     }
 
@@ -341,7 +343,7 @@ async function stopActiveTasks() {
         abortController.abort('canceled by new generate');
         toastr.warning('Aborting after/before generate', 'after/before Generate');
         abortController = null;
-        await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'regenerate', results: [] });
+        await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'regenerate' });
     }
 }
 
@@ -377,7 +379,9 @@ async function refreshMessage(messageId: number) {
 async function onGenerateAfter(data: { type: string, context: Context, error: Error | null }) {
     if((data.type === 'normal' || data.type === 'regenerate' || data.type === 'swipe') && !data.error && !data.context.isGlobal) {
         const override = new DataOverride(data.context.chat, data.context.chat_metadata);
-        await processMessage(data.context, override, false);
+
+        // Runs in the background, no waiting required.
+        processMessage(data.context, override, false);
     }
 }
 
@@ -387,4 +391,61 @@ function onGenerateCancelled() {
 
 export function isGenerating(): boolean {
     return abortController?.signal.aborted === false;
+}
+
+interface WorldInfoEntryWithDecorator {
+    entry: WorldInfoEntry;
+    decorator: string;
+    parsed: DecoratorParser;
+    processor: DecoratorProcessor;
+}
+
+async function getSortedEntries(
+    triggerWords: string[],
+    before: boolean = false,
+    type?: string,
+    dryRun?: boolean,
+): Promise<WorldInfoEntryWithDecorator[][]> {
+    // To avoid WI entries being filtered by the WI filter, we need to disable the WI filter.
+    isPostGenerating = true;
+    const entries = await getActivatedEntries(triggerWords, type, dryRun);
+    isPostGenerating = false;
+
+    const grouped = new Map<number, WorldInfoEntryWithDecorator[]>();
+
+    for(const entry of entries) {
+        const parsed = new DecoratorParser(entry);
+        for(const decorator of parsed.decorators) {
+            const processor = before ? WI_DECORATOR_BEFORE_MAPPING.get(decorator) : WI_DECORATOR_MAPPING.get(decorator);
+            if(!processor)
+                continue;
+
+            let position = 1;
+            if(parsed.decorators.includes('@@batch_order')) {
+                const order = parsed.parameters['@@batch_order']?.[0] || 'medium';
+                switch(order) {
+                    case 'top':
+                        position = 0;
+                        break;
+                    case 'medium':
+                        position = 1;
+                        break;
+                    case 'bottom':
+                        position = 2;
+                        break;
+                    default:
+                        const num = parseInt(order);
+                        position = Number.isNaN(num) ? 1 : num;
+                        break;
+                }
+            }
+
+            const group = grouped.get(position) ?? [];
+            group.push({ entry, decorator, parsed, processor });
+            grouped.set(position, group);
+        }
+    }
+
+    const sorted = Array.from(grouped.entries()).sort((a, b) => a[0] - b[0]);
+    return sorted.map(g => g[1]);
 }

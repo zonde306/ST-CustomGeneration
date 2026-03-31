@@ -29,6 +29,7 @@ export const KNOWN_DECORATORS = [
     '@@append_output_before',       // Append the result to the output.
     '@@append_output_ejs',   // Process the results using EJS and append them to the output.
     '@@append_output_ejs_before',   // Process the results using EJS and append them to the output.
+    '@@batch_order',        // Batch order of entries.
 ];
 
 /**
