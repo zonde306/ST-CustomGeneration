@@ -298,7 +298,7 @@ export class DataOverride {
         }
     }
 
-    getOverride(world: string, uid: string | number, maxDepth: number = 0): WIOverride | null {
+    getOverride(world: string, uid: string | number, maxDepth: number = 999): WIOverride | null {
         for(let i = this.chat.length - 1; i >= 0; --i) {
             if(maxDepth < 0)
                 return null;
