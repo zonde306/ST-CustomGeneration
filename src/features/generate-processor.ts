@@ -65,7 +65,10 @@ export async function setup() {
     eventSource.on(event_types.GENERATION_ENDED, runAfterGenerates);
     eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded);
     eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onGenerateStarting);
-    eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
+    eventSource.on(event_types.CHAT_CHANGED, stopActiveTasks);
+    eventSource.on(event_types.MESSAGE_SWIPED, stopActiveTasks);
+    eventSource.on(event_types.MESSAGE_SWIPE_DELETED, stopActiveTasks);
+    eventSource.on(event_types.MESSAGE_DELETED, stopActiveTasks);
     eventSource.on(eventTypes.GENERATE_AFTER, onGenerateAfter);
 
     await setupReplace();
@@ -326,10 +329,6 @@ async function onGenerateStarting(type: string, options: any, dryRun: boolean) {
         const override = new DataOverride(env.chat, env.chat_metadata);
         await processMessage(env, override, true);
     }
-}
-
-async function onChatChanged() {
-    stopActiveTasks();
 }
 
 function stopActiveTasks() {
