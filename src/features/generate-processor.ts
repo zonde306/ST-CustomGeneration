@@ -255,12 +255,12 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                 return results;
             });
 
-            toastr.info(`Batch ${batch + 1}/${_.size(groups)} batch, ${tasks.length} tasks`, `${before ? 'Before' : 'After'} Generate`);
+            toastr.info(`Batch ${Number(batch) + 1}/${_.size(groups)} batch, ${tasks.length} tasks`, `${before ? 'Before' : 'After'} Generate`);
         } else {
             console.log(`No ${before ? 'before' : 'after'} generate tasks found`);
         }
 
-        console.log(`Waiting for the ${batch + 1} batch of ${before ? 'before' : 'after'} generate tasks to complete`, tasks.length);
+        console.log(`Waiting for the ${Number(batch) + 1} batch of ${before ? 'before' : 'after'} generate tasks to complete`, tasks.length);
         await collected;
         activeTasks = 0;
     }
