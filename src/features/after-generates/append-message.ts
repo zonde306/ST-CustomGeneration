@@ -14,6 +14,10 @@ async function checker(_: DecoratorProcessData) {
 async function processor(data: DecoratorProcessData) {
     if(data.env.chat[data.messageId]?.mes) {
         data.env.chat[data.messageId].mes += data.content;
+        if(data.env.chat[data.messageId].swipes?.[data.swipeId]) {
+            // @ts-expect-error: 2339
+            data.env.chat[data.messageId].swipes[data.swipeId] += data.content;
+        }
     }
     return true;
 }

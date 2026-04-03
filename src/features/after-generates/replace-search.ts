@@ -9,7 +9,7 @@ export async function setup() {
 
 async function checker(data: DecoratorProcessData) {
     // Unable to search and replace empty content
-    const content = data.override.getOverride(data.entry.world, data.entry.uid)?.content || data.content;
+    const content = data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content || data.content;
     if(content.trim().length)
         return true;
 
@@ -18,13 +18,13 @@ async function checker(data: DecoratorProcessData) {
 }
 
 async function processor(data: DecoratorProcessData) {
-    const original = data.override.getOverride(data.entry.world, data.entry.uid)?.content ?? data.decorator.cleanContent;
+    const original = data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content ?? data.decorator.cleanContent;
     let result = gitConflictStyle(data.content, original);
     if(result === false)
         result = jsonStyle(data.content, original);
 
     if(result) {
-        data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, result, data.messageId);
+        data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, result, data.messageId, data.swipeId);
         console.debug(`WI replace ${data.entry.world}/${data.entry.uid}-${data.entry.comment} to ${result}`);
     } else {
         console.error(`WI replace ${data.entry.world}/${data.entry.uid}-${data.entry.comment} failed`);

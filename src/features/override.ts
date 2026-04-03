@@ -298,13 +298,14 @@ export class DataOverride {
         }
     }
 
-    getOverride(world: string, uid: string | number, maxDepth: number = 999): WIOverride | null {
-        for(let i = this.chat.length - 1; i >= 0; --i) {
+    getOverride(world: string, uid: string | number, mesId?: number, swipeId?: number, maxDepth: number = 999): WIOverride | null {
+        for(let i = mesId ?? this.chat.length - 1; i >= 0; --i) {
             if(maxDepth < 0)
                 return null;
 
             const message = this.chat[i];
-            const override = message.swipe_info?.[message.swipe_id ?? 0]?.wi_overrides?.[world]?.[String(uid)];
+            const swipe = (i === mesId || i === this.chat.length - 1) ? swipeId ?? message.swipe_id ?? 0 : message.swipe_id ?? 0;
+            const override = message.swipe_info?.[swipe]?.wi_overrides?.[world]?.[String(uid)];
             if(override)
                 return override;
 
@@ -319,18 +320,19 @@ export class DataOverride {
         uid: string | number,
         type: string,
         content: string,
-        messageId: number = this.chat.length - 1
+        messageId: number = this.chat.length - 1,
+        swipeId: number = this.chat[messageId].swipe_id ?? 0,
     ) {
         const last = this.chat[messageId];
         if(!last.swipe_info)
             last.swipe_info = [];
-        if(!last.swipe_info[last.swipe_id ?? 0])
-            last.swipe_info[last.swipe_id ?? 0] = {};
-        if(!last.swipe_info[last.swipe_id ?? 0].wi_overrides)
-            last.swipe_info[last.swipe_id ?? 0].wi_overrides = {};
-        if(!last.swipe_info[last.swipe_id ?? 0].wi_overrides?.[world]) // @ts-expect-error: 2339
-            last.swipe_info[last.swipe_id ?? 0].wi_overrides[world] = {}; // @ts-expect-error: 2339
-        last.swipe_info[last.swipe_id ?? 0].wi_overrides[world][String(uid)] = { type, content };
+        if(!last.swipe_info[swipeId])
+            last.swipe_info[swipeId] = {};
+        if(!last.swipe_info[swipeId].wi_overrides)
+            last.swipe_info[swipeId].wi_overrides = {};
+        if(!last.swipe_info[swipeId].wi_overrides?.[world])
+            last.swipe_info[swipeId].wi_overrides[world] = {};
+        last.swipe_info[swipeId].wi_overrides[world][String(uid)] = { type, content };
     }
 
     getChatOverride(messageId: number): string | null {

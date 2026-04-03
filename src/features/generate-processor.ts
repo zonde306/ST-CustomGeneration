@@ -30,6 +30,7 @@ export interface DecoratorProcessData {
     decorator: DecoratorParser;
     env: Context;
     messageId: number;
+    swipeId: number;
 }
 
 interface DecoratorProcessor {
@@ -70,8 +71,8 @@ export async function setup() {
     eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onGenerateStarting);
     eventSource.on(event_types.CHAT_CHANGED, stopActiveTasks);
     eventSource.on(event_types.MESSAGE_SWIPED, stopActiveTasks.bind(null, true));
-    eventSource.on(event_types.MESSAGE_SWIPE_DELETED, stopActiveTasks.bind(null, true));
-    eventSource.on(event_types.MESSAGE_DELETED, stopActiveTasks.bind(null, true));
+    eventSource.on(event_types.MESSAGE_SWIPE_DELETED, stopActiveTasks);
+    eventSource.on(event_types.MESSAGE_DELETED, stopActiveTasks);
     eventSource.on(eventTypes.GENERATE_AFTER, onGenerateAfter);
 
     await setupReplace();
@@ -123,6 +124,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
 
     const cache = new Map<string, TemplateHandler>();
     const messageId = env.chat.length - 1;
+    const swipeId = env.chat[messageId]?.swipe_id ?? 0;
 
     for(const [ batch, entrites ] of Object.entries(groups)) {
         const tasks: (() => Promise<any>)[] = [];
@@ -176,6 +178,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                     decorator: parsed,
                     env,
                     messageId,
+                    swipeId,
                 })) {
                     console.info(`The inspection failed for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
                     continue;
@@ -207,6 +210,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                                         decorator: parsed,
                                         env,
                                         messageId,
+                                        swipeId,
                                     })) {
                                         return true;
                                     }
@@ -337,8 +341,8 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
 
 async function onGenerateStarting(type: string, options: any, dryRun: boolean) {
     if((type === 'normal' || type === 'regenerate' || type === 'swipe') && !dryRun) {
-        await stopActiveTasks(true);
-        abortController = null; // Separate processing
+        await stopActiveTasks(type != 'regenerate');
+        abortController = null; // Abandon managing interrupt handlers
         
         const env = options.context ?? Context.global();
         const override = new DataOverride(env.chat, env.chat_metadata);

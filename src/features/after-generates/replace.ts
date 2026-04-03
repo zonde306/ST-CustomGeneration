@@ -9,7 +9,7 @@ export async function setup() {
 
 async function checker(data: DecoratorProcessData) {
     // Unable to search and replace empty content
-    const content = data.override.getOverride(data.entry.world, data.entry.uid)?.content || data.content;
+    const content = data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content || data.content;
     if(content.trim().length)
         return true;
 
@@ -18,7 +18,7 @@ async function checker(data: DecoratorProcessData) {
 }
 
 async function processor(data: DecoratorProcessData) {
-    data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, data.content, data.messageId);
+    data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, data.content, data.messageId, data.swipeId);
     console.debug(`WI replace ${data.entry.world}/${data.entry.uid}-${data.entry.comment} to ${data.content}`);
     return true;
 }

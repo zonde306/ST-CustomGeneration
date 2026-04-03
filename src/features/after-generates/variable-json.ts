@@ -13,17 +13,17 @@ async function checker(_: DecoratorProcessData) {
 }
 
 async function processor(data: DecoratorProcessData) {
-    const last = data.env.chat[data.env.chat.length - 1];
+    const last = data.env.chat[data.messageId];
     if(!last.variables)
         last.variables = [];
-    if(!last.variables[last.swipe_id ?? 0])
-        last.variables[last.swipe_id ?? 0] = {};
+    if(!last.variables[data.swipeId])
+        last.variables[data.swipeId] = {};
 
     const merge = JSON.parse(jsonrepair(data.content));
-    const merged = _.merge(last.variables[last.swipe_id ?? 0], merge);
+    const merged = _.merge(last.variables[data.swipeId], merge);
 
-    console.debug(`update variables: `, last.variables[last.swipe_id ?? 0], merged);
+    console.debug(`update variables: `, last.variables[data.swipeId], merged);
 
-    last.variables[last.swipe_id ?? 0] = merged;
+    last.variables[data.swipeId] = merged;
     return true;
 }

@@ -16,7 +16,7 @@ async function processor(data: DecoratorProcessData) {
     const result = await evaluate(data.content, {
         ...data.args,
     });
-    data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, result, data.messageId);
+    data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, result, data.messageId, data.swipeId);
     console.debug(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} evaulate result: ${result}`);
     return true;
 }
