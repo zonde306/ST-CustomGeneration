@@ -94,6 +94,11 @@ export async function runAfterGenerates() {
     }
 
     const env = Context.global();
+    if(env.chat[env.chat.length - 1]?.is_user) {
+        console.log(`Skipping after-generate for generate failed`);
+        return;
+    }
+
     const override = new DataOverride(env.chat, env.chat_metadata);
 
     // Runs in the background, no waiting required.
@@ -393,6 +398,11 @@ async function refreshMessage(messageId: number) {
 
 async function onGenerateAfter(data: { type: string, context: Context, error: Error | null }) {
     if((data.type === 'normal' || data.type === 'regenerate' || data.type === 'swipe') && !data.error && !data.context.isGlobal) {
+        if(data.context.chat[data.context.chat.length - 1]?.is_user) {
+            console.log('Skip after generate for generate failed');
+            return;
+        }
+
         const override = new DataOverride(data.context.chat, data.context.chat_metadata);
 
         // Runs in the background, no waiting required.
