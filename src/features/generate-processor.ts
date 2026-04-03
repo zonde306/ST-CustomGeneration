@@ -20,6 +20,7 @@ import { setup as setupAppendEjs } from "@/features/after-generates/ejs-append";
 import { eventTypes } from "@/utils/events";
 import { execute as batchExecute } from "@/utils/concurrency-limiter";
 import { settings } from "@/settings";
+import { callGenericPopup, POPUP_TYPE } from "@st/scripts/popup.js";
 
 export interface DecoratorProcessData {
     entry: WorldInfoEntry;
@@ -68,9 +69,9 @@ export async function setup() {
     eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded);
     eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onGenerateStarting);
     eventSource.on(event_types.CHAT_CHANGED, stopActiveTasks);
-    eventSource.on(event_types.MESSAGE_SWIPED, stopActiveTasks);
-    eventSource.on(event_types.MESSAGE_SWIPE_DELETED, stopActiveTasks);
-    eventSource.on(event_types.MESSAGE_DELETED, stopActiveTasks);
+    eventSource.on(event_types.MESSAGE_SWIPED, stopActiveTasks.bind(null, true));
+    eventSource.on(event_types.MESSAGE_SWIPE_DELETED, stopActiveTasks.bind(null, true));
+    eventSource.on(event_types.MESSAGE_DELETED, stopActiveTasks.bind(null, true));
     eventSource.on(eventTypes.GENERATE_AFTER, onGenerateAfter);
 
     await setupReplace();
@@ -336,16 +337,20 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
 
 async function onGenerateStarting(type: string, options: any, dryRun: boolean) {
     if((type === 'normal' || type === 'regenerate' || type === 'swipe') && !dryRun) {
-        await stopActiveTasks();
-
+        await stopActiveTasks(true);
+        abortController = null; // Separate processing
+        
         const env = options.context ?? Context.global();
         const override = new DataOverride(env.chat, env.chat_metadata);
         await processMessage(env, override, true);
     }
 }
 
-async function stopActiveTasks() {
+async function stopActiveTasks(ask: boolean = false) {
     if(abortController?.signal.aborted === false) {
+        if(ask && !(await askForInterruption()))
+            return;
+
         abortController.abort('canceled by new generate');
         toastr.warning('Aborting after/before generate', 'after/before Generate');
         abortController = null;
@@ -454,4 +459,18 @@ async function getSortedEntries(
 
     const sorted = Array.from(grouped.entries()).sort((a, b) => a[0] - b[0]);
     return sorted.map(g => g[1]);
+}
+
+async function askForInterruption() {
+    return new Promise((resolve) => {
+        const html = `<h3>Currently generating in the background.</h3>
+        <h3>Would you want to interrupt it?</h3>
+        <div class="m-b-1">If you want to rerun the process, you can use "<i class="fa-solid fa-magic-wand-sparkles"></i>Run After Generate" to perform a background generation.</div>`;
+        const checkResult = (value: string | number | boolean | null) => {
+            if (value) {
+                resolve(value);
+            }
+        };
+        callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: 'Yes', cancelButton: 'No' }).then(checkResult);
+    });
 }

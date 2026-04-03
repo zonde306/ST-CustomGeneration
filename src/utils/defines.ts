@@ -246,6 +246,7 @@ export interface WorldInfoEntry {
     extensions: WorldInfoExtension;
     hash: number | undefined; // getStringHash(JSON.stringify(entry))
     triggers: string[];
+    outletName: string;
 
     // Filter to Characters or Tags
     characterFilter: WorldInfoFilter;
