@@ -17,6 +17,6 @@ export async function evaluate(content: string, context: Record<string, any>): P
         return await ejs.evalTemplate(content, ctx) as string;
     } catch (err) {
         console.error(`eval ejs template failed: `, err, content);
-        return '';
+        throw err;
     }
 }
