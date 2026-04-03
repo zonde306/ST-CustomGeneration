@@ -399,7 +399,9 @@ export async function getActivatedEntries(triggerWords: string[], type: string =
         eventSource.once(event_types.WORLDINFO_SCAN_DONE, (data: WorldInfoScanResult) => {
             resolve(Array.from(data.activated.entries.values().map(normalizeWorldInfoEntry)));
         });
-        getWorldInfoPrompt(triggerWords, getMaxContextSize(), dryRun, globalScanData).catch(reject);
+        getWorldInfoPrompt(triggerWords, getMaxContextSize(), dryRun, globalScanData)
+            .then(resolve.bind(null, []))
+            .catch(reject);
     });
 }
 
