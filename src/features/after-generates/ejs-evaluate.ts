@@ -17,6 +17,6 @@ async function processor(data: DecoratorProcessData) {
         ...data.args,
     });
 
-    console.debug(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} evaulate result: ${result}`);
+    console.debug(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} evaluated to ${result}`);
     return true;
 }

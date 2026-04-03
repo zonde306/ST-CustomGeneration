@@ -14,7 +14,7 @@ async function checker(data: DecoratorProcessData) {
     if(content.trim().length)
         return true;
 
-    console.warn(`No content to replace for ${data.entry.world}/${data.entry.uid}-${data.entry.comment}`);
+    console.warn(`Blank content to replace for ${data.entry.world}/${data.entry.uid}-${data.entry.comment}`);
     return false;
 }
 
@@ -23,9 +23,9 @@ async function processor(data: DecoratorProcessData) {
     const diff = applyPatch(oldContent, data.content, { fuzzFactor: 99 });
     if(diff) {
         data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, diff, data.messageId, data.swipeId);
-        console.debug(`WI replace with diff ${data.entry.world}/${data.entry.uid}-${data.entry.comment} to ${diff}`);
+        console.debug(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} replace with diff to ${data.messageId}#${data.swipeId}, and result: ${diff}`);
     } else {
-        console.error(`WI replace with diff ${data.entry.world}/${data.entry.uid}-${data.entry.comment} failed`);
+        console.error(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} replace with diff failed`);
         return false;
     }
     return true;

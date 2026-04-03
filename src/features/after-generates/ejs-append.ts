@@ -22,6 +22,8 @@ async function processor(data: DecoratorProcessData) {
             // @ts-expect-error: 2339
             data.env.chat[data.messageId].swipes[data.swipeId] += content;
         }
+
+        console.debug(`append to message ${data.messageId}#${data.swipeId}: ${content}`);
     }
     return true;
 }

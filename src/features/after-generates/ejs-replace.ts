@@ -17,6 +17,6 @@ async function processor(data: DecoratorProcessData) {
         ...data.args,
     });
     data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, result, data.messageId, data.swipeId);
-    console.debug(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} evaulate result: ${result}`);
+    console.debug(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} evaluated to ${data.messageId}#${data.swipeId}, and result: ${result}`);
     return true;
 }

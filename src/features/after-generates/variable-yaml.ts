@@ -19,9 +19,9 @@ async function processor(data: DecoratorProcessData) {
     if(!last.variables[data.swipeId])
         last.variables[data.swipeId] = {};
 
-    const patched = _.merge(last.variables[data.swipeId], yaml.parse(data.content));
+    const patched = _.mergeWith(last.variables[data.swipeId], yaml.parse(data.content), (_dst: unknown, src: unknown) => _.isArray(src) ? src : undefined);
     
-    console.debug(`update variables: `, last.variables[data.swipeId], patched);
+    console.debug(`update ${data.messageId}#${data.swipeId} variables: `, last.variables[data.swipeId], patched);
 
     last.variables[data.swipeId] = patched;
     return true;

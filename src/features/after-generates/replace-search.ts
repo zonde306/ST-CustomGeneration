@@ -25,9 +25,9 @@ async function processor(data: DecoratorProcessData) {
 
     if(result) {
         data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, result, data.messageId, data.swipeId);
-        console.debug(`WI replace ${data.entry.world}/${data.entry.uid}-${data.entry.comment} to ${result}`);
+        console.debug(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} replace to ${data.messageId}#${data.swipeId}, and result: ${result}`);
     } else {
-        console.error(`WI replace ${data.entry.world}/${data.entry.uid}-${data.entry.comment} failed`);
+        console.error(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} replace failed`);
         return false;
     }
     
@@ -39,6 +39,12 @@ function gitConflictStyle(search: string, target: string): string | false {
     let match = undefined;
     while((match = pattern.exec(search)) !== null) {
         const [, search, replace] = match;
+        console.debug(`Search '${search}' and replace '${replace}'`);
+
+        if(!target.includes(search)) {
+            throw new Error(`Search '${search}' not found in target '${target}'`);
+        }
+
         target = target.replace(search, replace);
     }
 
@@ -51,8 +57,15 @@ function gitConflictStyle(search: string, target: string): string | false {
 function jsonStyle(search: string, target: string): string | false {
     const edits = JSON.parse(search);
     if(!Array.isArray(edits)) {
-        if(edits.search && edits.replace)
+        if(edits.search && edits.replace) {
+            console.debug(`Search '${edits.search}' and replace '${edits.replace}'`);
+
+            if(!target.includes(edits.search)) {
+                throw new Error(`Search '${edits.search}' not found in target '${target}'`);
+            }
+
             return target.replace(edits.search, edits.replace);
+        }
 
         return false;
     }
@@ -60,6 +73,12 @@ function jsonStyle(search: string, target: string): string | false {
     let changed = false;
     for(const edit of edits) {
         if(edit.search && edit.replace) {
+            console.debug(`Search '${edit.search}' and replace '${edit.replace}'`);
+
+            if(!target.includes(edit.search)) {
+                throw new Error(`Search '${edit.search}' not found in target '${target}'`);
+            }
+            
             target = target.replace(edit.search, edit.replace);
             changed = true;
         }
