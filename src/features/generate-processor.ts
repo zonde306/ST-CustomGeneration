@@ -462,15 +462,10 @@ async function getSortedEntries(
 }
 
 async function askForInterruption() {
-    return new Promise((resolve) => {
-        const html = `<h3>Currently generating in the background.</h3>
+    const html = `
+        <h3>Currently generating in the background.</h3>
         <h3>Would you want to interrupt it?</h3>
-        <div class="m-b-1">If you want to rerun the process, you can use "<i class="fa-solid fa-magic-wand-sparkles"></i>Run After Generate" to perform a background generation.</div>`;
-        const checkResult = (value: string | number | boolean | null) => {
-            if (value) {
-                resolve(value);
-            }
-        };
-        callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: 'Yes', cancelButton: 'No' }).then(checkResult);
-    });
+        <div class="m-b-1">If you want to rerun the process, you can use "<i class="fa-solid fa-magic-wand-sparkles"></i>Run After Generate" to perform a background generation.</div>
+    `;
+    return await callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: 'Yes', cancelButton: 'No' });
 }
