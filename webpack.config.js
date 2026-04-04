@@ -70,7 +70,10 @@ const serverConfig = {
     externals: function({ context, request }, callback) {
         // 1. 处理显式的 @st/ 别名
         if (request.startsWith('@st/')) {
-            const webPath = request.replace('@st/', '/');
+            let webPath = request.replace('@st/', '/');
+            // 修复文件后缀
+            if(!webPath.endsWith('.js'))
+                webPath += '.js';
             return callback(null, `module ${webPath}`);
         }
 

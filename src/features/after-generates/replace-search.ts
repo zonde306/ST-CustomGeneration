@@ -1,5 +1,5 @@
 import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
-import { substituteParams } from "@st/script";
+import { substituteParams } from "@st/script.js";
 
 const WI_DECORATOR = '@@replace_search';
 
