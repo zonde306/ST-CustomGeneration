@@ -69,38 +69,38 @@
                     <div id="custom_generation_advanced_params_body" class="inline-drawer-content" style="display: none;">
                         <label for="custom_generation_context_size">
                             <small data-i18n="Context Size (tokens)">Context Size (tokens)</small>
+                            <input id="custom_generation_context_size" class="text_pole" type="number" min="1" step="1" />
                         </label>
-                        <input id="custom_generation_context_size" class="text_pole" type="number" min="1" step="1" />
 
                         <label for="custom_generation_max_tokens">
                             <small data-i18n="Max Response Length (tokens)">Max Response Length (tokens)</small>
+                            <input id="custom_generation_max_tokens" class="text_pole" type="number" min="1" step="1" />
                         </label>
-                        <input id="custom_generation_max_tokens" class="text_pole" type="number" min="1" step="1" />
 
                         <label for="custom_generation_temperature">
                             <small data-i18n="Temperature">Temperature</small>
+                            <input id="custom_generation_temperature" class="text_pole" type="number" min="0" max="2" step="0.01" />
                         </label>
-                        <input id="custom_generation_temperature" class="text_pole" type="number" min="0" max="2" step="0.01" />
 
                         <label for="custom_generation_top_k">
                             <small data-i18n="Top K">Top K</small>
+                            <input id="custom_generation_top_k" class="text_pole" type="number" min="0" step="1" />
                         </label>
-                        <input id="custom_generation_top_k" class="text_pole" type="number" min="0" step="1" />
 
                         <label for="custom_generation_top_p">
                             <small data-i18n="Top P">Top P</small>
+                            <input id="custom_generation_top_p" class="text_pole" type="number" min="0" max="1" step="0.01" />
                         </label>
-                        <input id="custom_generation_top_p" class="text_pole" type="number" min="0" max="1" step="0.01" />
 
                         <label for="custom_generation_frequency_penalty">
                             <small data-i18n="Frequency Penalty">Frequency Penalty</small>
+                            <input id="custom_generation_frequency_penalty" class="text_pole" type="number" min="-2" max="2" step="0.01" />
                         </label>
-                        <input id="custom_generation_frequency_penalty" class="text_pole" type="number" min="-2" max="2" step="0.01" />
 
                         <label for="custom_generation_presence_penalty">
                             <small data-i18n="Presence Penalty">Presence Penalty</small>
+                            <input id="custom_generation_presence_penalty" class="text_pole" type="number" min="-2" max="2" step="0.01" />
                         </label>
-                        <input id="custom_generation_presence_penalty" class="text_pole" type="number" min="-2" max="2" step="0.01" />
 
                         <label class="checkbox_label marginTop5" for="custom_generation_stream">
                             <input id="custom_generation_stream" type="checkbox" />
@@ -109,54 +109,55 @@
 
                         <label for="custom_generation_max_concurrency">
                             <small data-i18n="Max Concurrency">Max Concurrency</small>
+                            <input id="custom_generation_max_concurrency" class="text_pole" type="number" min="1" max="100" step="1" />
                         </label>
-                        <input id="custom_generation_max_concurrency" class="text_pole" type="number" min="1" max="100" step="1" />
 
                         <label for="custom_generation_include_headers_yaml">
                             <small data-i18n="Include Request Headers">Request Headers (YAML)</small>
+                            <textarea
+                                id="custom_generation_include_headers_yaml"
+                                class="text_pole textarea_compact"
+                                rows="4"
+                                placeholder="Authorization: Bearer xxx"
+                                data-i18n="[placeholder]custom_include_headers_desc"
+                            ></textarea>
                         </label>
-                        <textarea
-                            id="custom_generation_include_headers_yaml"
-                            class="text_pole textarea_compact"
-                            rows="4"
-                            placeholder="Authorization: Bearer xxx"
-                            data-i18n="[placeholder]custom_include_headers_desc"
-                        ></textarea>
 
                         <label for="custom_generation_include_body_yaml">
                             <small data-i18n="Include Body Parameters">Request Body (YAML)</small>
+                            <textarea
+                                id="custom_generation_include_body_yaml"
+                                class="text_pole textarea_compact"
+                                rows="4"
+                                placeholder="temperature: 0.7"
+                                data-i18n="[placeholder]custom_include_body_desc"
+                            ></textarea>
                         </label>
-                        <textarea
-                            id="custom_generation_include_body_yaml"
-                            class="text_pole textarea_compact"
-                            rows="4"
-                            placeholder="temperature: 0.7"
-                            data-i18n="[placeholder]custom_include_body_desc"
-                        ></textarea>
 
                         <label for="custom_generation_exclude_body_yaml">
                             <small data-i18n="Exclude Body Parameters">Exclude Body Keys (YAML)</small>
+                            <textarea
+                                id="custom_generation_exclude_body_yaml"
+                                class="text_pole textarea_compact"
+                                rows="4"
+                                placeholder="top_p: true"
+                                data-i18n="[placeholder]custom_exclude_body_desc"
+                            ></textarea>
                         </label>
-                        <textarea
-                            id="custom_generation_exclude_body_yaml"
-                            class="text_pole textarea_compact"
-                            rows="4"
-                            placeholder="top_p: true"
-                            data-i18n="[placeholder]custom_exclude_body_desc"
-                        ></textarea>
                     </div>
                 </div>
 
                 <label for="custom_generation_prompt_post_processing">
                     <small data-i18n="Prompt Post-Processing">Prompt Post-Processing</small>
+                    <select id="custom_generation_prompt_post_processing" class="text_pole">
+                        <option value="none" data-i18n="None">None</option>
+                        <option value="merge" data-i18n="prompt_post_processing_merge">Merge consecutive roles (no tools)</option>
+                        <option value="semi" data-i18n="prompt_post_processing_semi">Semi-strict (alternating roles; no tools)</option>
+                        <option value="strict" data-i18n="prompt_post_processing_strict">Strict (user first, alternating roles; no tools)</option>
+                        <option value="single" data-i18n="prompt_post_processing_single">Single user message (no tools)</option>
+                    </select>
                 </label>
-                <select id="custom_generation_prompt_post_processing" class="text_pole">
-                    <option value="none" data-i18n="None">None</option>
-                    <option value="merge" data-i18n="prompt_post_processing_merge">Merge consecutive roles (no tools)</option>
-                    <option value="semi" data-i18n="prompt_post_processing_semi">Semi-strict (alternating roles; no tools)</option>
-                    <option value="strict" data-i18n="prompt_post_processing_strict">Strict (user first, alternating roles; no tools)</option>
-                    <option value="single" data-i18n="prompt_post_processing_single">Single user message (no tools)</option>
-                </select>
+                
             </div>
 
             <hr />

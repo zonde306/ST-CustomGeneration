@@ -1,4 +1,5 @@
 import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
+import { substituteParams } from "@st/script";
 
 const WI_DECORATOR = '@@replace_search';
 
@@ -10,6 +11,11 @@ export async function setup() {
 async function checker(data: DecoratorProcessData) {
     // Unable to search and replace empty content
     const content = data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content || data.content;
+    if(content.includes('<%')) {
+        console.warn(`Content to replace for ${data.entry.world}/${data.entry.uid}-${data.entry.comment} includes EJS code`);
+        return false;
+    }
+
     if(content.trim().length)
         return true;
 
@@ -18,7 +24,7 @@ async function checker(data: DecoratorProcessData) {
 }
 
 async function processor(data: DecoratorProcessData) {
-    const original = data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content ?? data.decorator.cleanContent;
+    const original = substituteParams(data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content ?? data.decorator.cleanContent);
     let result = gitConflictStyle(data.content, original);
     if(result === false)
         result = jsonStyle(data.content, original);
