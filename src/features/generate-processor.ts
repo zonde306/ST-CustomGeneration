@@ -31,11 +31,12 @@ export interface DecoratorProcessData {
     env: Context;
     messageId: number;
     swipeId: number;
+    current: string;
 }
 
 interface DecoratorProcessor {
     // Check if processing is allowed.
-    checker: (e: DecoratorProcessData) => (boolean | Promise<boolean>);
+    checker: (e: DecoratorProcessData) => (boolean | Promise<boolean> | string | Promise<string>);
 
     // Start processing content
     processor: (e: DecoratorProcessData) => (boolean | Promise<boolean>);
@@ -159,6 +160,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                 continue;
             }
 
+            let current = substituteParams(override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent);
             const ctx = new Context(await template.buildChatHistory(env.chat), env.chat_metadata);
             ctx.macroOverride.original = parsed.cleanContent;
             ctx.macroOverride.macros = {
@@ -166,7 +168,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                 'lastCharMessage': () => substituteParams(messages.findLast(msg => !msg.is_user && !msg.is_system)?.mes ?? ''),
                 'message': substituteParams(testing.content ?? ''),
                 'original': substituteParams(parsed.cleanContent),
-                'current': () => substituteParams(override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent),
+                'current': () => current,
                 'lastError': '',
                 ...testing.arguments ?? {},
             };
@@ -175,7 +177,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
             ctx.filters = template.filters;
 
             try {
-                if(!await processor.checker({
+                const checked = await processor.checker({
                     entry,
                     content: testing.content || parsed.cleanContent,
                     args: testing.arguments ?? {},
@@ -184,10 +186,17 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                     env,
                     messageId,
                     swipeId,
-                })) {
+                    current,
+                });
+
+                if(!checked) {
                     console.info(`The inspection failed for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
                     continue;
                 }
+
+                // If the checker returns a string, it means that the checker has changed the current content.
+                if(typeof checked === 'string')
+                    current = checked;
             } catch (e) {
                 console.error(`An error occurred during the check for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`, e);
                 toastr.error(`An error occurred during the check for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`, `${before ? 'Before' : 'After'} Generate`);
@@ -216,6 +225,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                                         env,
                                         messageId,
                                         swipeId,
+                                        current,
                                     })) {
                                         return true;
                                     }
