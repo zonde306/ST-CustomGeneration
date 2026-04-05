@@ -517,11 +517,10 @@ async function askForInterruption() {
 
 function showStopButton() {
     $('#mes_stop').css({ 'display': 'flex' });
+    $('#send_but').css({ 'display': 'none' });
 }
 
 function hideStopButton() {
-    // prevent NOOP, because hideStopButton() gets called multiple times
-    if ($('#mes_stop').css('display') !== 'none') {
-        $('#mes_stop').css({ 'display': 'none' });
-    }
+    $('#mes_stop').css({ 'display': 'none' });
+    $('#mes_stop').css({ 'display': 'flex' });
 }
