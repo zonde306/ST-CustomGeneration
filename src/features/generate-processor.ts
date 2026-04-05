@@ -307,6 +307,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     // It triggers the `GENERATION_ENDED` event, setting a flag to prevent infinite loops.
     isPreventGeenration = true;
     activateSendButtons();
+    isPreventGeenration = false;
 }
 
 async function onAppReady() {
