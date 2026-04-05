@@ -113,6 +113,15 @@ async function processMessage(env: Context, override: DataOverride, before: bool
         await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'regenerate' });
     }
 
+    const messageId = env.chat.length - 1;
+    const swipeId = env.chat[messageId]?.swipe_id ?? 0;
+
+    // @ts-expect-error: 2339
+    if(before && env.chat[messageId].swipe_info?.[swipeId]?.before_generated) {
+        console.log(`Skipping before-generate for ${messageId}#${swipeId} because it's already generated`);
+        return;
+    }
+
     const messages = env.chat.slice(-world_info_depth);
     const groups = await getSortedEntries(
         messages.map(msg => msg.mes ?? ''),
@@ -130,8 +139,6 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     await eventSource.emit(eventTypes.GENERATION_WORLDINFO_START, { abortController, entries: groups });
 
     const cache = new Map<string, TemplateHandler>();
-    const messageId = env.chat.length - 1;
-    const swipeId = env.chat[messageId]?.swipe_id ?? 0;
 
     for(const [ batch, entrites ] of Object.entries(groups)) {
         const tasks: (() => Promise<any>)[] = [];
@@ -286,6 +293,17 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     }
 
     await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: before ? 'before' : 'after', reason: 'done' });
+
+    if(before) {
+        if(!env.chat[messageId].swipe_info)
+            env.chat[messageId].swipe_info = [];
+        if(!env.chat[messageId].swipe_info[swipeId])
+            env.chat[messageId].swipe_info[swipeId] = {};
+
+        // @ts-expect-error: This is a hack to prevent the message from regenerated.
+        env.chat[messageId].swipe_info[swipeId].before_generated = true;
+    }
+
     hideStopButton();
 }
 
