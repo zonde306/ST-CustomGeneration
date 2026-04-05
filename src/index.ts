@@ -6,7 +6,7 @@ import { setup as setupEmbedCard } from "@/embed-card";
 import { eventTypes } from "@/utils/events";
 import { setup as setupAfterGenerate } from "@/features/generate-processor";
 import { setup as setupReplace } from "@/features/after-generates/replace";
-import { setup as setupOverrides } from "@/features/override";
+import { setup as setupOverrides, DataOverride } from "@/features/override";
 import { setup as setupLogger } from "@/features/generate-logger";
 import { runAfterGenerates, isGenerating } from "@/features/generate-processor";
 
@@ -22,6 +22,7 @@ $(async () => {
     // @ts-expect-error: 7017
     globalThis.CustomGeneration = {
         Context,
+        DataOverride,
         PromptContext,
         MessageBuilder,
         get globalContext() {

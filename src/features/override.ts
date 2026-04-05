@@ -414,7 +414,8 @@ export class DataOverride {
 }
 
 async function onWorldInfoLoaded(data: WorldInfoLoaded) {
-    // TODO: Different Contexts
+    // FIXME: How should we determine the current context?
+    // Concurrency needs to be considered.
     await DataOverride.global().onWorldInfoLoaded(data);
 }
 
