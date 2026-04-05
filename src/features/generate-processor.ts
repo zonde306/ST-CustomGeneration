@@ -394,6 +394,7 @@ async function stopActiveTasks(ask: boolean = false) {
         abortController = null;
 
         await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'canceled' });
+        activateSendButtons();
     }
 }
 
