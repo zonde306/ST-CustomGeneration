@@ -67,7 +67,7 @@ let isPreventGeenration = false;
 
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
-    eventSource.on(event_types.GENERATION_ENDED, runAfterGenerates);
+    eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
     eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded);
     eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onGenerateStarting);
     eventSource.on(event_types.CHAT_CHANGED, stopActiveTasks);
@@ -516,4 +516,10 @@ async function askForInterruption() {
         <div class="m-b-1">If you want to rerun the process, you can use "<i class="fa-solid fa-magic-wand-sparkles"></i>Run After Generate" to perform a background generation.</div>
     `;
     return await callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: 'Yes', cancelButton: 'No' });
+}
+
+async function onMessageReceived(messageId: number, type: string) {
+    if(messageId > 0 && (type === 'normal' || type === 'regenerate' || type === 'swipe')) {
+        await runAfterGenerates();
+    }
 }
