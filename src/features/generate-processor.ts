@@ -63,7 +63,7 @@ export const NOT_ALLOWED_DECORATORS = [
 
 let isPostGenerating = false;
 let abortController: AbortController | null = null;
-let isGenerationCancelled = false;
+let isPreventGeenration = false;
 
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
@@ -89,8 +89,8 @@ export async function setup() {
 }
 
 export async function runAfterGenerates() {
-    if(isGenerationCancelled) {
-        isGenerationCancelled = false;
+    if(isPreventGeenration) {
+        isPreventGeenration = false;
         return;
     }
 
@@ -304,6 +304,8 @@ async function processMessage(env: Context, override: DataOverride, before: bool
         env.chat[messageId].swipe_info[swipeId].before_generated = true;
     }
 
+    // It triggers the `GENERATION_ENDED` event, setting a flag to prevent infinite loops.
+    isPreventGeenration = true;
     activateSendButtons();
 }
 
@@ -442,7 +444,7 @@ async function onGenerateAfter(data: { type: string, context: Context, error: Er
 }
 
 function onGenerateCancelled() {
-    isGenerationCancelled = true;
+    isPreventGeenration = true;
     stopActiveTasks();
 }
 
