@@ -126,6 +126,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
 
     abortController = new AbortController();
 
+    showStopButton();
     await eventSource.emit(eventTypes.GENERATION_WORLDINFO_START, { abortController, entries: groups });
 
     const cache = new Map<string, TemplateHandler>();
@@ -257,7 +258,6 @@ async function processMessage(env: Context, override: DataOverride, before: bool
                     return r;
                 });
             });
-
         }
 
         // Waiting for batch completion
@@ -286,6 +286,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     }
 
     await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: before ? 'before' : 'after', reason: 'done' });
+    hideStopButton();
 }
 
 async function onAppReady() {
@@ -373,7 +374,8 @@ async function stopActiveTasks(ask: boolean = false) {
         abortController.abort('canceled by new generate');
         toastr.warning('Aborting after/before generate', 'after/before Generate');
         abortController = null;
-        await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'regenerate' });
+
+        await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'canceled' });
     }
 }
 
@@ -422,6 +424,7 @@ async function onGenerateAfter(data: { type: string, context: Context, error: Er
 
 function onGenerateCancelled() {
     isGenerationCancelled = true;
+    stopActiveTasks();
 }
 
 export function isGenerating(): boolean {
@@ -492,4 +495,15 @@ async function askForInterruption() {
         <div class="m-b-1">If you want to rerun the process, you can use "<i class="fa-solid fa-magic-wand-sparkles"></i>Run After Generate" to perform a background generation.</div>
     `;
     return await callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: 'Yes', cancelButton: 'No' });
+}
+
+function showStopButton() {
+    $('#mes_stop').css({ 'display': 'flex' });
+}
+
+function hideStopButton() {
+    // prevent NOOP, because hideStopButton() gets called multiple times
+    if ($('#mes_stop').css('display') !== 'none') {
+        $('#mes_stop').css({ 'display': 'none' });
+    }
 }
