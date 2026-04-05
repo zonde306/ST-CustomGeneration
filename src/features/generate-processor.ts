@@ -1,5 +1,5 @@
 import { TemplateHandler } from "@/functions/template";
-import { substituteParams, messageFormatting, appendMediaToMessage, addCopyToCodeBlocks, name2, saveChatDebounced } from "@st/script.js";
+import { substituteParams, messageFormatting, appendMediaToMessage, addCopyToCodeBlocks, name2, saveChatDebounced, activateSendButtons, deactivateSendButtons } from "@st/script.js";
 import { eventSource, event_types } from "@st/scripts/events.js";
 import { world_info_depth } from "@st/scripts/world-info.js";
 import { getActivatedEntries, DecoratorParser } from "@/functions/worldinfo";
@@ -135,7 +135,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
 
     abortController = new AbortController();
 
-    showStopButton();
+    deactivateSendButtons();
     await eventSource.emit(eventTypes.GENERATION_WORLDINFO_START, { abortController, entries: groups });
 
     const cache = new Map<string, TemplateHandler>();
@@ -304,7 +304,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
         env.chat[messageId].swipe_info[swipeId].before_generated = true;
     }
 
-    hideStopButton();
+    activateSendButtons();
 }
 
 async function onAppReady() {
@@ -513,14 +513,4 @@ async function askForInterruption() {
         <div class="m-b-1">If you want to rerun the process, you can use "<i class="fa-solid fa-magic-wand-sparkles"></i>Run After Generate" to perform a background generation.</div>
     `;
     return await callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: 'Yes', cancelButton: 'No' });
-}
-
-function showStopButton() {
-    $('#mes_stop').css({ 'display': 'flex' });
-    $('#send_but').css({ 'display': 'none' });
-}
-
-function hideStopButton() {
-    $('#mes_stop').css({ 'display': 'none' });
-    $('#send_but').css({ 'display': 'flex' });
 }
