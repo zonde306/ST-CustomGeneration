@@ -522,5 +522,5 @@ function showStopButton() {
 
 function hideStopButton() {
     $('#mes_stop').css({ 'display': 'none' });
-    $('#mes_stop').css({ 'display': 'flex' });
+    $('#send_but').css({ 'display': 'flex' });
 }
