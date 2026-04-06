@@ -19,6 +19,9 @@ import { eventTypes } from '@/utils/events';
 import { DynamicMacroValue } from "@st/scripts/macros/engine/MacroEnv.types.js";
 import { Preset } from '@/utils/defines';
 import { defaultPreset } from '@/utils/default-settings';
+import { AsyncMutex } from '@/utils/mutex';
+
+const locker = new AsyncMutex();
 
 type VariableData = Record<string, any>;
 type ChatMessageEx = ChatMessage & { variables?: VariableData[] };
@@ -239,7 +242,27 @@ export class Context {
         builder.filters = this.filters;
         builder.macroOverride = this.macroOverride;
 
-        const messages = await builder.build(type, dryRun);
+        const self = this;
+        const messages = await locker.invoke(async() => {
+            const handler = (data: any) => {
+                data.context = self;
+                eventSource.removeListener(event_types.WORLDINFO_ENTRIES_LOADED, handler);
+                console.debug('inject context to WORLDINFO_ENTRIES_LOADED ', data);
+            };
+
+            eventSource.makeFirst(event_types.WORLDINFO_ENTRIES_LOADED, handler);
+
+            // backup timedWorldInfo
+            const timedWorldInfo = chat_metadata.timedWorldInfo;
+            chat_metadata.timedWorldInfo = this.chat_metadata.timedWorldInfo;
+
+            try {
+                return await builder.build(type, dryRun);
+            } finally {
+                eventSource.removeListener(event_types.WORLDINFO_ENTRIES_LOADED, handler);
+                chat_metadata.timedWorldInfo = timedWorldInfo; // restore timedWorldInfo
+            }
+        });
 
         for(const message of messages) {
             message.content = substituteParams(message.content, {
