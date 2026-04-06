@@ -1,4 +1,4 @@
-import { loadWorldInfo, METADATA_KEY, selected_world_info, world_info, DEFAULT_DEPTH, world_info_position, world_names, getWorldInfoPrompt, worldInfoCache } from '@st/scripts/world-info.js';
+import { loadWorldInfo, METADATA_KEY, selected_world_info, world_info, DEFAULT_DEPTH, world_info_position, world_names, getWorldInfoPrompt, worldInfoCache, scan_state } from '@st/scripts/world-info.js';
 import { chat_metadata, this_chid, characters, getCharacterCardFieldsLazy, getMaxContextSize } from '@st/script.js';
 import { power_user } from '@st/scripts/power-user.js';
 import { getCharaFilename } from '@st/scripts/utils.js';
@@ -397,10 +397,13 @@ export async function getActivatedEntries(triggerWords: string[], type: string =
 
     return new Promise((resolve, reject) => {
         eventSource.once(event_types.WORLDINFO_SCAN_DONE, (data: WorldInfoScanResult) => {
-            resolve(Array.from(data.activated.entries.values().map(normalizeWorldInfoEntry)));
+            if(data.state.next === scan_state.NONE) {
+                // Until the scan is complete
+                resolve(Array.from(data.activated.entries.values().map(normalizeWorldInfoEntry)));
+            }
         });
         getWorldInfoPrompt(triggerWords, getMaxContextSize(), dryRun, globalScanData)
-            .then(resolve.bind(null, []))
+            .then(resolve.bind(null, [])) // Avoiding Promises that cannot be resolved
             .catch(reject);
     });
 }

@@ -113,7 +113,12 @@ async function processMessage(env: Context, override: DataOverride, before: bool
         await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'regenerate' });
     }
 
-    const messageId = env.chat.length - 1;
+    const messageId = before ? env.lastUserMessage?.id : env.lastCharMessage?.id;
+    if(messageId == null) {
+        console.warn(`Skipping ${before ? 'before' : 'after'}-generate for no message`);
+        return;
+    }
+
     const swipeId = env.chat[messageId]?.swipe_id ?? 0;
 
     // @ts-expect-error: 2339

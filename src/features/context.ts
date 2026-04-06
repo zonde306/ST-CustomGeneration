@@ -24,7 +24,7 @@ import { AsyncMutex } from '@/utils/mutex';
 const locker = new AsyncMutex();
 
 type VariableData = Record<string, any>;
-type ChatMessageEx = ChatMessage & { variables?: VariableData[] };
+type ChatMessageEx = ChatMessage & { variables?: VariableData[], id?: number };
 type ChatMetadataEx = ChatMetadata & { variables?: VariableData };
 
 export interface GenerateOptionsLite {
@@ -170,18 +170,21 @@ export class Context {
         return swipes;
     }
 
-    get lastMessage(): ChatMessageEx | undefined {
-        return this.chat[this.chat.length - 1];
+    get lastMessage(): ChatMessageEx & { id: number } | undefined {
+        const id = this.chat.length - 1;
+        return Object.assign({}, this.chat[id], { id });
+    }
+    get lastUserMessage(): ChatMessageEx & { id: number } | undefined {
+        const id = this.chat.findLastIndex(mes => mes.is_user);
+        return Object.assign({}, this.chat[id], { id });
     }
 
-    get lastUserMessage(): ChatMessageEx | undefined {
-        return this.chat.findLast(mes => mes.is_user);
+    get lastCharMessage(): ChatMessageEx & { id: number } | undefined {
+        const id = this.chat.findLastIndex(mes => !mes.is_user);
+        return Object.assign({}, this.chat[id], { id });
     }
 
-    get lastAssistantMessage(): ChatMessageEx | undefined {
-        return this.chat.findLast(mes => !mes.is_user);
-    }
-
+    // message variables
     get variables(): VariableData {
         const last = this.lastMessage;
         if(last == null)
@@ -195,6 +198,7 @@ export class Context {
         return last?.variables?.[last.swipe_id ?? 0] ?? {};
     }
 
+    // chatfile variables
     get localVariables(): VariableData {
         if(this.chat_metadata.variables == null)
             this.chat_metadata.variables = {};
@@ -242,15 +246,17 @@ export class Context {
         builder.filters = this.filters;
         builder.macroOverride = this.macroOverride;
 
+        // To avoid conflicts caused by concurrent read and write operations of chat_metadata in worldinfo.
         const self = this;
         const messages = await locker.invoke(async() => {
             const handler = (data: any) => {
-                data.context = self;
-                eventSource.removeListener(event_types.WORLDINFO_ENTRIES_LOADED, handler);
-                console.debug('inject context to WORLDINFO_ENTRIES_LOADED ', data);
+                data.context = self; // Inject context information to provide it for use by other extensions.
+                console.debug('inject context to ', data);
+                // Because the handler is used by multiple events, it cannot be uninstalled here.
             };
 
             eventSource.makeFirst(event_types.WORLDINFO_ENTRIES_LOADED, handler);
+            eventSource.makeFirst(event_types.WORLDINFO_SCAN_DONE, handler);
 
             // backup timedWorldInfo
             const timedWorldInfo = chat_metadata.timedWorldInfo;
@@ -260,6 +266,7 @@ export class Context {
                 return await builder.build(type, dryRun);
             } finally {
                 eventSource.removeListener(event_types.WORLDINFO_ENTRIES_LOADED, handler);
+                eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler);
                 chat_metadata.timedWorldInfo = timedWorldInfo; // restore timedWorldInfo
             }
         });
@@ -271,8 +278,8 @@ export class Context {
                 original: this.macroOverride.original,
                 groupOverride: this.macroOverride.group,
                 dynamicMacros: {
-                    lastUserMessage: () => this.chat.findLast(m => m.is_user)?.mes ?? '',
-                    lastCharMessage: () => this.chat.findLast(m => !m.is_user && !m.is_system)?.mes ?? '',
+                    lastUserMessage: () => this.lastMessage?.mes ?? '',
+                    lastCharMessage: () => this.lastCharMessage?.mes ?? '',
                     ...(this.macroOverride.macros ?? {}),
                 },
             });
@@ -354,8 +361,10 @@ export class Context {
 
                 await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: buffers, context: self, streaming: true, apiConfig });
 
-                if(self.isGlobal)
-                    await eventSource.emit(event_types.GENERATION_ENDED, self.chat.length);
+                if(self.isGlobal) {
+                    // Since there's no need to manage the generate button, just send it directly.
+                    await eventSource.emit(event_types.GENERATION_ENDED, self.chat.length, type);
+                }
             }
 
             return stream();
@@ -388,8 +397,10 @@ export class Context {
         const data = { type, options, taskId, error: null, responses: result, context: self, streaming: false, apiConfig };
         await eventSource.emit(eventTypes.GENERATE_AFTER, data);
 
-        if(this.isGlobal)
-            await eventSource.emit(event_types.GENERATION_ENDED, this.chat.length);
+        if(this.isGlobal) {
+            // Since there's no need to manage the generate button, just send it directly.
+            await eventSource.emit(event_types.GENERATION_ENDED, this.chat.length, type);
+        }
 
         if(options.allResponses) {
             return data.responses;
