@@ -255,6 +255,7 @@ export class Context {
                 // Because the handler is used by multiple events, it cannot be uninstalled here.
             };
 
+            // TODO: event_types.WORLD_INFO_ACTIVATED
             eventSource.makeFirst(event_types.WORLDINFO_ENTRIES_LOADED, handler);
             eventSource.makeFirst(event_types.WORLDINFO_SCAN_DONE, handler);
 
