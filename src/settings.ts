@@ -68,7 +68,6 @@ let creatingTemplateDraft: Template | null = null;
 let creatingTemplatePromptDraft: PresetPrompt | null = null;
 let isUpdatingUI = false;
 let isEventsBound = false;
-let isSettingsLoadedListenerBound = false;
 let modelCandidates: string[] = [];
 let isConnectionActionInProgress = false;
 let templateEditorDraft: { decorator: string; tag: string; filters: string[]; regex: string; findRegex: string; retryCount: number; retryInterval: number } | null = null;
@@ -3322,10 +3321,9 @@ export async function setupSettings() {
 
     bindEvents();
 
-    if (!isSettingsLoadedListenerBound) {
-        eventSource.on(event_types.SETTINGS_LOADED, onSettingsLoaded);
-        isSettingsLoadedListenerBound = true;
-    }
+    eventSource.on(event_types.SETTINGS_LOADED, onSettingsLoaded);
+    eventSource.on(event_types.EXTENSION_SETTINGS_LOADED, onSettingsLoaded);
+    eventSource.on(event_types.APP_READY, onSettingsLoaded);
 }
 
 /**
@@ -3464,5 +3462,5 @@ export function saveSettings() {
 
 function onSettingsLoaded() {
     loadSettings();
+    console.log('Custom Generation loaded');
 }
-
