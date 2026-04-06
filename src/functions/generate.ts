@@ -24,6 +24,9 @@ export interface ApiConfig {
     custom_include_body?: string; // yaml
     custom_include_headers?: string; // yaml
 
+    /**
+     * When enabled, the return value is [reasoning_content, message_content, other message_content...].
+     */
     include_reasoning?: boolean;
 };
 

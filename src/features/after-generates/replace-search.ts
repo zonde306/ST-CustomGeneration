@@ -1,6 +1,9 @@
 import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
 import { substituteParams } from "@st/script.js";
 
+/**
+ * The generated results are parsed into a format similar to a Git conflict, and then the original WorldInfo content is searched and replaced.
+ */
 const WI_DECORATOR = '@@replace_search';
 
 export async function setup() {

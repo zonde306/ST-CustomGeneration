@@ -1,6 +1,9 @@
 import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
 import { jsonrepair } from 'jsonrepair';
 
+/**
+ * The generated result is parsed as JSON to update the current chat message variable.
+ */
 const WI_DECORATOR = '@@variables_json';
 
 export async function setup() {

@@ -2,6 +2,9 @@ import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData
 import { jsonPatch } from "@/utils/json-patch";
 import { jsonrepair } from 'jsonrepair';
 
+/**
+ * The generated result is parsed into a JSON patch to update the current chat message variable.
+ */
 const WI_DECORATOR = '@@variables_jsonpatch';
 
 export async function setup() {

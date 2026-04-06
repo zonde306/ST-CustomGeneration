@@ -1,5 +1,8 @@
 import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
 
+/**
+ * Add the generated result to the end of the message.
+ */
 const WI_DECORATOR = '@@append_output';
 
 export async function setup() {

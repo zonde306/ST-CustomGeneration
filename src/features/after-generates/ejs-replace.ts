@@ -1,6 +1,9 @@
 import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
 import { evaluate, isEjsAvailable } from "@/utils/ejs";
 
+/**
+ * The generated result is processed using EJS, and then the original WorldInfo content is overwritten.
+ */
 const WI_DECORATOR = '@@replace_ejs';
 
 export async function setup() {

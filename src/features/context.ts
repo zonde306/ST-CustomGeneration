@@ -28,14 +28,47 @@ type ChatMessageEx = ChatMessage & { variables?: VariableData[], id?: number };
 type ChatMetadataEx = ChatMetadata & { variables?: VariableData };
 
 export interface GenerateOptionsLite {
+    /**
+     * Used to actively stop generation
+     */
     abortController?: AbortController;
+
+    /**
+     * Used to actively stop generation
+     */
     signal?: AbortSignal;
-    quietName?: string;
+
+    /**
+     * Do not create char messages after generation.
+     */
     dontCreate?: boolean;
+
+    /**
+     * Return all responses, not just the first one.
+     * When enabled, the return value is of type `string[]`.
+     */
     allResponses?: boolean;
+
+    /**
+     * Override API connection configuration
+     * otherwise, use the current preset values.
+     */
     apiConfig?: Partial<ApiConfig>;
+
+    /**
+     * Generate using the specified preset;
+     * otherwise, use the currently selected preset.
+     */
     preset?: string;
+
+    /**
+     * When using streaming output, the return value will become an AsyncGenerator.
+     */
     streaming?: boolean;
+
+    /**
+     * Placeholders have no function; do not modify them.
+     */
     context?: Context;
 };
 
@@ -60,6 +93,10 @@ export class Context {
         this.filters = {};
     }
 
+    /**
+     * Get the context of the current chat file
+     * @returns Context
+     */
     static global(): Context {
         const ctx = new Context();
         ctx.chat = chat;
@@ -68,13 +105,14 @@ export class Context {
         return ctx;
     }
 
-    static fromObject(value: Context): Context {
+    static fromObject(value: any): Context {
         const context = new Context();
         context.chat = value.chat ?? [];
         context.chat_metadata = value.chat_metadata ?? {};
         context.presetOverride = value.presetOverride;
         context.apiOverride = value.apiOverride ?? {};
         context.macroOverride = value.macroOverride ?? {};
+        context.filters = value.filters ?? {};
         return context;
     }
 
@@ -88,9 +126,16 @@ export class Context {
             presetOverride: this.presetOverride,
             apiOverride: this.apiOverride,
             macroOverride: this.macroOverride,
+            filters: this.filters,
         };
     }
 
+    /**
+     * Creating a message is generally used by user to send messages.
+     * @param content Message content
+     * @param role User or assistant
+     * @param name Character Name
+     */
     async send(content: string, role: ContextRole = 'user', name: string = name1) {
         const mes = this.#applyRegex(content, {
             user: role === 'user',
@@ -170,21 +215,33 @@ export class Context {
         return swipes;
     }
 
+    /**
+     * Latest message
+     */
     get lastMessage(): ChatMessageEx & { id: number } | undefined {
         const id = this.chat.length - 1;
         return Object.assign({}, this.chat[id], { id });
     }
+
+    /**
+     * Latest user message
+     */
     get lastUserMessage(): ChatMessageEx & { id: number } | undefined {
         const id = this.chat.findLastIndex(mes => mes.is_user);
         return Object.assign({}, this.chat[id], { id });
     }
 
+    /**
+     * Latest character message
+     */
     get lastCharMessage(): ChatMessageEx & { id: number } | undefined {
         const id = this.chat.findLastIndex(mes => !mes.is_user);
         return Object.assign({}, this.chat[id], { id });
     }
 
-    // message variables
+    /**
+     * message variables
+     */
     get variables(): VariableData {
         const last = this.lastMessage;
         if(last == null)
@@ -198,13 +255,18 @@ export class Context {
         return last?.variables?.[last.swipe_id ?? 0] ?? {};
     }
 
-    // chatfile variables
+    /**
+     * chat file variables (local variables)
+     */
     get localVariables(): VariableData {
         if(this.chat_metadata.variables == null)
             this.chat_metadata.variables = {};
         return this.chat_metadata.variables ?? {};
     }
 
+    /**
+     * Current preset data
+     */
     get currentPreset(): Preset {
         let preset = settings.presets[settings.currentPreset] ?? defaultPreset;
         if(typeof this.presetOverride === 'string')
@@ -212,6 +274,13 @@ export class Context {
         return preset;
     }
 
+    /**
+     * Start generating
+     * @param type Generation type, used for triggers
+     * @param options Generate options
+     * @param dryRun Is it a fake generation?
+     * @returns 
+     */
     async generate(type: string = 'normal', options: GenerateOptionsLite = {}, dryRun: boolean = false): Promise<string | string[] | AsyncGenerator<{ swipe: number, text: string } | string>> {
         console.log('Generate entered');
 
@@ -487,14 +556,13 @@ export class Context {
         return content;
     }
 
-    async sendTemplate(content: string, macros: Record<string, DynamicMacroValue>, role: ContextRole = 'user', name: string = name1) {
-        if(!this.macroOverride.macros)
-            this.macroOverride.macros = {};
-        Object.assign(this.macroOverride.macros, macros);
-
-        await this.send(content, role, name);
-    }
-
+    /**
+     * Disable messages within the specified access range so that they do not participate in the generation process.
+     * @param start Start range
+     * @param end End range
+     * @param unhide Unhide or Hide
+     * @param nameFitler Disable messages with only the specified name
+     */
     hideMessages(start: number, end: number, unhide: boolean = false, nameFitler: string | null = null) {
         if(isNaN(start)) return;
         if(!end) end = start;

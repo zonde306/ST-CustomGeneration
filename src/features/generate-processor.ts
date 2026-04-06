@@ -88,6 +88,9 @@ export async function setup() {
     await setupAppendEjs();
 }
 
+/**
+ * Execute after generate processing
+ */
 export async function runAfterGenerates() {
     if(isPreventGeenration) {
         isPreventGeenration = false;
@@ -524,6 +527,7 @@ async function askForInterruption() {
 
 async function onMessageReceived(messageId: number, type: string) {
     if(messageId > 0 && (type === 'normal' || type === 'regenerate' || type === 'swipe')) {
-        await runAfterGenerates();
+        // Add a delay to prevent the send button from not updating.
+        window.setTimeout(runAfterGenerates, 1000);
     }
 }

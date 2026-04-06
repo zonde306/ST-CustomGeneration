@@ -1,6 +1,9 @@
 import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
 import { evaluate, isEjsAvailable } from "@/utils/ejs";
 
+/**
+ * The generated result is first processed by EJS, and then appended to the end of the message.
+ */
 const WI_DECORATOR = '@@append_output_ejs';
 
 export async function setup() {

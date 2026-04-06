@@ -2,6 +2,7 @@ import { eventSource, event_types } from "@st/scripts/events.js";
 import { renderExtensionTemplateAsync } from '@st/scripts/extensions.js';
 import { chat, chat_metadata, name1, name2 } from "@st/script.js";
 import { WorldInfoLoaded } from "@/utils/defines";
+import { copyText } from "@st/scripts/utils.js";
 
 interface WIOverride {
     type: string;
@@ -62,31 +63,6 @@ function buildOverrideInfoItem(label: string, value: string): JQuery<HTMLElement
     return item;
 }
 
-async function copyTextToClipboard(text: string): Promise<void> {
-    if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-        return;
-    }
-
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.setAttribute('readonly', 'readonly');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-
-    const host = document.body ?? document.documentElement;
-    host.append(textarea);
-    textarea.focus();
-    textarea.select();
-
-    const copied = document.execCommand('copy');
-    textarea.remove();
-
-    if (!copied) {
-        throw new Error('Copy failed');
-    }
-}
-
 function createCopyButton(content: string): JQuery<HTMLElement> {
     const button = $('<button class="menu_button fa-solid fa-copy custom_generation_copy_button" type="button" title="Copy" data-i18n="[title]Copy"></button>');
     button.on('click', async (event: JQuery.ClickEvent) => {
@@ -94,7 +70,7 @@ function createCopyButton(content: string): JQuery<HTMLElement> {
         event.stopPropagation();
 
         try {
-            await copyTextToClipboard(content);
+            await copyText(content);
             toastr.success('Copied to clipboard', 'Copy');
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error ?? 'Copy failed');
@@ -254,11 +230,11 @@ export class DataOverride {
     constructor(_chat: ChatMessage[], _metadata: ChatMetadata) {
         this.chat = Array.isArray(_chat) ? _chat : [];
         this.chat_metadata = _metadata ?? {};
-        
-        // FIXME: Listening to Events Multiple Times
-        // eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded.bind(null, new WeakRef(this)));
     }
 
+    /**
+     * WI overrides of the current chat file
+     */
     static global(): DataOverride {
         return new DataOverride(chat, chat_metadata);
     }
@@ -298,6 +274,15 @@ export class DataOverride {
         }
     }
 
+    /**
+     * Retrieve the overridden content of a specified WorldInfo.
+     * @param world world info name
+     * @param uid entry uid
+     * @param mesId Specify message ID, otherwise specify the latest message.
+     * @param swipeId Specify swipe ID, otherwise specify the latest swipe.
+     * @param maxDepth Maximum query depth
+     * @returns Returns overwritten data on success, otherwise returns null.
+     */
     getOverride(world: string, uid: string | number, mesId?: number, swipeId?: number, maxDepth: number = 999): WIOverride | null {
         for(let i = mesId ?? this.chat.length - 1; i >= 0; --i) {
             if(maxDepth < 0)
@@ -315,6 +300,15 @@ export class DataOverride {
         return null;
     }
 
+    /**
+     * Modify the content of WorldInfo overwrite data
+     * @param world world info name
+     * @param uid entry uid
+     * @param type Override type tags
+     * @param content Rewritten content
+     * @param messageId Specify message ID, otherwise specify the latest message.
+     * @param swipeId Specify swipe ID, otherwise specify the latest swipe.
+     */
     setOverride(
         world: string,
         uid: string | number,
@@ -414,9 +408,9 @@ export class DataOverride {
 }
 
 async function onWorldInfoLoaded(data: WorldInfoLoaded) {
-    // FIXME: How should we determine the current context?
-    // Concurrency needs to be considered.
-    await DataOverride.global().onWorldInfoLoaded(data);
+    // @ts-expect-error: 2339
+    const override: DataOverride = data.context ? new DataOverride(data.context.chat, data.context.chat_metadata) : DataOverride.global();
+    await override.onWorldInfoLoaded(data);
 }
 
 export async function setup() {

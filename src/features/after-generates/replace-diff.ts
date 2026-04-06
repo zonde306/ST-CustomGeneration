@@ -2,6 +2,9 @@ import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData
 import { substituteParams } from "@st/script.js";
 import { applyPatch } from "diff";
 
+/**
+ * The generated result is parsed into a git diff format, and then the original WorldInfo content is replaced.
+ */
 const WI_DECORATOR = '@@replace_diff';
 
 export async function setup() {
