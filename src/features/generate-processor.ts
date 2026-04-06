@@ -91,11 +91,12 @@ export async function setup() {
 export async function runAfterGenerates() {
     if(isPreventGeenration) {
         isPreventGeenration = false;
+        console.log(`Skipping after-generate for prevent generation`);
         return;
     }
 
     const env = Context.global();
-    if(env.chat[env.chat.length - 1]?.is_user) {
+    if(env.lastMessage?.is_user) {
         console.log(`Skipping after-generate for generate failed`);
         return;
     }
@@ -309,10 +310,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
         env.chat[messageId].swipe_info[swipeId].before_generated = true;
     }
 
-    // It triggers the `GENERATION_ENDED` event, setting a flag to prevent infinite loops.
-    isPreventGeenration = true;
     activateSendButtons();
-    isPreventGeenration = false;
 }
 
 async function onAppReady() {

@@ -395,16 +395,25 @@ export async function getActivatedEntries(triggerWords: string[], type: string =
         trigger: GENERATION_TYPE_TRIGGERS.includes(type) ? type : 'normal',
     };
 
-    return new Promise((resolve, reject) => {
-        eventSource.once(event_types.WORLDINFO_SCAN_DONE, (data: WorldInfoScanResult) => {
+    return new Promise(async(resolve, reject) => {
+        const handler = (data: WorldInfoScanResult) => {
             if(data.state.next === scan_state.NONE) {
                 // Until the scan is complete
                 resolve(Array.from(data.activated.entries.values().map(normalizeWorldInfoEntry)));
+                eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler);
             }
-        });
-        getWorldInfoPrompt(triggerWords, getMaxContextSize(), dryRun, globalScanData)
-            .then(resolve.bind(null, [])) // Avoiding Promises that cannot be resolved
-            .catch(reject);
+        };
+
+        eventSource.makeLast(event_types.WORLDINFO_SCAN_DONE, handler);
+        try {
+            await getWorldInfoPrompt(triggerWords, getMaxContextSize(), dryRun, globalScanData);
+            resolve([]); // Avoid Promise memory leaks
+        } catch(e) {
+            reject(e);
+            console.error(`Error getting activated entries`, e);
+        } finally {
+            eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler);
+        }
     });
 }
 
