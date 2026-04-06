@@ -268,6 +268,7 @@ export class Context {
             } finally {
                 eventSource.removeListener(event_types.WORLDINFO_ENTRIES_LOADED, handler);
                 eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler);
+                this.chat_metadata.timedWorldInfo = chat_metadata.timedWorldInfo;
                 chat_metadata.timedWorldInfo = timedWorldInfo; // restore timedWorldInfo
             }
         });
