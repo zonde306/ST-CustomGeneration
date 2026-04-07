@@ -16,9 +16,12 @@ async function checker(_: DecoratorProcessData) {
 }
 
 async function processor(data: DecoratorProcessData) {
-    const content = await evaluate(data.content, {
+    const content = '\n' + await evaluate(data.content, {
         ...data.args,
     });
+    if(content.trim().length < 1)
+        return true;
+
     if(data.env.chat[data.messageId]?.mes) {
         data.env.chat[data.messageId].mes += content;
         if(data.env.chat[data.messageId].swipes?.[data.swipeId]) {
