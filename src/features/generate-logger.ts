@@ -4,6 +4,7 @@ import { eventTypes } from "@/utils/events";
 import { Context, GenerateOptionsLite } from "@/features/context";
 import { ApiConfig } from "@/functions/generate";
 import { getTokenCountAsync } from '@st/scripts/tokenizers.js';
+import { copyText } from '@st/scripts/utils.js';
 
 interface GenerateBefore {
     type: string;
@@ -127,7 +128,8 @@ function buildLoggerAccordionBlock(title: string, content: string, blockClass?: 
     const header = $('<div class="custom_generation_logger_block_header"></div>');
     const titleEl = $('<div class="custom_generation_logger_block_title"><i class="fa-solid fa-chevron-right custom_generation_logger_block_caret"></i></div>').append(document.createTextNode(title));
     const copyButton = createCopyButton(content);
-    header.append(titleEl, copyButton);
+    titleEl.append(copyButton);
+    header.append(titleEl);
 
     const panel = $('<div class="custom_generation_logger_block_panel"></div>');
     const pre = $('<pre class="custom_generation_logger_pre"></pre>').text(content);
@@ -195,39 +197,14 @@ function buildLoggerInfoItem(label: string, value: string): JQuery<HTMLElement> 
     return item;
 }
 
-async function copyTextToClipboard(text: string): Promise<void> {
-    if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-        return;
-    }
-
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.setAttribute('readonly', 'readonly');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-
-    const host = document.body ?? document.documentElement;
-    host.append(textarea);
-    textarea.focus();
-    textarea.select();
-
-    const copied = document.execCommand('copy');
-    textarea.remove();
-
-    if (!copied) {
-        throw new Error('Copy failed');
-    }
-}
-
 function createCopyButton(content: string): JQuery<HTMLElement> {
-    const button = $('<button class="menu_button fa-solid fa-copy custom_generation_copy_button" type="button" title="Copy" data-i18n="[title]Copy"></button>');
+    const button = $('<i class="menu_button fa-solid fa-copy custom_generation_copy_button" type="button" title="Copy" data-i18n="[title]Copy"></i>');
     button.on('click', async (event: JQuery.ClickEvent) => {
         event.preventDefault();
         event.stopPropagation();
 
         try {
-            await copyTextToClipboard(content);
+            await copyText(content);
             toastr.success('Copied to clipboard', 'Copy');
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error ?? 'Copy failed');
@@ -245,8 +222,9 @@ function buildLoggerBlock(title: string, content: string, blockClass?: string): 
     const header = $('<div class="custom_generation_logger_block_header_row"></div>');
     const titleEl = $('<div class="custom_generation_logger_block_title"></div>').text(title);
     const copyButton = createCopyButton(content);
+    titleEl.append(copyButton);
     const pre = $('<pre class="custom_generation_logger_pre"></pre>').text(content);
-    header.append(titleEl, copyButton);
+    header.append(titleEl);
     block.append(header, pre);
     return block;
 }
