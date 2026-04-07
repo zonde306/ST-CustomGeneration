@@ -6,7 +6,7 @@ import { KNOWN_DECORATORS } from '@/functions/worldinfo';
 import { PresetPrompt, RegEx, Template, Preset, Settings, ExportPayload, ListExportKind, ListExportItem, ListExportDialogState, ListExportPayload, ImportPayload } from '@/utils/defines';
 import { defaultSettings, defaultTemplate, defaultPreset } from './utils/default-settings';
 import { yaml } from "@st/lib.js";
-import { t } from "@st/scripts/i18n.js";
+import { copyText } from '@st/scripts/utils.js';
 
 export const settings: Settings = clone(defaultSettings);
 
@@ -970,11 +970,14 @@ function getPreviewText(content: string): string {
 
 function getTemplateTagLabel(template: Pick<Template, 'tag'>): string {
     const normalized = String(template.tag ?? '').trim();
-    return normalized || t`Default`;
+    return normalized || ``;
 }
 
 function getTemplateSummary(template: Template): string {
-    return `${template.decorator} · ${getTemplateTagLabel(template)}`;
+    let label = getTemplateTagLabel(template);
+    if(label.includes(' '))
+        label = `"${label}"`;
+    return `${template.decorator} ${label}`;
 }
 
 function buildPromptUniqueKey(prompt: PresetPrompt): string {
@@ -1622,14 +1625,25 @@ function buildTemplateRow(entry: TemplateEntry, index: number) {
     left.append(dragHandle, meta);
 
     const actions = $('<div class="flex-container alignItemsCenter"></div>');
+    const copyButton = $('<i class="menu_button fa-solid fa-copy" title="Copy" data-i18n="[title]Copy"></i>');
     const editButton = $('<i class="menu_button fa-solid fa-pen-to-square" title="Edit" data-i18n="[title]Edit"></i>');
     const exportButton = $('<i class="menu_button fa-solid fa-file-export" title="Export" data-i18n="[title]Export"></i>');
     const deleteButton = $('<i class="menu_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></i>');
-    actions.append(editButton, exportButton, deleteButton);
+    actions.append(copyButton, editButton, exportButton, deleteButton);
 
     row.on('click', () => {
         selectedTemplateIndex = index;
         updateSettingsUI();
+    });
+
+    copyButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        let tag = entry.template.tag;
+        if(tag.includes(' '))
+            tag = ` "${tag}"`
+        else
+            tag = ` ${tag}`
+        copyText(`${entry.template.decorator}${tag}`);
     });
 
     editButton.on('click', (event: JQuery.TriggeredEvent) => {
