@@ -27,6 +27,9 @@ async function checker(data: DecoratorProcessData) {
 }
 
 async function processor(data: DecoratorProcessData) {
+    if(data.content.trim().length < 1)
+        return true;
+
     const original = substituteParams(data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content ?? data.decorator.cleanContent);
     let result = gitConflictStyle(data.content, original);
     if(result === false)

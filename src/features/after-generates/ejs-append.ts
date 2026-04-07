@@ -16,6 +16,9 @@ async function checker(_: DecoratorProcessData) {
 }
 
 async function processor(data: DecoratorProcessData) {
+    if(data.content.trim().length < 1)
+        return true;
+
     const content = '\n' + await evaluate(data.content, {
         ...data.args,
     });

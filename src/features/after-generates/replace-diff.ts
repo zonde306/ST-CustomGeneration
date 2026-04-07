@@ -28,6 +28,9 @@ async function checker(data: DecoratorProcessData) {
 }
 
 async function processor(data: DecoratorProcessData) {
+    if(data.content.trim().length < 1)
+        return true;
+
     const oldContent = substituteParams(data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content ?? '');
     const diff = applyPatch(oldContent, data.content, { fuzzFactor: 99 });
     if(diff) {

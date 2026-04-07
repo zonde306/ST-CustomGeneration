@@ -21,6 +21,9 @@ async function checker(data: DecoratorProcessData) {
 }
 
 async function processor(data: DecoratorProcessData) {
+    if(data.content.trim().length < 1)
+        return true;
+
     data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, data.content, data.messageId, data.swipeId);
     console.debug(`WI replace ${data.entry.world}/${data.entry.uid}-${data.entry.comment} to ${data.messageId}#${data.swipeId}, and result: ${data.content}`);
     return true;
