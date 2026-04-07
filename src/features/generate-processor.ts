@@ -64,6 +64,7 @@ export const NOT_ALLOWED_DECORATORS = [
 let isPostGenerating = false;
 let abortController: AbortController | null = null;
 let isPreventGeenration = false;
+let delayGenerationTimer : number | null = null;
 
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
@@ -92,6 +93,12 @@ export async function setup() {
  * Execute after generate processing
  */
 export async function runAfterGenerates() {
+    if(delayGenerationTimer != null) {
+        // Cancel previous delay generation
+        window.clearTimeout(delayGenerationTimer);
+        delayGenerationTimer = null;
+    }
+
     if(isPreventGeenration) {
         isPreventGeenration = false;
         console.log(`Skipping after-generate for prevent generation`);
@@ -402,6 +409,12 @@ async function stopActiveTasks(ask: boolean = false) {
         toastr.warning('Aborting after/before generate', 'after/before Generate');
         abortController = null;
 
+        if(delayGenerationTimer != null) {
+            // Cancel previous delay generation
+            window.clearTimeout(delayGenerationTimer);
+            delayGenerationTimer = null;
+        }
+
         await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'canceled' });
         activateSendButtons();
     }
@@ -527,7 +540,10 @@ async function askForInterruption() {
 
 async function onMessageReceived(messageId: number, type: string) {
     if(messageId > 0 && (type === 'normal' || type === 'regenerate' || type === 'swipe')) {
+        if(delayGenerationTimer != null)
+            window.clearTimeout(delayGenerationTimer);
+
         // Add a delay to prevent the send button from not updating.
-        window.setTimeout(runAfterGenerates, 1000);
+        delayGenerationTimer = window.setTimeout(runAfterGenerates, 1000);
     }
 }
