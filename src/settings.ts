@@ -1641,7 +1641,7 @@ function buildTemplateRow(entry: TemplateEntry, index: number) {
         let tag = entry.template.tag;
         if(tag.includes(' '))
             tag = ` "${tag}"`
-        else
+        else if(tag)
             tag = ` ${tag}`
         copyText(`${entry.template.decorator}${tag}`);
     });
