@@ -109,9 +109,17 @@ async function buildLoggerResponseTitle(response: string, index: number): Promis
 
 function buildLoggerSection(title: string, blocks: JQuery<HTMLElement>[]): JQuery<HTMLElement> {
     const section = $('<div class="custom_generation_logger_section"></div>');
+    const titleRow = $('<div class="custom_generation_logger_section_title_row"></div>');
     const titleEl = $('<div class="custom_generation_logger_section_title"></div>').text(title);
+    
+    // 收集所有块的内容用于复制
+    const allContent = blocks.map(block => block.text()).join('\n\n');
+    const copyButton = createCopyButton(allContent);
+    
+    titleRow.append(titleEl, copyButton);
+    
     const body = $('<div class="custom_generation_logger_section_body"></div>');
-    section.append(titleEl, body);
+    section.append(titleRow, body);
 
     if (!blocks.length) {
         const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text('(empty)');
