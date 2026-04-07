@@ -109,17 +109,9 @@ async function buildLoggerResponseTitle(response: string, index: number): Promis
 
 function buildLoggerSection(title: string, blocks: JQuery<HTMLElement>[]): JQuery<HTMLElement> {
     const section = $('<div class="custom_generation_logger_section"></div>');
-    const titleRow = $('<div class="custom_generation_logger_section_title_row"></div>');
     const titleEl = $('<div class="custom_generation_logger_section_title"></div>').text(title);
-    
-    // 收集所有块的内容用于复制
-    const allContent = blocks.map(block => block.text()).join('\n\n');
-    const copyButton = createCopyButton(allContent);
-    
-    titleRow.append(titleEl, copyButton);
-    
     const body = $('<div class="custom_generation_logger_section_body"></div>');
-    section.append(titleRow, body);
+    section.append(titleEl, body);
 
     if (!blocks.length) {
         const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text('(empty)');
@@ -134,7 +126,8 @@ function buildLoggerSection(title: string, blocks: JQuery<HTMLElement>[]): JQuer
 function buildLoggerAccordionBlock(title: string, content: string, blockClass?: string): JQuery<HTMLElement>[] {
     const header = $('<div class="custom_generation_logger_block_header"></div>');
     const titleEl = $('<div class="custom_generation_logger_block_title"><i class="fa-solid fa-chevron-right custom_generation_logger_block_caret"></i></div>').append(document.createTextNode(title));
-    header.append(titleEl);
+    const copyButton = createCopyButton(content);
+    header.append(titleEl, copyButton);
 
     const panel = $('<div class="custom_generation_logger_block_panel"></div>');
     const pre = $('<pre class="custom_generation_logger_pre"></pre>').text(content);
