@@ -151,7 +151,9 @@ async function processMessage(env: Context, override: DataOverride, before: bool
 
     abortController = new AbortController();
 
-    deactivateSendButtons();
+    if(!before)
+        deactivateSendButtons();
+
     await eventSource.emit(eventTypes.GENERATION_WORLDINFO_START, { abortController, entries: groups });
 
     const cache = new Map<string, TemplateHandler>();
@@ -320,7 +322,8 @@ async function processMessage(env: Context, override: DataOverride, before: bool
         env.chat[messageId].swipe_info[swipeId].before_generated = true;
     }
 
-    activateSendButtons();
+    if(!before)
+        activateSendButtons();
 }
 
 async function onAppReady() {
