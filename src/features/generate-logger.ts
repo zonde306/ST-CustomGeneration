@@ -214,7 +214,7 @@ function createCopyButton(content: string): JQuery<HTMLElement> {
     return button;
 }
 
-function buildLoggerBlock(title: string, content: string, blockClass?: string): JQuery<HTMLElement> {
+function buildErrorLoggerBlock(title: string, content: string, blockClass?: string): JQuery<HTMLElement> {
     const block = $('<div></div>');
     if (blockClass) {
         block.addClass(blockClass);
@@ -222,9 +222,8 @@ function buildLoggerBlock(title: string, content: string, blockClass?: string): 
     const header = $('<div class="custom_generation_logger_block_header_row"></div>');
     const titleEl = $('<div class="custom_generation_logger_block_title"></div>').text(title);
     const copyButton = createCopyButton(content);
-    titleEl.append(copyButton);
     const pre = $('<pre class="custom_generation_logger_pre"></pre>').text(content);
-    header.append(titleEl);
+    header.append(titleEl, copyButton);
     block.append(header, pre);
     return block;
 }
@@ -262,7 +261,7 @@ async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise
 
     if (entry.error) {
         const errorText = entry.error.stack || entry.error.message || String(entry.error);
-        body.append(buildLoggerBlock('Error', errorText, 'custom_generation_logger_error'));
+        body.append(buildErrorLoggerBlock('Error', errorText, 'custom_generation_logger_error'));
     }
 
     container.append(summary, body);
