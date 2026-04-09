@@ -1,6 +1,8 @@
-import { Template, Preset, Settings } from '@/utils/defines';
+import { Template, Preset, Settings, ApiSettings } from '@/utils/defines';
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { t } from "@st/scripts/i18n.js"
+
+export const defaultApiName = t`Default`;
 
 export const defaultTemplate: Template = {
     decorator: '@@record',
@@ -2307,7 +2309,7 @@ export const defaultPreset: Preset = {
     },
 };
 
-export const defaultSettings: Settings = {
+export const defaultApiSettings: ApiSettings = {
     baseUrl: 'http://localhost:8080/v1',
     apiKey: '',
     model: 'None',
@@ -2318,14 +2320,21 @@ export const defaultSettings: Settings = {
     topP: 1,
     presencePenalty: 0,
     frequencyPenalty: 0,
-    promptPostProcessing: 'none',
-    presets: {
-        [defaultPreset.name]: defaultPreset,
-    },
-    currentPreset: defaultPreset.name,
     stream: false,
     includeHeaders: {},
     includeBody: {},
     excludeBody: {},
+    promptPostProcessing: 'none',
+};
+
+export const defaultSettings: Settings = {
+    apis: {
+        [defaultApiName]: defaultApiSettings,
+    },
+    currentApi: defaultApiName,
+    presets: {
+        [defaultPreset.name]: defaultPreset,
+    },
+    currentPreset: defaultPreset.name,
     maxConcurrency: 1,
 };

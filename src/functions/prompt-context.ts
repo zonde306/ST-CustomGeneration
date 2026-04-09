@@ -27,7 +27,7 @@ export class PromptContext {
             characterDepthPrompt: this.charDepthPrompt,
             scenario: this.scenario,
             creatorNotes: this.creatorNotes,
-            trigger: GENERATION_TYPE_TRIGGERS.includes(type) ? type : 'normal',
+            trigger: GENERATION_TYPE_TRIGGERS.includes(type) ? type : 'quiet',
         };
 
         this.worldInfo = await getWorldInfoPrompt(content, contextSize, dryRun, globalScanData);

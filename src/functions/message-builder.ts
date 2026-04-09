@@ -97,7 +97,7 @@ export class MessageBuilder {
 
     async build(type: string = 'normal', dryRun: boolean = false, wiDepth = world_info_depth): Promise<ChatCompletionMessage[]> {
         const worldinfoTrigger: string[] = this.chat.slice(-wiDepth).map(x => x.mes ?? '');
-        const prompt = await PromptContext.create(worldinfoTrigger, type, dryRun, settings.contextSize);
+        const prompt = await PromptContext.create(worldinfoTrigger, type, dryRun, settings.apis[settings.currentApi]?.contextSize);
         const historyMessages = this.#buildChatHistory();
         this.#rebuildDepthInjections(prompt, historyMessages, type);
         const historyInjectedMessages = this.#injectDepthPromptsToHistory(historyMessages, type === 'continue');

@@ -16,7 +16,6 @@ import { MessageBuilder, PromptFilter, MacroOverride } from '@/functions/message
 import { ContextRole } from '@/utils/defines'
 import { runRegexScript, substitute_find_regex } from "@/../../../regex/engine.js";
 import { eventTypes } from '@/utils/events';
-import { DynamicMacroValue } from "@st/scripts/macros/engine/MacroEnv.types.js";
 import { Preset } from '@/utils/defines';
 import { defaultPreset } from '@/utils/default-settings';
 import { AsyncMutex } from '@/utils/mutex';
@@ -481,24 +480,26 @@ export class Context {
     }
 
     #buildApiConfig(type: string): ApiConfig | undefined {
-        const hasCustomApi = Boolean(settings.baseUrl || settings.apiKey || settings.model);
+        const api = settings.apis[settings.currentApi] ?? {};
+        const hasCustomApi = Boolean(api.baseUrl || api.apiKey || api.model);
         if (!hasCustomApi) {
+            console.error(`No custom API configured. Using default API.`);
             return undefined;
         }
 
         return {
-            url: this.apiOverride.url ?? settings.baseUrl ?? '',
-            key: this.apiOverride.key ?? settings.apiKey ?? '',
-            model: this.apiOverride.model ?? settings.model ?? '',
+            url: this.apiOverride.url ?? api.baseUrl ?? '',
+            key: this.apiOverride.key ?? api.apiKey ?? '',
+            model: this.apiOverride.model ?? api.model ?? '',
             type,
-            stream: this.apiOverride.stream ?? settings.stream ?? false,
-            max_context: this.apiOverride.max_context ?? settings.contextSize,
-            max_tokens: this.apiOverride.max_tokens ?? settings.maxTokens,
-            temperature: this.apiOverride.temperature ?? settings.temperature,
-            top_k: this.apiOverride.top_k ?? settings.topK,
-            top_p: this.apiOverride.top_p ?? settings.topP,
-            frequency_penalty: this.apiOverride.frequency_penalty ?? settings.frequencyPenalty,
-            presence_penalty: this.apiOverride.presence_penalty ?? settings.presencePenalty,
+            stream: this.apiOverride.stream ?? api.stream ?? false,
+            max_context: this.apiOverride.max_context ?? api.contextSize,
+            max_tokens: this.apiOverride.max_tokens ?? api.maxTokens,
+            temperature: this.apiOverride.temperature ?? api.temperature,
+            top_k: this.apiOverride.top_k ?? api.topK,
+            top_p: this.apiOverride.top_p ?? api.topP,
+            frequency_penalty: this.apiOverride.frequency_penalty ?? api.frequencyPenalty,
+            presence_penalty: this.apiOverride.presence_penalty ?? api.presencePenalty,
         };
     }
 

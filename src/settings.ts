@@ -3,8 +3,8 @@ import { extension_settings, renderExtensionTemplateAsync } from '@st/scripts/ex
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { generate as runGenerate, ApiConfig } from '@/functions/generate';
 import { KNOWN_DECORATORS } from '@/functions/worldinfo';
-import { PresetPrompt, RegEx, Template, Preset, Settings, ExportPayload, ListExportKind, ListExportItem, ListExportDialogState, ListExportPayload, ImportPayload } from '@/utils/defines';
-import { defaultSettings, defaultTemplate, defaultPreset } from './utils/default-settings';
+import { PresetPrompt, RegEx, Template, Preset, Settings, ExportPayload, ListExportKind, ListExportItem, ListExportDialogState, ListExportPayload, ImportPayload, ApiSettings } from '@/utils/defines';
+import { defaultSettings, defaultTemplate, defaultPreset, defaultApiSettings, defaultApiName } from './utils/default-settings';
 import { yaml } from "@st/lib.js";
 import { copyText } from '@st/scripts/utils.js';
 
@@ -224,10 +224,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function parsePromptPostProcessing(value: unknown): Settings['promptPostProcessing'] {
+function parsePromptPostProcessing(value: unknown): ApiSettings['promptPostProcessing'] {
     const text = String(value ?? 'none');
     return ['none', 'merge', 'semi', 'strict', 'single'].includes(text)
-        ? text as Settings['promptPostProcessing']
+        ? text as ApiSettings['promptPostProcessing']
         : 'none';
 }
 
@@ -627,31 +627,114 @@ function ensureCurrentPresetKey(): string {
     return keys[0];
 }
 
-function ensureSettingsIntegrity(resetSelections: boolean = false) {
-    settings.baseUrl = String(settings.baseUrl ?? defaultSettings.baseUrl);
-    settings.apiKey = String(settings.apiKey ?? '');
-    settings.model = String(settings.model ?? 'None');
-    settings.contextSize = parseNumber(settings.contextSize, defaultSettings.contextSize, 1, 1_000_000, true);
-    settings.maxTokens = parseNumber(settings.maxTokens, defaultSettings.maxTokens, 1, 1_000_000, true);
-    settings.temperature = parseNumber(settings.temperature, defaultSettings.temperature, 0, 2, false);
-    settings.topK = parseNumber(settings.topK, defaultSettings.topK, 0, 1_000_000, true);
-    settings.topP = parseNumber(settings.topP, defaultSettings.topP, 0, 1, false);
-    settings.frequencyPenalty = parseNumber(settings.frequencyPenalty, defaultSettings.frequencyPenalty, -2, 2, false);
-    settings.presencePenalty = parseNumber(settings.presencePenalty, defaultSettings.presencePenalty, -2, 2, false);
-    settings.includeHeaders = normalizeRecord(settings.includeHeaders);
-    settings.includeBody = normalizeRecord(settings.includeBody);
-    settings.excludeBody = normalizeRecord(settings.excludeBody);
-    settings.promptPostProcessing = parsePromptPostProcessing(settings.promptPostProcessing);
-    settings.maxConcurrency = parseNumber(settings.maxConcurrency, defaultSettings.maxConcurrency, 1, 100, true);
+// API connection preset management functions
+function getApiKeys(): string[] {
+    return Object.keys(settings.apis ?? {});
+}
 
+function ensureCurrentApiKey(): string {
+    const keys = getApiKeys();
+    if (keys.length === 0) {
+        settings.apis = {
+            [defaultApiName]: clone(defaultApiSettings),
+        };
+        return defaultApiName;
+    }
+
+    const current = String(settings.currentApi ?? '').trim();
+    if (current && settings.apis[current]) {
+        return current;
+    }
+
+    return keys[0];
+}
+
+function getCurrentApi(): ApiSettings {
+    const key = ensureCurrentApiKey();
+    settings.currentApi = key;
+    let api = settings.apis[key];
+    if (!api) {
+        api = clone(defaultApiSettings);
+        settings.apis[key] = api;
+    }
+
+    return api;
+}
+
+function uniqueApiName(baseName: string): string {
+    const base = sanitizePresetName(baseName, 'Connection');
+    const existing = new Set(Object.keys(settings.apis ?? {}));
+    if (!existing.has(base)) {
+        return base;
+    }
+
+    let suffix = 2;
+    while (existing.has(`${base} ${suffix}`)) {
+        suffix++;
+    }
+
+    return `${base} ${suffix}`;
+}
+
+function normalizeApiSettings(input: Partial<ApiSettings>): ApiSettings {
+    return {
+        baseUrl: String(input.baseUrl ?? defaultApiSettings.baseUrl),
+        apiKey: String(input.apiKey ?? ''),
+        model: String(input.model ?? 'None'),
+        contextSize: parseNumber(input.contextSize, defaultApiSettings.contextSize, 1, 1_000_000, true),
+        maxTokens: parseNumber(input.maxTokens, defaultApiSettings.maxTokens, 1, 1_000_000, true),
+        temperature: parseNumber(input.temperature, defaultApiSettings.temperature, 0, 2, false),
+        topK: parseNumber(input.topK, defaultApiSettings.topK, 0, 1_000_000, true),
+        topP: parseNumber(input.topP, defaultApiSettings.topP, 0, 1, false),
+        frequencyPenalty: parseNumber(input.frequencyPenalty, defaultApiSettings.frequencyPenalty, -2, 2, false),
+        presencePenalty: parseNumber(input.presencePenalty, defaultApiSettings.presencePenalty, -2, 2, false),
+        stream: Boolean(input.stream),
+        includeHeaders: normalizeRecord(input.includeHeaders),
+        includeBody: normalizeRecord(input.includeBody),
+        excludeBody: normalizeRecord(input.excludeBody),
+        promptPostProcessing: parsePromptPostProcessing(input.promptPostProcessing),
+    };
+}
+
+function normalizeApiMap(raw: unknown): Record<string, ApiSettings> {
+    const result: Record<string, ApiSettings> = {};
+
+    if (!isRecord(raw)) {
+        return result;
+    }
+
+    Object.entries(raw).forEach(([key, value]) => {
+        if (isRecord(value)) {
+            const api = normalizeApiSettings(value as Partial<ApiSettings>);
+            const normalizedKey = sanitizePresetName(key, 'Connection');
+            result[normalizedKey] = api;
+        }
+    });
+
+    return result;
+}
+
+function ensureSettingsIntegrity(resetSelections: boolean = false) {
+    // Ensure API connection presets
+    settings.apis = normalizeApiMap(settings.apis);
+    if (Object.keys(settings.apis).length === 0) {
+        settings.apis = {
+            [defaultApiName]: clone(defaultApiSettings),
+        };
+    }
+    settings.currentApi = ensureCurrentApiKey();
+
+    // Ensure prompt presets
     settings.presets = normalizePresetMap(settings.presets);
     if (Object.keys(settings.presets).length === 0) {
         settings.presets = {
             [defaultPreset.name]: clone(defaultPreset),
         };
     }
-
     settings.currentPreset = ensureCurrentPresetKey();
+
+    // Ensure max concurrency
+    settings.maxConcurrency = parseNumber(settings.maxConcurrency, defaultSettings.maxConcurrency, 1, 100, true);
 
     if (resetSelections) {
         selectedPromptIndex = 0;
@@ -866,7 +949,8 @@ function setAdvancedParametersExpanded(expanded: boolean): void {
 
 function updateModelSelectOptions(): void {
     const modelSelect = $('#custom_generation_model_select');
-    const currentModel = String(settings.model ?? '').trim();
+    const api = getCurrentApi();
+    const currentModel = String(api.model ?? '').trim();
     const candidateSet = new Set(modelCandidates.map(x => x.trim()).filter(Boolean));
 
     modelSelect.empty();
@@ -906,10 +990,11 @@ function setConnectionControlsBusy(busy: boolean): void {
 }
 
 function getConnectionFormValues(): { baseUrl: string; apiKey: string; model: string } {
+    const api = getCurrentApi();
     return {
-        baseUrl: String($('#custom_generation_base_url').val() ?? settings.baseUrl ?? '').trim(),
-        apiKey: String($('#custom_generation_api_key').val() ?? settings.apiKey ?? '').trim(),
-        model: String($('#custom_generation_model').val() ?? settings.model ?? '').trim(),
+        baseUrl: String($('#custom_generation_base_url').val() ?? api.baseUrl ?? '').trim(),
+        apiKey: String($('#custom_generation_api_key').val() ?? api.apiKey ?? '').trim(),
+        model: String($('#custom_generation_model').val() ?? api.model ?? '').trim(),
     };
 }
 
@@ -1278,11 +1363,12 @@ function getTemplateDeleteConfirmationText(template: Template): string {
 }
 
 function buildRequestHeaders(apiKey: string): Record<string, string> {
+    const api = getCurrentApi();
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
     };
 
-    for (const [key, value] of Object.entries(settings.includeHeaders ?? {})) {
+    for (const [key, value] of Object.entries(api.includeHeaders ?? {})) {
         const headerName = key.trim();
         if (!headerName) {
             continue;
@@ -1302,6 +1388,7 @@ function buildRequestHeaders(apiKey: string): Record<string, string> {
 }
 
 function buildDirectTestBody(model: string): Record<string, unknown> {
+    const api = getCurrentApi();
     const body: Record<string, unknown> = {
         model,
         messages: [
@@ -1311,13 +1398,13 @@ function buildDirectTestBody(model: string): Record<string, unknown> {
             },
         ],
         stream: false,
-        max_tokens: Math.max(1, Math.min(settings.maxTokens, 64)),
+        max_tokens: Math.max(1, Math.min(api.maxTokens, 64)),
         temperature: 0,
     };
 
-    Object.assign(body, clone(settings.includeBody));
+    Object.assign(body, clone(api.includeBody));
 
-    for (const key of Object.keys(settings.excludeBody ?? {})) {
+    for (const key of Object.keys(api.excludeBody ?? {})) {
         delete body[key];
     }
 
@@ -1369,22 +1456,23 @@ async function testGenerateConnection(): Promise<string> {
         throw new Error('Model ID is required.');
     }
 
+    const api = getCurrentApi();
     const apiConfig: ApiConfig = {
         url: baseUrl,
         key: apiKey,
         model,
         type: 'quiet',
-        stream: settings.stream,
-        max_context: settings.contextSize,
-        max_tokens: Math.max(1, Math.min(settings.maxTokens, 64)),
-        temperature: settings.temperature,
-        top_k: settings.topK,
-        top_p: settings.topP,
-        frequency_penalty: settings.frequencyPenalty,
-        presence_penalty: settings.presencePenalty,
-        custom_include_body: yaml.stringify(settings.includeBody),
-        custom_exclude_body: yaml.stringify(settings.excludeBody),
-        custom_include_headers: yaml.stringify(settings.includeHeaders),
+        stream: api.stream,
+        max_context: api.contextSize,
+        max_tokens: Math.max(1, Math.min(api.maxTokens, 64)),
+        temperature: api.temperature,
+        top_k: api.topK,
+        top_p: api.topP,
+        frequency_penalty: api.frequencyPenalty,
+        presence_penalty: api.presencePenalty,
+        custom_include_body: yaml.stringify(api.includeBody),
+        custom_exclude_body: yaml.stringify(api.excludeBody),
+        custom_include_headers: yaml.stringify(api.includeHeaders),
     };
 
     const messages: ChatCompletionMessage[] = [
@@ -2488,6 +2576,7 @@ function deleteTemplateFromEditor(): void {
 }
 
 function buildExportPayload(includeApiConnection: boolean): ExportPayload {
+    const api = getCurrentApi();
     const payload: ExportPayload = {
         version: exportSchemaVersion,
         presets: clone([settings.presets[settings.currentPreset]]),
@@ -2496,19 +2585,19 @@ function buildExportPayload(includeApiConnection: boolean): ExportPayload {
 
     if (includeApiConnection) {
         payload.apiConnection = {
-            baseUrl: settings.baseUrl,
-            model: settings.model,
-            contextSize: settings.contextSize,
-            maxTokens: settings.maxTokens,
-            temperature: settings.temperature,
-            topK: settings.topK,
-            topP: settings.topP,
-            frequencyPenalty: settings.frequencyPenalty,
-            presencePenalty: settings.presencePenalty,
-            promptPostProcessing: settings.promptPostProcessing,
-            includeHeaders: clone(settings.includeHeaders),
-            includeBody: clone(settings.includeBody),
-            excludeBody: clone(settings.excludeBody),
+            baseUrl: api.baseUrl,
+            model: api.model,
+            contextSize: api.contextSize,
+            maxTokens: api.maxTokens,
+            temperature: api.temperature,
+            topK: api.topK,
+            topP: api.topP,
+            frequencyPenalty: api.frequencyPenalty,
+            presencePenalty: api.presencePenalty,
+            promptPostProcessing: api.promptPostProcessing,
+            includeHeaders: clone(api.includeHeaders),
+            includeBody: clone(api.includeBody),
+            excludeBody: clone(api.excludeBody),
         };
     }
 
@@ -2592,7 +2681,8 @@ async function importPresetsFromFile(file: File): Promise<void> {
 
     const normalized = parseImportPayload(parsed);
 
-    const previousApiKey = settings.apiKey;
+    const api = getCurrentApi();
+    const previousApiKey = api.apiKey;
     const presetMap = normalizePresetMap(normalized.presets);
     const mapKeys = Object.keys(presetMap);
 
@@ -2609,22 +2699,22 @@ async function importPresetsFromFile(file: File): Promise<void> {
     editingTemplatePromptIndex = null;
 
     if (normalized.apiConnection) {
-        settings.baseUrl = String(normalized.apiConnection.baseUrl ?? settings.baseUrl);
-        settings.model = String(normalized.apiConnection.model ?? settings.model);
-        settings.contextSize = parseNumber(normalized.apiConnection.contextSize, settings.contextSize, 1, 1_000_000, true);
-        settings.maxTokens = parseNumber(normalized.apiConnection.maxTokens, settings.maxTokens, 1, 1_000_000, true);
-        settings.temperature = parseNumber(normalized.apiConnection.temperature, settings.temperature, 0, 2, false);
-        settings.topK = parseNumber(normalized.apiConnection.topK, settings.topK, 0, 1_000_000, true);
-        settings.topP = parseNumber(normalized.apiConnection.topP, settings.topP, 0, 1, false);
-        settings.frequencyPenalty = parseNumber(normalized.apiConnection.frequencyPenalty, settings.frequencyPenalty, -2, 2, false);
-        settings.presencePenalty = parseNumber(normalized.apiConnection.presencePenalty, settings.presencePenalty, -2, 2, false);
-        settings.promptPostProcessing = parsePromptPostProcessing(normalized.apiConnection.promptPostProcessing);
-        settings.includeHeaders = normalizeRecord(normalized.apiConnection.includeHeaders);
-        settings.includeBody = normalizeRecord(normalized.apiConnection.includeBody);
-        settings.excludeBody = normalizeRecord(normalized.apiConnection.excludeBody);
+        api.baseUrl = String(normalized.apiConnection.baseUrl ?? api.baseUrl);
+        api.model = String(normalized.apiConnection.model ?? api.model);
+        api.contextSize = parseNumber(normalized.apiConnection.contextSize, api.contextSize, 1, 1_000_000, true);
+        api.maxTokens = parseNumber(normalized.apiConnection.maxTokens, api.maxTokens, 1, 1_000_000, true);
+        api.temperature = parseNumber(normalized.apiConnection.temperature, api.temperature, 0, 2, false);
+        api.topK = parseNumber(normalized.apiConnection.topK, api.topK, 0, 1_000_000, true);
+        api.topP = parseNumber(normalized.apiConnection.topP, api.topP, 0, 1, false);
+        api.frequencyPenalty = parseNumber(normalized.apiConnection.frequencyPenalty, api.frequencyPenalty, -2, 2, false);
+        api.presencePenalty = parseNumber(normalized.apiConnection.presencePenalty, api.presencePenalty, -2, 2, false);
+        api.promptPostProcessing = parsePromptPostProcessing(normalized.apiConnection.promptPostProcessing);
+        api.includeHeaders = normalizeRecord(normalized.apiConnection.includeHeaders);
+        api.includeBody = normalizeRecord(normalized.apiConnection.includeBody);
+        api.excludeBody = normalizeRecord(normalized.apiConnection.excludeBody);
     }
 
-    settings.apiKey = previousApiKey;
+    api.apiKey = previousApiKey;
 
     ensureSettingsIntegrity(true);
     updateSettingsUI();
@@ -2662,59 +2752,146 @@ function bindEvents() {
 
     isEventsBound = true;
 
+    // API connection preset selection
+    $('#custom_generation_api_select').on('change', () => {
+        const key = String($('#custom_generation_api_select').val() ?? '').trim();
+        settings.currentApi = key && settings.apis[key]
+            ? key
+            : ensureCurrentApiKey();
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    // API connection preset management
+    $('#custom_generation_api_new').on('click', () => {
+        const suggested = uniqueApiName('Connection');
+        const name = window.prompt('Connection name', suggested);
+        if (name === null) {
+            return;
+        }
+
+        const apiName = uniqueApiName(name);
+        settings.apis[apiName] = clone(defaultApiSettings);
+        settings.currentApi = apiName;
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    $('#custom_generation_api_duplicate').on('click', () => {
+        const current = getCurrentApi();
+        const duplicated = clone(current);
+        const newName = uniqueApiName(`${settings.currentApi} Copy`);
+        settings.apis[newName] = duplicated;
+        settings.currentApi = newName;
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    $('#custom_generation_api_rename').on('click', () => {
+        const currentKey = ensureCurrentApiKey();
+        const name = window.prompt('Rename connection', currentKey);
+        if (name === null) {
+            return;
+        }
+
+        const nextName = sanitizePresetName(name, currentKey);
+        if (nextName === currentKey) {
+            updateSettingsUI();
+            saveSettings();
+            return;
+        }
+
+        const current = getCurrentApi();
+        delete settings.apis[currentKey];
+        settings.apis[nextName] = current;
+        settings.currentApi = nextName;
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    $('#custom_generation_api_delete').on('click', () => {
+        const keys = Object.keys(settings.apis ?? {});
+        if (keys.length <= 1) {
+            window.alert('At least one connection must remain.');
+            return;
+        }
+
+        const currentKey = ensureCurrentApiKey();
+        if (!window.confirm(`Delete connection "${currentKey}"?`)) {
+            return;
+        }
+
+        delete settings.apis[currentKey];
+        settings.currentApi = ensureCurrentApiKey();
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    // API settings input bindings
     $('#custom_generation_base_url').on('input', () => {
-        settings.baseUrl = String($('#custom_generation_base_url').val() ?? defaultSettings.baseUrl);
+        const api = getCurrentApi();
+        api.baseUrl = String($('#custom_generation_base_url').val() ?? defaultApiSettings.baseUrl);
         saveSettings();
     });
 
     $('#custom_generation_api_key').on('input', () => {
-        settings.apiKey = String($('#custom_generation_api_key').val() ?? '');
+        const api = getCurrentApi();
+        api.apiKey = String($('#custom_generation_api_key').val() ?? '');
         saveSettings();
     });
 
     $('#custom_generation_model').on('input', () => {
-        settings.model = String($('#custom_generation_model').val() ?? 'None');
+        const api = getCurrentApi();
+        api.model = String($('#custom_generation_model').val() ?? 'None');
         updateModelSelectOptions();
         saveSettings();
     });
 
     $('#custom_generation_context_size').on('input', () => {
-        settings.contextSize = parseNumber($('#custom_generation_context_size').val(), defaultSettings.contextSize, 1, 1_000_000, true);
+        const api = getCurrentApi();
+        api.contextSize = parseNumber($('#custom_generation_context_size').val(), defaultApiSettings.contextSize, 1, 1_000_000, true);
         saveSettings();
     });
 
     $('#custom_generation_max_tokens').on('input', () => {
-        settings.maxTokens = parseNumber($('#custom_generation_max_tokens').val(), defaultSettings.maxTokens, 1, 1_000_000, true);
+        const api = getCurrentApi();
+        api.maxTokens = parseNumber($('#custom_generation_max_tokens').val(), defaultApiSettings.maxTokens, 1, 1_000_000, true);
         saveSettings();
     });
 
     $('#custom_generation_temperature').on('input', () => {
-        settings.temperature = parseNumber($('#custom_generation_temperature').val(), defaultSettings.temperature, 0, 2, false);
+        const api = getCurrentApi();
+        api.temperature = parseNumber($('#custom_generation_temperature').val(), defaultApiSettings.temperature, 0, 2, false);
         saveSettings();
     });
 
     $('#custom_generation_top_k').on('input', () => {
-        settings.topK = parseNumber($('#custom_generation_top_k').val(), defaultSettings.topK, 0, 1_000_000, true);
+        const api = getCurrentApi();
+        api.topK = parseNumber($('#custom_generation_top_k').val(), defaultApiSettings.topK, 0, 1_000_000, true);
         saveSettings();
     });
 
     $('#custom_generation_top_p').on('input', () => {
-        settings.topP = parseNumber($('#custom_generation_top_p').val(), defaultSettings.topP, 0, 1, false);
+        const api = getCurrentApi();
+        api.topP = parseNumber($('#custom_generation_top_p').val(), defaultApiSettings.topP, 0, 1, false);
         saveSettings();
     });
 
     $('#custom_generation_frequency_penalty').on('input', () => {
-        settings.frequencyPenalty = parseNumber($('#custom_generation_frequency_penalty').val(), defaultSettings.frequencyPenalty, -2, 2, false);
+        const api = getCurrentApi();
+        api.frequencyPenalty = parseNumber($('#custom_generation_frequency_penalty').val(), defaultApiSettings.frequencyPenalty, -2, 2, false);
         saveSettings();
     });
 
     $('#custom_generation_presence_penalty').on('input', () => {
-        settings.presencePenalty = parseNumber($('#custom_generation_presence_penalty').val(), defaultSettings.presencePenalty, -2, 2, false);
+        const api = getCurrentApi();
+        api.presencePenalty = parseNumber($('#custom_generation_presence_penalty').val(), defaultApiSettings.presencePenalty, -2, 2, false);
         saveSettings();
     });
 
     $('#custom_generation_stream').on('change', () => {
-        settings.stream = Boolean($('#custom_generation_stream').prop('checked'));
+        const api = getCurrentApi();
+        api.stream = Boolean($('#custom_generation_stream').prop('checked'));
         saveSettings();
     });
 
@@ -2729,7 +2906,8 @@ function bindEvents() {
             return;
         }
 
-        settings.model = value;
+        const api = getCurrentApi();
+        api.model = value;
         $('#custom_generation_model').val(value);
         saveSettings();
     });
@@ -2846,11 +3024,12 @@ function bindEvents() {
     });
 
     $('#custom_generation_prompt_post_processing').on('change', () => {
-        settings.promptPostProcessing = parsePromptPostProcessing($('#custom_generation_prompt_post_processing').val());
+        const api = getCurrentApi();
+        api.promptPostProcessing = parsePromptPostProcessing($('#custom_generation_prompt_post_processing').val());
         saveSettings();
     });
 
-    const yamlFieldBindings: Array<{ selector: string; key: keyof Pick<Settings, 'includeHeaders' | 'includeBody' | 'excludeBody'>; label: string }> = [
+    const yamlFieldBindings: Array<{ selector: string; key: keyof Pick<ApiSettings, 'includeHeaders' | 'includeBody' | 'excludeBody'>; label: string }> = [
         { selector: '#custom_generation_include_headers_yaml', key: 'includeHeaders', label: 'Request Headers' },
         { selector: '#custom_generation_include_body_yaml', key: 'includeBody', label: 'Request Body' },
         { selector: '#custom_generation_exclude_body_yaml', key: 'excludeBody', label: 'Exclude Body Keys' },
@@ -2859,7 +3038,8 @@ function bindEvents() {
     for (const field of yamlFieldBindings) {
         $(field.selector).on('change', () => {
             try {
-                settings[field.key] = parseYamlRecord($(field.selector).val());
+                const api = getCurrentApi();
+                api[field.key] = parseYamlRecord($(field.selector).val());
                 saveSettings();
             } catch (error) {
                 const message = error instanceof Error ? error.message : String(error ?? 'Unknown YAML parse error');
@@ -3364,6 +3544,7 @@ export function updateSettingsUI() {
     ensureSettingsIntegrity();
 
     const currentPreset = getCurrentPreset();
+    const api = getCurrentApi();
 
     selectedPromptIndex = clamp(selectedPromptIndex, 0, Math.max(0, currentPreset.prompts.length - 1));
     selectedRegexIndex = clamp(selectedRegexIndex, 0, Math.max(0, currentPreset.regexs.length - 1));
@@ -3371,22 +3552,31 @@ export function updateSettingsUI() {
 
     isUpdatingUI = true;
 
-    $('#custom_generation_base_url').val(settings.baseUrl);
-    $('#custom_generation_api_key').val(settings.apiKey);
-    $('#custom_generation_model').val(settings.model);
-    $('#custom_generation_context_size').val(settings.contextSize);
-    $('#custom_generation_max_tokens').val(settings.maxTokens);
-    $('#custom_generation_temperature').val(settings.temperature);
-    $('#custom_generation_top_k').val(settings.topK);
-    $('#custom_generation_top_p').val(settings.topP);
-    $('#custom_generation_frequency_penalty').val(settings.frequencyPenalty);
-    $('#custom_generation_presence_penalty').val(settings.presencePenalty);
-    $('#custom_generation_stream').prop('checked', settings.stream);
+    // Update API connection preset selector
+    const apiSelect = $('#custom_generation_api_select');
+    apiSelect.empty();
+    getApiKeys().forEach((apiKey) => {
+        apiSelect.append(`<option value="${apiKey}">${apiKey}</option>`);
+    });
+    apiSelect.val(String(settings.currentApi));
+
+    // Update API settings fields
+    $('#custom_generation_base_url').val(api.baseUrl);
+    $('#custom_generation_api_key').val(api.apiKey);
+    $('#custom_generation_model').val(api.model);
+    $('#custom_generation_context_size').val(api.contextSize);
+    $('#custom_generation_max_tokens').val(api.maxTokens);
+    $('#custom_generation_temperature').val(api.temperature);
+    $('#custom_generation_top_k').val(api.topK);
+    $('#custom_generation_top_p').val(api.topP);
+    $('#custom_generation_frequency_penalty').val(api.frequencyPenalty);
+    $('#custom_generation_presence_penalty').val(api.presencePenalty);
+    $('#custom_generation_stream').prop('checked', api.stream);
     $('#custom_generation_max_concurrency').val(settings.maxConcurrency);
-    $('#custom_generation_prompt_post_processing').val(settings.promptPostProcessing);
-    $('#custom_generation_include_headers_yaml').val(stringifyYamlRecord(settings.includeHeaders));
-    $('#custom_generation_include_body_yaml').val(stringifyYamlRecord(settings.includeBody));
-    $('#custom_generation_exclude_body_yaml').val(stringifyYamlRecord(settings.excludeBody));
+    $('#custom_generation_prompt_post_processing').val(api.promptPostProcessing);
+    $('#custom_generation_include_headers_yaml').val(stringifyYamlRecord(api.includeHeaders));
+    $('#custom_generation_include_body_yaml').val(stringifyYamlRecord(api.includeBody));
+    $('#custom_generation_exclude_body_yaml').val(stringifyYamlRecord(api.excludeBody));
 
     updateModelSelectOptions();
 

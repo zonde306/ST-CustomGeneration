@@ -400,7 +400,7 @@ export interface Preset {
     templates: Record<string, Template>;
 }
 
-export interface Settings {
+export interface ApiSettings {
     // Custom Endpoint (Base URL)
     baseUrl: string;
 
@@ -446,6 +446,14 @@ export interface Settings {
     // Prompt Post-Processing
     // like: https://docs.sillytavern.app/usage/api-connections/openai/#prompt-post-processing
     promptPostProcessing: 'none' | 'merge' | 'semi' | 'strict' | 'single';
+}
+
+export interface Settings {
+    // openai api connections
+    apis: Record<string, ApiSettings>;
+
+    // default api (current active api)
+    currentApi: string;
 
     // openai presets, cannot be empty
     presets: Record<string, Preset>;
@@ -471,7 +479,7 @@ export interface ExportPayload {
         topP: number;
         frequencyPenalty: number;
         presencePenalty: number;
-        promptPostProcessing: Settings['promptPostProcessing'];
+        promptPostProcessing: ApiSettings['promptPostProcessing'];
         includeHeaders: Record<string, unknown>;
         includeBody: Record<string, unknown>;
         excludeBody: Record<string, unknown>;
