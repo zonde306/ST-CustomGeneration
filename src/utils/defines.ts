@@ -528,3 +528,17 @@ export interface ImportPayload {
     };
 }
 
+// API connection export payload
+export interface ApiExportPayload {
+    version: string;
+    apis: Record<string, ApiSettings>;
+    currentApi: string;
+}
+
+// API connection import payload (for validation)
+export interface ApiImportPayload {
+    version?: unknown;
+    apis?: unknown;
+    currentApi?: unknown;
+}
+

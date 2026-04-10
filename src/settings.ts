@@ -3,7 +3,7 @@ import { extension_settings, renderExtensionTemplateAsync } from '@st/scripts/ex
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { generate as runGenerate, ApiConfig } from '@/functions/generate';
 import { KNOWN_DECORATORS } from '@/functions/worldinfo';
-import { PresetPrompt, RegEx, Template, Preset, Settings, ExportPayload, ListExportKind, ListExportItem, ListExportDialogState, ListExportPayload, ImportPayload, ApiSettings } from '@/utils/defines';
+import { PresetPrompt, RegEx, Template, Preset, Settings, ExportPayload, ListExportKind, ListExportItem, ListExportDialogState, ListExportPayload, ImportPayload, ApiSettings, ApiExportPayload, ApiImportPayload } from '@/utils/defines';
 import { defaultSettings, defaultTemplate, defaultPreset, defaultApiSettings, defaultApiName } from './utils/default-settings';
 import { yaml } from "@st/lib.js";
 import { copyText } from '@st/scripts/utils.js';
@@ -2721,6 +2721,86 @@ async function importPresetsFromFile(file: File): Promise<void> {
     saveSettings();
 }
 
+// API connection preset import/export functions
+const apiExportSchemaVersion = '1.0.0';
+
+function buildApiExportPayload(): ApiExportPayload {
+    return {
+        version: apiExportSchemaVersion,
+        apis: clone(settings.apis),
+        currentApi: settings.currentApi,
+    };
+}
+
+function downloadApiExportPayload(payload: ApiExportPayload): void {
+    const content = JSON.stringify(payload, null, 2);
+    const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = `st-custom-generation-apis-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+}
+
+function exportApiPresets(): void {
+    const payload = buildApiExportPayload();
+    downloadApiExportPayload(payload);
+}
+
+function parseApiImportPayload(raw: unknown): {
+    apis: Record<string, ApiSettings>;
+    currentApi: string;
+} {
+    if (!isRecord(raw)) {
+        throw new Error('Invalid JSON payload.');
+    }
+
+    const payload = raw as ApiImportPayload;
+    if (!isRecord(payload.apis)) {
+        throw new Error('Invalid import format: apis is required.');
+    }
+
+    const apis = normalizeApiMap(payload.apis);
+    if (Object.keys(apis).length === 0) {
+        throw new Error('Invalid import format: apis cannot be empty.');
+    }
+
+    const currentApi = String(payload.currentApi ?? Object.keys(apis)[0]);
+    if (!apis[currentApi]) {
+        throw new Error('Invalid import format: currentApi does not exist in apis.');
+    }
+
+    return {
+        apis,
+        currentApi,
+    };
+}
+
+async function importApiPresetsFromFile(file: File): Promise<void> {
+    const text = await file.text();
+    let parsed: unknown;
+
+    try {
+        parsed = JSON.parse(text);
+    } catch {
+        throw new Error('Invalid JSON file.');
+    }
+
+    const normalized = parseApiImportPayload(parsed);
+
+    // Merge with existing APIs
+    Object.assign(settings.apis, normalized.apis);
+    settings.currentApi = normalized.currentApi;
+
+    ensureSettingsIntegrity(true);
+    updateSettingsUI();
+    saveSettings();
+}
+
 async function ensureModalTemplatesInjected(): Promise<void> {
     if (!$('#custom_generation_prompt_dialog').length) {
         $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'prompt-modal'));
@@ -2825,6 +2905,39 @@ function bindEvents() {
         settings.currentApi = ensureCurrentApiKey();
         updateSettingsUI();
         saveSettings();
+    });
+
+    $('#custom_generation_api_import').on('click', () => {
+        const input = document.getElementById('custom_generation_api_import_input');
+        if (!(input instanceof HTMLInputElement)) {
+            return;
+        }
+
+        input.value = '';
+        input.click();
+    });
+
+    $('#custom_generation_api_import_input').on('change', async () => {
+        const input = document.getElementById('custom_generation_api_import_input');
+        if (!(input instanceof HTMLInputElement) || !input.files || input.files.length === 0) {
+            return;
+        }
+
+        const file = input.files[0];
+
+        try {
+            await importApiPresetsFromFile(file);
+            window.alert('API connections imported successfully.');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error ?? 'Unknown import error');
+            window.alert(`Import failed: ${message}`);
+        } finally {
+            input.value = '';
+        }
+    });
+
+    $('#custom_generation_api_export').on('click', () => {
+        exportApiPresets();
     });
 
     // API settings input bindings
