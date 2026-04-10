@@ -91,10 +91,10 @@ export async function setup() {
 /**
  * Execute after generate processing
  */
-export async function runAfterGenerates() {
+export async function runAfterGenerates(lockButton: boolean = true) {
     if(delayGenerationTimer != null) {
         // Cancel previous delay generation
-        window.clearTimeout(delayGenerationTimer);
+        window.clearInterval(delayGenerationTimer);
         delayGenerationTimer = null;
     }
 
@@ -107,10 +107,10 @@ export async function runAfterGenerates() {
     const override = new DataOverride(env.chat, env.chat_metadata);
 
     // Runs in the background, no waiting required.
-    processMessage(env, override, false);
+    processMessage(env, override, false, lockButton);
 }
 
-async function processMessage(env: Context, override: DataOverride, before: boolean = false) {
+async function processMessage(env: Context, override: DataOverride, before: boolean = false, lockButton: boolean = true) {
     if(abortController?.signal?.aborted === false) {
         abortController?.abort();
         toastr.warning(`Aborting previous ${before ? 'before' : 'after'}-generate`);
@@ -144,7 +144,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
 
     abortController = new AbortController();
 
-    if(!before)
+    if(!before && lockButton)
         deactivateSendButtons();
 
     await eventSource.emit(eventTypes.GENERATION_WORLDINFO_START, { abortController, entries: groups });
@@ -315,7 +315,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
         env.chat[messageId].swipe_info[swipeId].before_generated = true;
     }
 
-    if(!before)
+    if(!before && lockButton)
         activateSendButtons();
 }
 
@@ -392,7 +392,7 @@ async function onGenerateStarting(type: string, options: any, dryRun: boolean) {
         
         const env = options.context ?? Context.global();
         const override = new DataOverride(env.chat, env.chat_metadata);
-        await processMessage(env, override, true);
+        await processMessage(env, override, true, false);
     }
 }
 
@@ -407,7 +407,7 @@ async function stopActiveTasks(ask: boolean = false) {
 
         if(delayGenerationTimer != null) {
             // Cancel previous delay generation
-            window.clearTimeout(delayGenerationTimer);
+            window.clearInterval(delayGenerationTimer);
             delayGenerationTimer = null;
         }
 
@@ -454,8 +454,8 @@ async function onGenerateAfter(data: { type: string, context: Context, error: Er
 
         const override = new DataOverride(data.context.chat, data.context.chat_metadata);
 
-        // Runs in the background, no waiting required.
-        processMessage(data.context, override, false);
+        // Prevent secondary locking when the send button is already locked.
+        processMessage(data.context, override, false, !document.body.dataset.generating);
     }
 }
 
@@ -536,9 +536,27 @@ async function askForInterruption() {
 async function onMessageReceived(messageId: number, type: string) {
     if(messageId > 0 && (type === 'normal' || type === 'regenerate' || type === 'swipe')) {
         if(delayGenerationTimer != null)
-            window.clearTimeout(delayGenerationTimer);
+            window.clearInterval(delayGenerationTimer);
 
         // Add a delay to prevent the send button from not updating.
-        delayGenerationTimer = window.setTimeout(runAfterGenerates, 1000);
+        let waitCount = 0;
+        delayGenerationTimer = window.setInterval(() => {
+            if(document.body.dataset.generating) {
+                console.debug('Waiting for the Send button to be released...');
+
+                waitCount += 1;
+                if(waitCount > 10) {
+                    console.error('The Send button is not released after 10 seconds, cancelling the after generation.');
+                    toastr.error('The Send button is not released after 10 seconds, cancelling the after generation.', 'After Generate');
+                    window.clearInterval(delayGenerationTimer!);
+                    delayGenerationTimer = null;
+                }
+                return;
+            }
+
+            runAfterGenerates();
+            window.clearInterval(delayGenerationTimer!);
+            delayGenerationTimer = null;
+        }, 1000);
     }
 }
