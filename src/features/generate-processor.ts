@@ -546,15 +546,13 @@ async function onMessageReceived(messageId: number, type: string) {
 
                 waitCount += 1;
                 if(waitCount > 10) {
-                    console.error('The Send button is not released after 10 seconds, cancelling the after generation.');
-                    toastr.error('The Send button is not released after 10 seconds, cancelling the after generation.', 'After Generate');
-                    window.clearInterval(delayGenerationTimer!);
-                    delayGenerationTimer = null;
+                    console.warn('The Send button is not released after 10 seconds, forcing execution.');
+                } else {
+                    return;
                 }
-                return;
             }
 
-            runAfterGenerates();
+            runAfterGenerates(!document.body.dataset.generating);
             window.clearInterval(delayGenerationTimer!);
             delayGenerationTimer = null;
         }, 1000);
