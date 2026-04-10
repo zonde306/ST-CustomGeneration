@@ -1731,7 +1731,7 @@ function buildTemplateRow(entry: TemplateEntry, index: number) {
             tag = ` "${tag}"`
         else if(tag)
             tag = ` ${tag}`
-        copyText(`${entry.template.decorator}${tag}`);
+        copyText(`${entry.template.decorator}${tag}`).then(() => toastr.success('Copied to clipboard'));
     });
 
     editButton.on('click', (event: JQuery.TriggeredEvent) => {
