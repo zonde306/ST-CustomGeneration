@@ -63,7 +63,6 @@ export const NOT_ALLOWED_DECORATORS = [
 
 let isPostGenerating = false;
 let abortController: AbortController | null = null;
-let isPreventGeenration = false;
 let delayGenerationTimer : number | null = null;
 
 export async function setup() {
@@ -97,12 +96,6 @@ export async function runAfterGenerates() {
         // Cancel previous delay generation
         window.clearTimeout(delayGenerationTimer);
         delayGenerationTimer = null;
-    }
-
-    if(isPreventGeenration) {
-        isPreventGeenration = false;
-        console.log(`Skipping after-generate for prevent generation`);
-        return;
     }
 
     const env = Context.global();
@@ -467,7 +460,6 @@ async function onGenerateAfter(data: { type: string, context: Context, error: Er
 }
 
 function onGenerateCancelled() {
-    isPreventGeenration = true;
     stopActiveTasks();
 }
 
