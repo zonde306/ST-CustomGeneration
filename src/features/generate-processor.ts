@@ -200,6 +200,10 @@ async function processMessage(env: Context, override: DataOverride, before: bool
             // Reduce Attention Depletion
             ctx.filters = template.filters;
 
+            if(parsed.decorators.includes('@@preset')) {
+                ctx.presetOverride = parsed.parameters['@@preset']?.[0];
+            }
+
             try {
                 const checked = await processor.checker({
                     entry,

@@ -366,7 +366,7 @@ export class Context {
 
         const abortController = options.abortController ?? this.#createAbortController(options.signal);
         const taskId = String(this.variables?.taskId || ++taskIdCounter);
-        let apiConfig: Partial<ApiConfig> | undefined = this.#buildApiConfig(type);
+        let apiConfig: Partial<ApiConfig> | undefined = this.#buildApiConfig(type, preset.name);
 
         if(options.apiConfig) {
             if(apiConfig)
@@ -479,8 +479,8 @@ export class Context {
         return data.responses.findLast(mes => !!mes.trim()) ?? '';
     }
 
-    #buildApiConfig(type: string): ApiConfig | undefined {
-        const api = settings.apis[settings.currentApi] ?? {};
+    #buildApiConfig(type: string, preset: string): ApiConfig | undefined {
+        const api = Object.values(settings.apis).find(x => x.linkedPreset === preset) ?? settings.apis[settings.currentApi] ?? {};
         const hasCustomApi = Boolean(api.baseUrl || api.apiKey || api.model);
         if (!hasCustomApi) {
             console.error(`No custom API configured. Using default API.`);
