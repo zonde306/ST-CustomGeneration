@@ -2325,6 +2325,7 @@ export const defaultApiSettings: ApiSettings = {
     includeBody: {},
     excludeBody: {},
     promptPostProcessing: 'none',
+    linkedPreset: '',
 };
 
 export const defaultSettings: Settings = {

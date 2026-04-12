@@ -693,6 +693,7 @@ function normalizeApiSettings(input: Partial<ApiSettings>): ApiSettings {
         includeBody: normalizeRecord(input.includeBody),
         excludeBody: normalizeRecord(input.excludeBody),
         promptPostProcessing: parsePromptPostProcessing(input.promptPostProcessing),
+        linkedPreset: String(input.linkedPreset ?? ''),
     };
 }
 
@@ -1777,6 +1778,22 @@ function updatePresetSummary(preset: Preset) {
     );
 }
 
+function updateLinkPresetButtonState() {
+    const api = getCurrentApi();
+    const currentPresetKey = settings.currentPreset;
+    const isLinked = api.linkedPreset === currentPresetKey && currentPresetKey !== '';
+    
+    const linkButton = $('#custom_generation_link_preset');
+    
+    if (isLinked) {
+        linkButton.removeClass('fa-chain-broken').addClass('fa-link');
+        linkButton.css('color', 'var(--SmartThemeQuoteColor)');
+    } else {
+        linkButton.removeClass('fa-link').addClass('fa-chain-broken');
+        linkButton.css('color', '');
+    }
+}
+
 function setPromptEditorEnabled(enabled: boolean) {
     const selectors = [
         '#custom_generation_prompt_name',
@@ -2838,6 +2855,21 @@ function bindEvents() {
         settings.currentApi = key && settings.apis[key]
             ? key
             : ensureCurrentApiKey();
+        
+        // Auto-switch to linked preset if exists
+        const api = getCurrentApi();
+        if (api.linkedPreset && settings.presets[api.linkedPreset]) {
+            settings.currentPreset = api.linkedPreset;
+            selectedPromptIndex = 0;
+            selectedRegexIndex = 0;
+            selectedTemplateIndex = 0;
+            selectedTemplatePromptIndex = 0;
+            editingPromptIndex = null;
+            editingRegexIndex = null;
+            editingTemplateIndex = null;
+            editingTemplatePromptIndex = null;
+        }
+        
         updateSettingsUI();
         saveSettings();
     });
@@ -3175,6 +3207,36 @@ function bindEvents() {
         editingRegexIndex = null;
         editingTemplateIndex = null;
         editingTemplatePromptIndex = null;
+        
+        // Auto-switch to API that links to this preset
+        const currentApi = getCurrentApi();
+        if (currentApi.linkedPreset !== settings.currentPreset) {
+            // Find an API that links to this preset
+            for (const [apiKey, apiSettings] of Object.entries(settings.apis)) {
+                if (apiSettings.linkedPreset === settings.currentPreset) {
+                    settings.currentApi = apiKey;
+                    break;
+                }
+            }
+        }
+        
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    $('#custom_generation_link_preset').on('click', () => {
+        const api = getCurrentApi();
+        const currentPresetKey = settings.currentPreset;
+        
+        // Toggle link state
+        if (api.linkedPreset === currentPresetKey) {
+            // Unlink
+            api.linkedPreset = '';
+        } else {
+            // Link current preset
+            api.linkedPreset = currentPresetKey;
+        }
+        
         updateSettingsUI();
         saveSettings();
     });
@@ -3734,6 +3796,9 @@ export function updateSettingsUI() {
     initSortableLists();
 
     updatePresetSummary(currentPreset);
+
+    // Update link preset button state
+    updateLinkPresetButtonState();
 
     isUpdatingUI = false;
 

@@ -446,6 +446,9 @@ export interface ApiSettings {
     // Prompt Post-Processing
     // like: https://docs.sillytavern.app/usage/api-connections/openai/#prompt-post-processing
     promptPostProcessing: 'none' | 'merge' | 'semi' | 'strict' | 'single';
+
+    // linked preset
+    linkedPreset: string;
 }
 
 export interface Settings {
