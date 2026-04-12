@@ -131,6 +131,11 @@ async function processMessage(env: Context, override: DataOverride, before: bool
         return;
     }
 
+    if(!env.chat[messageId]?.mes || env.chat[messageId].mes === '...') {
+        console.warn(`Skipping ${before ? 'before' : 'after'}-generate for empty message`);
+        return;
+    }
+
     const messages = env.chat.slice(-world_info_depth);
     const groups = await getSortedEntries(
         messages.map(msg => msg.mes ?? ''),
