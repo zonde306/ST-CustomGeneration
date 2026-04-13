@@ -16,6 +16,13 @@ const serverConfig = {
         filename: 'index.js',
         libraryTarget: 'module',
         libraryExport: 'default',
+        // 标准化 sourcemap 中的路径，确保不同环境构建产生相同的 sourcemap
+        devtoolModuleFilenameTemplate: info => {
+            // 使用相对路径，避免不同操作系统的绝对路径差异
+            const relativePath = _relative(__dirname, info.absoluteResourcePath);
+            // 统一使用正斜杠，避免 Windows 和 Unix 的路径分隔符差异
+            return 'webpack:///' + relativePath.replace(/\\/g, '/');
+        },
     },
     resolve: {
         extensions: ['.ts', '.js'],
