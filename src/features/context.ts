@@ -314,7 +314,8 @@ export class Context {
         if(options.preset)
             preset = settings.presets[options.preset];
 
-        const builder = new MessageBuilder(this.chat, preset);
+        const api = Object.values(settings.apis).find(x => x.linkedPreset === preset.name) ?? settings.apis[settings.currentApi];
+        const builder = new MessageBuilder(this.chat, preset, api.promptPostProcessing);
         builder.filters = this.filters;
         builder.macroOverride = this.macroOverride;
 
