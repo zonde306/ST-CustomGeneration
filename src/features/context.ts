@@ -11,7 +11,7 @@ import {
     refreshSwipeButtons,
 } from '@st/script.js';
 import { settings } from '@/settings';
-import { generate as runGenerate, ApiConfig } from '@/functions/generate';
+import { generate as runGenerate, ApiConfig, Response as GenResponse, StreamResponse as GenStreamResponse } from '@/functions/generate';
 import { MessageBuilder, PromptFilter, MacroOverride } from '@/functions/message-builder';
 import { ContextRole } from '@/utils/defines'
 import { runRegexScript, substitute_find_regex } from "@/../../../regex/engine.js";
@@ -69,7 +69,7 @@ export interface GenerateOptionsLite {
      * Placeholders have no function; do not modify them.
      */
     context?: Context;
-};
+}
 
 let taskIdCounter = 0;
 
@@ -115,7 +115,7 @@ export class Context {
         return context;
     }
 
-    toObject(): Object {
+    toObject(): any {
         if(this.isGlobal)
             console.warn('toObject called on global context');
 
@@ -280,7 +280,11 @@ export class Context {
      * @param dryRun Is it a fake generation?
      * @returns 
      */
-    async generate(type: string = 'normal', options: GenerateOptionsLite = {}, dryRun: boolean = false): Promise<string | string[] | AsyncGenerator<{ swipe: number, text: string } | string>> {
+    async generate(
+        type: string = 'normal',
+        options: GenerateOptionsLite = {},
+        dryRun: boolean = false
+    ): Promise<string | GenResponse | AsyncGenerator<GenStreamResponse | string>> {
         console.log('Generate entered');
 
         // Prevent generation from shallow characters
@@ -315,10 +319,9 @@ export class Context {
         builder.macroOverride = this.macroOverride;
 
         // To avoid conflicts caused by concurrent read and write operations of chat_metadata in worldinfo.
-        const self = this;
         const messages = await locker.invoke(async() => {
             const handler = (data: any) => {
-                data.context = self; // Inject context information to provide it for use by other extensions.
+                data.context = this; // Inject context information to provide it for use by other extensions.
                 console.debug('inject context to ', data);
                 // Because the handler is used by multiple events, it cannot be uninstalled here.
             };
@@ -377,15 +380,12 @@ export class Context {
 
         await eventSource.emit(eventTypes.GENERATE_BEFORE, { type, options, messages, abortController, taskId, context: this, streaming: !!options.streaming, apiConfig });
 
-        let result : string | string[] | AsyncGenerator<{
-            swipe: number;
-            text: string;
-        }, any, any>;
+        let response : GenResponse | AsyncGenerator<GenStreamResponse>;
 
         try {
-            result = await runGenerate(messages, abortController.signal, taskId, apiConfig as ApiConfig, { context: this }, options.streaming);
+            response = await runGenerate(messages, abortController.signal, taskId, apiConfig as ApiConfig, { context: this }, options.streaming);
         } catch(error) {
-            await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: [], context: self, streaming: !!options.streaming, apiConfig });
+            await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: [], context: this, streaming: !!options.streaming, apiConfig });
             throw error;
         }
 
@@ -394,19 +394,19 @@ export class Context {
             this.chat.length = this.chat.length - 1;
         }
 
-        if(Object.prototype.toString.call(result) === '[object AsyncGenerator]') {
-            const self = this;
-            async function * stream() {
+        if(Object.prototype.toString.call(response) === '[object AsyncGenerator]') {
+            const stream = async function *(this: Context) {
                 let buffers : string[] = [];
                 let error = null;
                 try {
-                    for await (const chunk of result) {
-                        yield chunk;
+                    for await (const chunk of response as AsyncGenerator<GenStreamResponse>) {
+                        if(options.allResponses) {
+                            yield chunk;
+                        } else if(chunk.swipe === 0) {
+                            yield chunk.text;
+                        }
                         
-                        if(typeof chunk === 'string') {
-                            if(buffers[0] == null) buffers[0] = '';
-                            buffers[0] += chunk;
-                        } else if(chunk.swipe) {
+                        if(chunk.swipe) {
                             if(buffers[chunk.swipe] == null) buffers[chunk.swipe] = '';
                             buffers[chunk.swipe] += chunk.text;
                         }
@@ -417,54 +417,56 @@ export class Context {
 
                 if(!options.dontCreate) {
                     if(type === 'continue') {
-                        buffers = buffers.map(mes => self.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
-                        if(self.lastMessage?.mes) {
-                            self.lastMessage.mes += buffers[0];
+                        buffers = buffers.map(mes => this.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
+                        if(this.lastMessage?.mes) {
+                            this.lastMessage.mes += buffers[0];
                         }
-                        if(self.lastMessage?.swipes?.[self.lastMessage.swipe_id ?? 0]) {
-                            self.lastMessage.swipes[self.lastMessage.swipe_id ?? 0] += buffers[0];
+                        if(this.lastMessage?.swipes?.[this.lastMessage.swipe_id ?? 0]) {
+                            this.lastMessage.swipes[this.lastMessage.swipe_id ?? 0] += buffers[0];
                         }
                     } else {
-                        buffers = await self.#recv(buffers, type === 'swipe');
+                        buffers = await this.#recv(buffers, type === 'swipe');
                     }
                 }
 
-                await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: buffers, context: self, streaming: true, apiConfig });
+                await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: buffers, context: this, streaming: true, apiConfig });
 
-                if(self.isGlobal) {
+                if(this.isGlobal) {
                     // Since there's no need to manage the generate button, just send it directly.
-                    await eventSource.emit(event_types.GENERATION_ENDED, self.chat.length, type);
+                    await eventSource.emit(event_types.GENERATION_ENDED, this.chat.length, type);
                 }
             }
 
-            return stream();
+            return stream.call(this);
         }
 
-        result = (Array.isArray(result) ? result : [ result ]) as string[];
-        if(result.length < 1) {
+        // @ts-expect-error: 2339
+        let swipes : string[] = response.swipes ?? [];
+
+        if(swipes.length < 1) {
             console.error('Generate failed, empty responses');
             return '';
         }
 
         if(!options.dontCreate) {
             if(type === 'continue') {
-                const self = this;
-                result = result.map(mes => self.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
-                if(self.lastMessage?.mes) {
-                    self.lastMessage.mes += result[0];
+                swipes = swipes.map(mes => this.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
+                if(this.lastMessage?.mes) {
+                    this.lastMessage.mes += swipes[0];
                 }
-                if(self.lastMessage?.swipes?.[self.lastMessage.swipe_id ?? 0]) {
-                    self.lastMessage.swipes[self.lastMessage.swipe_id ?? 0] += result[0];
+                if(this.lastMessage?.swipes?.[this.lastMessage.swipe_id ?? 0]) {
+                    this.lastMessage.swipes[this.lastMessage.swipe_id ?? 0] += swipes[0];
                 }
             } else {
-                result = await this.#recv(result, type === 'swipe');
+                swipes = await this.#recv(swipes, type === 'swipe');
             }
         } else {
-            const self = this;
-            result = result.map(mes => self.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
+            swipes = swipes.map(mes => this.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
         }
 
-        const data = { type, options, taskId, error: null, responses: result, context: self, streaming: false, apiConfig };
+        // @ts-expect-error: 2339
+        response.swipes = swipes;
+        const data = { type, options, taskId, error: null, response, context: this, streaming: false, apiConfig };
         await eventSource.emit(eventTypes.GENERATE_AFTER, data);
 
         if(this.isGlobal) {
@@ -473,10 +475,11 @@ export class Context {
         }
 
         if(options.allResponses) {
-            return data.responses;
+            return data.response;
         }
 
-        return data.responses.findLast(mes => !!mes.trim()) ?? '';
+        // @ts-expect-error: 2339
+        return data.response.swipes.find(mes => !!mes.trim()) ?? '';
     }
 
     #buildApiConfig(type: string, preset: string): ApiConfig | undefined {

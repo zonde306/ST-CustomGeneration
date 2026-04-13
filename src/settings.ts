@@ -1206,7 +1206,7 @@ function buildRegexExportItems(regexs: RegEx[]): ListExportItem[] {
 }
 
 function buildTemplateExportItems(entries: TemplateEntry[]): ListExportItem[] {
-    return entries.map((entry, index) => ({
+    return entries.map((entry) => ({
         id: `template-${entry.key}`,
         label: buildTemplateDisplayName(entry.template),
         checked: true,
@@ -3699,9 +3699,9 @@ export async function setupSettings() {
  * Load settings from localStorage
  */
 export function loadSettings(restore: boolean = false) {
-    // @ts-ignore: 2339
+    // @ts-expect-error: Storage configured, but type not specified.
     if (!extension_settings.CustomGeneration || restore) {
-        // @ts-ignore: 2339
+        // @ts-expect-error: Storage configured, but type not specified.
         extension_settings.CustomGeneration = clone(defaultSettings);
     }
 
@@ -3829,15 +3829,15 @@ export function updateSettingsUI() {
 }
 
 export function saveSettings() {
-    // @ts-ignore: 2339
+    // @ts-expect-error: Storage configured, but type not specified.
     if (!extension_settings.CustomGeneration) {
-        // @ts-ignore: 2339
+        // @ts-expect-error: Storage configured, but type not specified.
         extension_settings.CustomGeneration = {};
     }
 
     ensureSettingsIntegrity();
 
-    // @ts-ignore: 2339
+    // @ts-expect-error: Storage configured, but type not specified.
     Object.assign(extension_settings.CustomGeneration, clone(settings));
     saveSettingsDebounced();
 }

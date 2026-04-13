@@ -3,6 +3,7 @@ import { oai_settings, sendOpenAIRequest, chat_completion_sources } from '@st/sc
 import { TokenLogprobs } from '@st/scripts/logprobs.js';
 import { uuidv4 } from '@st/scripts/utils.js';
 import { eventTypes } from '@/utils/events'
+import { ToolCalls, ToolSignatures, PartialToolCall } from '@/utils/defines';
 
 export interface ApiConfig {
     url: string;
@@ -28,15 +29,33 @@ export interface ApiConfig {
      * When enabled, the return value is [reasoning_content, message_content, other message_content...].
      */
     include_reasoning?: boolean;
-};
+}
+
+export interface Response {
+    swipes: string[];
+    toolCalls: ToolCalls;
+    reasoning: string[];
+}
+
+export interface StreamResponse {
+    toolCalls: PartialToolCall[];
+    reasoning: string;
+    swipe: number;
+    text: string;
+}
 
 interface StreamChunk {
-    text: string,
-    swipes: string[],
+    text: string, // The content of the current chunk
+    swipes: string[], // Aggregate the contents of all historical chunks.
     logprobs: TokenLogprobs[],
-    toolCalls: any[],
-    state: { reasoning: string, images: any[] }
-};
+    toolCalls: ToolCalls, // Aggregate the tool calls of all historical chunks.
+    state: {
+        reasoning: string, // Aggregate the contents of all historical chunks.
+        images: never[], // unsupported
+        signature: string,
+        toolSignatures: ToolSignatures
+    }
+}
 
 export async function generate(
     messages: ChatCompletionMessage[],
@@ -45,11 +64,11 @@ export async function generate(
     api?: ApiConfig,
     customOptions?: Record<string, any>,
     streaming: boolean = false,
-): Promise<string | string[] | AsyncGenerator<{ swipe: number, text: string }>> {
+): Promise<Response | AsyncGenerator<StreamResponse>> {
     if(!taskId)
         taskId = uuidv4();
 
-    let eventHandler: Function | null = null;
+    let eventHandler: ((data: any) => void) | null = null;
     const originalStream = oai_settings.stream_openai;
 
     await eventSource.emit(eventTypes.GENERATION_START, {
@@ -105,7 +124,7 @@ export async function generate(
     try {
         if(api?.stream) {
             oai_settings.stream_openai = true;
-            const handler = new StreamHandler(taskId, singal, api?.include_reasoning ?? false);
+            const handler = new StreamHandler(taskId, singal);
             handler.generator = await sendOpenAIRequest(api?.type || 'quiet', messages, singal) as typeof handler.generator;
             if(streaming)
                 result = handler.streaming();
@@ -114,7 +133,7 @@ export async function generate(
         } else {
             oai_settings.stream_openai = false;
             const response = await sendOpenAIRequest(api?.type || 'quiet', messages, singal);
-            result = await responseHandler(response, taskId, api?.include_reasoning ?? false);
+            result = await responseHandler(response, taskId);
         }
     } catch(err) {
         console.error(`Error on generating`, err);
@@ -136,20 +155,22 @@ export async function generate(
 }
 
 class StreamHandler {
-    public generator?: () => AsyncGenerator<StreamChunk, void, void>;
+    public generator?: () => AsyncGenerator<StreamChunk>;
     public singal: AbortSignal;
     private buffer: string[];
     private taskId: string;
-    private reasoning: boolean;
+    public toolCalls: ToolCalls;
+    private reasoning: string;
 
-    constructor(taskId: string, singal?: AbortSignal, reasoning: boolean = false) {
+    constructor(taskId: string, singal?: AbortSignal) {
         this.taskId = taskId;
         this.singal = singal ?? new AbortController().signal;
         this.buffer = [];
-        this.reasoning = reasoning;
+        this.toolCalls = [];
+        this.reasoning = '';
     }
 
-    async generate() : Promise<string | string[]> {
+    async generate() : Promise<Response> {
         if(!this.generator)
             throw new Error('Generator is not set');
 
@@ -159,6 +180,8 @@ class StreamHandler {
                 if(this.singal.aborted)
                     break;
 
+                this.toolCalls = chunk.toolCalls ?? [];
+
                 const { swipe, text } = this.parseChunk(chunk);
                 if(!text)
                     continue;
@@ -180,18 +203,18 @@ class StreamHandler {
             responses: this.buffer,
         });
 
-        return this.buffer.length === 1 ? this.buffer[0] : this.buffer;
+        return { swipes: this.buffer, toolCalls: this.toolCalls, reasoning: [ this.reasoning ] };
     }
 
-    async *streaming(): AsyncGenerator<{ swipe: number, text: string }> {
+    async *streaming(): AsyncGenerator<StreamResponse> {
         if(!this.generator)
             throw new Error('Generator is not set');
 
         let lastError = null;
         try {
             for await (const chunk of this.generator()) {
-                const { swipe, text } = this.parseChunk(chunk);
-                if(!text)
+                const { swipe, text, reasoning } = this.parseChunk(chunk);
+                if(!text && !reasoning)
                     continue;
 
                 await eventSource.emit(eventTypes.GENERATION_STREAM_CHUNK, {
@@ -201,7 +224,7 @@ class StreamHandler {
                     buffer: this.buffer,
                 });
 
-                yield { swipe, text };
+                yield { swipe, text, reasoning, toolCalls: chunk.toolCalls[swipe] ?? [] };
             }
         } catch (err) {
             lastError = err;
@@ -214,72 +237,91 @@ class StreamHandler {
         });
     }
 
-    parseChunk(chunk: StreamChunk): { swipe: number, text: string } {
-        if(this.reasoning && chunk.state.reasoning) {
+    parseChunk(chunk: StreamChunk): Omit<StreamResponse, 'toolCalls'> {
+        if(chunk.state.reasoning.length > this.reasoning.length) {
+            const chunked = chunk.state.reasoning.substring(this.reasoning.length);
+            this.reasoning = chunk.state.reasoning;
+
+            // Currently, only the first reasoning can be obtained.
+            return { swipe: 0, text: '', reasoning: chunked };
+        }
+
+        if(chunk.text) {
             const lastLength = this.buffer[0]?.length ?? 0;
             this.buffer[0] = chunk.text;
-            return { swipe: 0, text: chunk.text.substring(lastLength) };
-        } else if(chunk.text) {
-            // If reasoning is captured, then [0] is reasoning and [1] is text; otherwise, [0] is text.
-            const lastLength = this.buffer[Number(this.reasoning)]?.length ?? 0;
-            this.buffer[Number(this.reasoning)] = chunk.text;
-            return { swipe: Number(this.reasoning), text: chunk.text.substring(lastLength) };
+            return { swipe: 0, text: chunk.text.substring(lastLength), reasoning: '' };
         } else if(chunk.swipes?.length > 0) {
             for(const [ i, text ] of Object.entries(chunk.swipes)) {
-                // If reasoning is captured, then [0] is reasoning and [1...n] is text; otherwise, [0...n] is text.
-                const idx = Number(i) + Number(this.reasoning);
+                const idx = Number(i);
                 const lastLength = this.buffer[idx]?.length ?? 0;
                 this.buffer[idx] = text;
-                return { swipe: Number(idx), text: text.substring(lastLength) };
+                return { swipe: Number(idx), text: text.substring(lastLength), reasoning: '' };
             }
         }
 
-        return { swipe: 0, text: '' };
+        return { swipe: 0, text: '', reasoning: '' };
     }
 }
 
-async function responseHandler(response: any, taskId: string, reasoning: boolean = false): Promise<string[] | string> {
-    const result = extractText(response, reasoning);
+async function responseHandler(response: any, taskId: string): Promise<Response> {
+    const { swipes, reasoning } = extractText(response);
 
     await eventSource.emit(eventTypes.GENERATION_END, {
         taskId,
         error: response.error ?? null,
-        responses: result,
+        swipes,
+        reasoning,
     });
 
-    return result.length === 1 ? result[0] : result;
+    return { swipes, reasoning, toolCalls: convertNonStreamingToolCalls(response) };
 }
 
-function extractText(data: any, reasoning: boolean = false): string[] {
+function extractText(data: any): { swipes: string[], reasoning: string[] } {
     if(typeof data === 'string') {
-        if(reasoning)
-            return [ '', data ];
-        return [ data ];
+        return { swipes: [data], reasoning: [] };
     }
 
-    let result : string[] = [];
+    const texts : string[] = [];
+    const reasoning : string[] = [];
     if(data?.choices?.length > 0) {
         for(const [ i, candidate ] of Object.entries(data.choices)) {
-            if(reasoning) // @ts-expect-error: 18046
-                result[0] = candidate.message?.reasoning_content ?? candidate.reasoning_content ?? '';
-            
             // @ts-expect-error: 18046
-            result[Number(i) + Number(reasoning)] = candidate.message?.content ?? candidate.text ?? '';
+            texts[Number(i)] = candidate.message?.content ?? candidate.text ?? '';
+            // @ts-expect-error: 18046
+            reasoning[Number(i)] = candidate.message?.thinking ?? candidate.message?.reasoning ?? candidate.message?.reasoning_content ?? '';
         }
     } else if(data?.message?.content?.length > 0) {
         for(const [i, candidate] of Object.entries(data.message.content)) {
-            if(reasoning) // @ts-expect-error: 18046
-                result[0] = candidate.reasoning_content ?? '';
-
             // @ts-expect-error: 18046
-            result[Number(i) + Number(reasoning)] = candidate.text ?? '';
+            texts[Number(i)] = candidate.text ?? '';
+            // @ts-expect-error: 18046
+            reasoning[Number(i)] = candidate.message?.thinking ?? candidate.message?.reasoning ?? candidate.message?.reasoning_content ?? '';
         }
     } else {
-        if(reasoning)
-            result[0] = data.reasoning_content ?? '';
-
-        result[Number(reasoning)] = data.text ?? data?.message?.tool_plan ?? '';
+        texts[0] = data.text ?? data?.message?.tool_plan ?? '';
     }
 
-    return result;
+    return {  swipes: texts, reasoning };
+}
+
+function convertNonStreamingToolCalls(responseData: any): ToolCalls {
+    const toolCalls: ToolCalls = [];
+    const choices = responseData?.choices;
+    if (!Array.isArray(choices)) {
+        return toolCalls;
+    }
+
+    for (let choiceIdx = 0; choiceIdx < choices.length; choiceIdx++) {
+        const choice = choices[choiceIdx];
+        const message = choice?.message;
+        const rawToolCalls = message?.tool_calls;
+
+        if (Array.isArray(rawToolCalls)) {
+            toolCalls[choiceIdx] = [...rawToolCalls];
+        } else {
+            toolCalls[choiceIdx] = [];
+        }
+    }
+
+    return toolCalls;
 }

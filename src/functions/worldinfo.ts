@@ -39,7 +39,7 @@ export const KNOWN_DECORATORS = [
  * @returns WI entries
  */
 export async function loadWorldInfoEntries(name?: string): Promise<WorldInfoEntry[]> {
-    // @ts-expect-error
+    // @ts-expect-error: this_chid always exists
     const lore = (name || characters[this_chid]?.data?.extensions?.world || power_user.persona_description_lorebook || chat_metadata[METADATA_KEY] || '') as string;
     const lorebook = await loadWorldInfo(lore) as LoreBook;
     if (!lorebook) {
@@ -68,7 +68,7 @@ export async function loadWorldInfoEntries(name?: string): Promise<WorldInfoEntr
  * @returns WI entry or null if not found
  */
 export async function getWorldInfoEntry(name: string, uid: string | number | RegExp): Promise<WorldInfoEntry | null> {
-    // @ts-expect-error
+    // @ts-expect-error: this_chid always exists
     const lore = (name || characters[this_chid]?.data?.extensions?.world || power_user.persona_description_lorebook || chat_metadata[METADATA_KEY] || '') as string;
     const lorebook = await loadWorldInfo(lore) as LoreBook;
     if (!lorebook) {
@@ -109,10 +109,10 @@ export function collectEnabledWorldInfos(
     chat: boolean = true,
     onlyExisting: boolean = true
 ): string[] {
-    let results: string[] = [];
+    const results: string[] = [];
 
     if (char) {
-        // @ts-expect-error
+        // @ts-expect-error: this_chid always exists
         const charaWorld: string = characters[this_chid]?.data?.extensions?.world;
         if (charaWorld && !selected_world_info.includes(charaWorld))
             results.push(charaWorld);
@@ -141,10 +141,10 @@ export function collectEnabledWorldInfos(
     if (charaExtra) {
         const fileName = getCharaFilename(this_chid);
         if (fileName) {
-            // @ts-expect-error
+            // @ts-expect-error: charLore actually exists but is not marked with a type.
             const extraCharLore = world_info.charLore?.find((e) => e.name === fileName);
             if (extraCharLore && Array.isArray(extraCharLore.extraBooks)) {
-                // @ts-expect-error
+                // @ts-expect-error: this_chid always exists
                 const primaryBook: string = characters[this_chid]?.data?.extensions?.world;
                 for (const book of extraCharLore.extraBooks) {
                     if (book && book !== primaryBook && !selected_world_info.includes(book))
@@ -157,7 +157,7 @@ export function collectEnabledWorldInfos(
             const chid = characters.findIndex(ch => ch.avatar === member.avatar);
             const file = getCharaFilename(chid);
             if (file) {
-                // @ts-expect-error
+                // @ts-expect-error: charLore actually exists but is not marked with a type.
                 const extraCharLore = world_info.charLore?.find((e) => e.name === file);
                 if (extraCharLore && Array.isArray(extraCharLore.extraBooks)) {
                     const primaryBook: string = member?.data?.extensions?.world;
@@ -396,7 +396,8 @@ export async function getActivatedEntries(triggerWords: string[], type: string =
         trigger: GENERATION_TYPE_TRIGGERS.includes(type) ? type : 'normal',
     };
 
-    return new Promise(async(resolve, reject) => {
+    // The return value needs to be obtained through the event handler.
+    return new Promise((resolve, reject) => {
         const handler = (data: WorldInfoScanResult) => {
             if(data.state.next === scan_state.NONE) {
                 // Until the scan is complete
@@ -406,15 +407,15 @@ export async function getActivatedEntries(triggerWords: string[], type: string =
         };
 
         eventSource.makeLast(event_types.WORLDINFO_SCAN_DONE, handler);
-        try {
-            await getWorldInfoPrompt(triggerWords, getMaxContextSize(), dryRun, globalScanData);
-            resolve([]); // Avoid Promise memory leaks
-        } catch(e) {
+        
+        getWorldInfoPrompt(triggerWords, getMaxContextSize(), dryRun, globalScanData).then(() => {
+            eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler);
+            resolve([]);
+        }).catch(e => {
+            eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler);
             reject(e);
             console.error(`Error getting activated entries`, e);
-        } finally {
-            eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler);
-        }
+        });
     });
 }
 

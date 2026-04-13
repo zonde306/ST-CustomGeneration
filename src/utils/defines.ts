@@ -89,8 +89,8 @@ export interface Metadata extends Record<string, unknown> {
     script_injects?: Record<number, ScriptInject>;
     tainted?: boolean;
     timedWorldInfo?: {
-        cooldown: {};
-        sticky: {};
+        cooldown: Record<string, any>;
+        sticky: Record<string, any>;
     };
 }
 
@@ -288,6 +288,26 @@ export interface WorldInfoLoaded {
     personaLore: WorldInfoEntry[];
 }
 
+export interface PartialToolCall {
+    id?: string;                     // OpenAI / Anthropic 工具调用 ID
+    type?: 'function';               // OpenAI 固定为 'function'
+    function?: {                     // OpenAI 格式
+        name?: string;
+        arguments?: string;          // JSON 字符串
+    };
+    signature?: string;              // 来自 toolSignatures 的 thought signature
+    thoughtSignature?: string;       // Gemini 特有
+    name?: string;                   // Anthropic / Cohere / Gemini 函数名
+    input?: any;                     // Anthropic 输入对象
+    args?: any;                      // Gemini 参数对象
+    [key: string]: any;              // 其他供应商扩展字段
+}
+
+// toolCalls 是一个二维数组：外层索引是 choiceIndex，内层是工具调用列表
+export type ToolCalls = PartialToolCall[][];
+
+// 可选的 thought signature 映射，键为 tool call id
+export type ToolSignatures = Record<string, string>;
 
 export interface PresetPrompt {
     // A name for this prompt. (displayed in the UI)

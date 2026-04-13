@@ -1,0 +1,21 @@
+# 依赖
+node_modules/
+
+# 构建输出
+dist/
+
+# 配置文件
+*.js
+*.cjs
+*.mjs
+
+# 类型声明文件
+*.d.ts
+
+# 其他
+.github/
+.vscode/
+.kilocode/
+docs/
+locales/
+plans/

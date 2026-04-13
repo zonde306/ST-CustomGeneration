@@ -33,7 +33,7 @@ interface ExtensionPrompts {
     scan: boolean,
     role: number,
     filter: (() => Promise<boolean> | boolean) | null,
-};
+}
 
 // Exclude Specific Prompts
 export interface PromptFilter extends Record<string, any> {
@@ -62,7 +62,7 @@ export interface MacroOverride {
 
     // Keys use the `macro` format, rather than `{{macro}}` or `<macro>`.
     macros?: Record<string, DynamicMacroValue>;
-};
+}
 
 export class MessageBuilder {
     private chat: ChatMessage[];
@@ -77,8 +77,9 @@ export class MessageBuilder {
     private authorsNoteDepth: string;
     private presetDepth: string[];
     private charDepth: string;
+    private postProcessing: string;
 
-    constructor(chat: ChatMessage[], preset?: Preset) {
+    constructor(chat: ChatMessage[], preset?: Preset, postProcessing: string = 'none') {
         this.chat = chat;
         this.extensionPrompts = {};
         this.filters = {};
@@ -93,6 +94,7 @@ export class MessageBuilder {
         this.regexs = preset.regexs;
         this.prompts = preset.prompts;
         this.maxChatHistory = preset.prompts.find(x => x.internal === 'chatHistory')?.maxDepth ?? 65535;
+        this.postProcessing = postProcessing;
     }
 
     async build(type: string = 'normal', dryRun: boolean = false, wiDepth = world_info_depth): Promise<ChatCompletionMessage[]> {
@@ -302,10 +304,9 @@ export class MessageBuilder {
             return;
         }
 
-        const self = this;
         const noteRole = this.#normalizeRole(messages[authorNoteRange.start]?.role ?? chat_metadata[metadata_keys.role]);
-        const beforeMessages = beforeEntries.map(content => ({ role: noteRole, content: this.#evaluateMacros(self.#applyRegex(content, { world: true })) } as ChatCompletionMessage));
-        const afterMessages = afterEntries.map(content => ({ role: noteRole, content: this.#evaluateMacros(self.#applyRegex(content, { world: true })) } as ChatCompletionMessage));
+        const beforeMessages = beforeEntries.map(content => ({ role: noteRole, content: this.#evaluateMacros(this.#applyRegex(content, { world: true })) } as ChatCompletionMessage));
+        const afterMessages = afterEntries.map(content => ({ role: noteRole, content: this.#evaluateMacros(this.#applyRegex(content, { world: true })) } as ChatCompletionMessage));
 
         if (beforeMessages.length) {
             messages.splice(authorNoteRange.start, 0, ...beforeMessages);
@@ -318,10 +319,9 @@ export class MessageBuilder {
     }
 
     #buildChatHistory(): ChatCompletionMessage[] {
-        const self = this;
         const history: ChatCompletionMessage[] = this.chat.slice(-this.maxChatHistory).map((msg, idx) => ({
             role: msg.is_user ? 'user' : msg.is_system ? 'system' : 'assistant',
-            content: self.#applyRegex(msg.mes ?? '', {
+            content: this.#applyRegex(msg.mes ?? '', {
                 user: msg.is_user,
                 assistant: !msg.is_user && !msg.is_system,
                 depth: this.chat.length - idx - 1,
@@ -762,7 +762,7 @@ export class MessageBuilder {
             return mergeConsecutive(normalized);
         };
 
-        switch (settings.promptPostProcessing) {
+        switch (this.postProcessing) {
             case 'none':
                 return messages;
             case 'merge':
@@ -849,14 +849,13 @@ export class MessageBuilder {
 
     #buildExampleMessages(prompt: PromptContext): string[] {
         const examples = prompt.chatExampleArray;
-        const self = this;
 
         // Add message example WI
         for (const example of prompt.worldInfoExamples) {
             if (!example.content)
                 continue;
 
-            const cleanedExample = parseMesExamples(baseChatReplace(example.content), false).map(s => self.#applyRegex(s, { world: true }));
+            const cleanedExample = parseMesExamples(baseChatReplace(example.content), false).map(s => this.#applyRegex(s, { world: true }));
             // Insert depending on before or after position
             if (example.position === wi_anchor_position.before) {
                 examples.unshift(...cleanedExample);
@@ -876,10 +875,9 @@ export class MessageBuilder {
     }
 
     #assignOutletMacros(history: ChatCompletionMessage[]) {
-        const self = this;
         for(const message of history) {
             if(message.content.includes('{{outlet::')) {
-                message.content = message.content.replace(/\{\{outlet::(.+?)\}\}/gi, (_, key: string) => self.getOutletPrompt(key));
+                message.content = message.content.replace(/\{\{outlet::(.+?)\}\}/gi, (_, key: string) => this.getOutletPrompt(key));
             }
         }
     }

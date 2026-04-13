@@ -15,10 +15,10 @@
     "xxhash-wasm": "^1.1.0"
   },
   "scripts": {
-    "build": "webpack --mode production"
-  },
-  "eslintConfig": {
-    "extends": []
+    "build": "webpack --mode production",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "typecheck": "tsc --noEmit"
   },
   "browserslist": {
     "production": [
@@ -41,9 +41,11 @@
     "@types/lodash": "^4.17.24",
     "@types/syntax-error": "^1.4.5",
     "@types/toastr": "^2.1.43",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
     "babel-loader": "^9.2.1",
     "core-js": "^3.40.0",
-    "eslint-config-react-app": "^7.0.1",
+    "eslint": "^8.57.0",
     "eslint-plugin-jsdoc": "^61.7.1",
     "terser-webpack-plugin": "^5.3.10",
     "typescript": "^5.7.3",

@@ -40,7 +40,7 @@ interface DecoratorProcessor {
 
     // Start processing content
     processor: (e: DecoratorProcessData) => (boolean | Promise<boolean>);
-};
+}
 
 export const WI_DECORATOR_MAPPING = new Map<string, DecoratorProcessor>();
 export const WI_DECORATOR_BEFORE_MAPPING = new Map<string, DecoratorProcessor>();
@@ -504,6 +504,7 @@ async function getSortedEntries(
                 continue;
 
             let position = 1;
+            let num : number;
             if(parsed.decorators.includes('@@batch_order')) {
                 const order = parsed.parameters['@@batch_order']?.[0] || 'medium';
                 switch(order) {
@@ -517,7 +518,7 @@ async function getSortedEntries(
                         position = 2;
                         break;
                     default:
-                        const num = parseInt(order);
+                        num = parseInt(order);
                         position = Number.isNaN(num) ? 1 : num;
                         break;
                 }

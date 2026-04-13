@@ -29,10 +29,8 @@ export async function execute<T>(
     let nextIndex = 0;
     
     let resolveAll: (value: PromiseSettledResult<T>[]) => void;
-    let rejectAll: (reason: any) => void;
-    const allPromise = new Promise<PromiseSettledResult<T>[]>((resolve, reject) => {
+    const allPromise = new Promise<PromiseSettledResult<T>[]>((resolve) => {
         resolveAll = resolve;
-        rejectAll = reject;
     });
 
     const runNext = (): void => {

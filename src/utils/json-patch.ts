@@ -119,9 +119,9 @@ export function jsonPatch(doc: object, patches: JsonPatch): object {
         const lodashPath = convertJsonPointerToLodashPath(path);
 
         switch (op) {
-            // @ts-expect-error: 2678
+            // @ts-expect-error: allow fallthrough
             case 'set':
-            // @ts-expect-error: 2678
+            // @ts-expect-error: allow fallthrough
             case 'assign':
             case 'add':
             case 'replace': {

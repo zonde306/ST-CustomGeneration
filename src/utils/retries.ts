@@ -9,13 +9,13 @@ export async function generate(
     dryRun: boolean = false,
     retries: number = 3,
     interval: number = 100,
-): Promise<string | string[] | AsyncGenerator<{ swipe: number, text: string } | string>> {
-    let result: string | string[] | AsyncGenerator<{ swipe: number, text: string } | string> | null = null;
+): Promise<Awaited<ReturnType<Context['generate']>>> {
+    let response: Awaited<ReturnType<Context['generate']>> | null = null;
     let lastError: Error | null = null;
 
     for(let i = 0; i < retries; i++) {
         try {
-            result = await ctx.generate(type, options, dryRun);
+            response = await ctx.generate(type, options, dryRun);
         } catch (e) {
             if(e instanceof Error)
                 e.cause = lastError ?? undefined;
@@ -25,12 +25,12 @@ export async function generate(
         }
 
         // AsyncGenerator cannot be validated.
-        if(result.toString() === '[object AsyncGenerator]')
+        if(response.toString() === '[object AsyncGenerator]')
             break;
 
         try {
             // @ts-expect-error: 2345
-            if(await options.validator?.call(null, result) || result)
+            if(await options.validator?.call(null, response.swipes ?? response) || response)
                 break;
         } catch(e) {
             if(e instanceof Error)
@@ -48,12 +48,12 @@ export async function generate(
         await new Promise(resolve => setTimeout(resolve, interval));
     }
 
-    if(!result) {
+    if(!response) {
         if(lastError)
             throw lastError;
 
         throw new Error("Failed to generate content for unknown reason");
     }
     
-    return result;
+    return response;
 }
