@@ -440,7 +440,7 @@ export class Context {
                     }
                 }
 
-                await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, response: {swipes, reasoning, toolCalls}, context: this, streaming: true, apiConfig });
+                await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, response: { swipes, reasoning: [reasoning], toolCalls }, context: this, streaming: true, apiConfig });
 
                 if(this.isGlobal) {
                     // Since there's no need to manage the generate button, just send it directly.

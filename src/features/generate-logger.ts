@@ -364,7 +364,19 @@ async function onGenerateAfter(data: GenerateAfter) {
         return;
     }
 
-    entry.responses = data.response?.swipes ?? [];
+    if(data.response) {
+        if(data.response.reasoning.length) {
+            entry.responses = [];
+            for(let i = 0; i < data.response.swipes.length; ++i) {
+                entry.responses.push(`<think>\n${data.response.reasoning[i]}\n</think>\n${data.response.swipes[i]}`);
+            }
+        } else {
+            entry.responses = data.response.swipes;
+        }
+    } else {
+        entry.responses = [];
+    }
+
     entry.error = data.error ?? null;
     entry.done = true;
 
