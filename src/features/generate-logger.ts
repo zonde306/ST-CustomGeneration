@@ -336,11 +336,11 @@ function bindLoggerEvents(): void {
 
 async function onGenerateBefore(data: GenerateBefore) {
     loggers.push({
-        taskId: data.taskId,
-        messages: data.messages,
-        options: data.options,
-        model: data.apiConfig.model,
-        streaming: data.streaming,
+        taskId: data.taskId ?? 'Unknown',
+        messages: data.messages ?? [],
+        options: data.options ?? [],
+        model: data.apiConfig.model ?? 'Auto',
+        streaming: data.streaming ?? false,
         response: [],
         error: null,
         done: false,
