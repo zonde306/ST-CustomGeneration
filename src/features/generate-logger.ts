@@ -5,6 +5,7 @@ import { Context, GenerateOptionsLite } from "@/features/context";
 import { ApiConfig } from "@/functions/generate";
 import { getTokenCountAsync } from '@st/scripts/tokenizers.js';
 import { copyText } from '@st/scripts/utils.js';
+import { Response } from '@/functions/generate';
 
 interface GenerateBefore {
     type: string;
@@ -18,7 +19,7 @@ interface GenerateBefore {
 
 interface GenerateAfter {
     taskId: string;
-    responses: string[];
+    response: Response | null;
     context: Context;
     streaming: boolean;
     error: Error | null;
@@ -363,7 +364,7 @@ async function onGenerateAfter(data: GenerateAfter) {
         return;
     }
 
-    entry.responses = data.responses ?? [];
+    entry.responses = data.response?.swipes ?? [];
     entry.error = data.error ?? null;
     entry.done = true;
 

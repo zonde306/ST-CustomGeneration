@@ -13,7 +13,7 @@ import {
 import { settings } from '@/settings';
 import { generate as runGenerate, ApiConfig, Response as GenResponse, StreamResponse as GenStreamResponse } from '@/functions/generate';
 import { MessageBuilder, PromptFilter, MacroOverride } from '@/functions/message-builder';
-import { ContextRole } from '@/utils/defines'
+import { ContextRole, ToolCalls } from '@/utils/defines'
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
 import { eventTypes } from '@/utils/events';
 import { Preset } from '@/utils/defines';
@@ -386,7 +386,7 @@ export class Context {
         try {
             response = await runGenerate(messages, abortController.signal, taskId, apiConfig as ApiConfig, { context: this }, options.streaming);
         } catch(error) {
-            await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: [], context: this, streaming: !!options.streaming, apiConfig });
+            await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, response: null, context: this, streaming: !!options.streaming, apiConfig });
             throw error;
         }
 
@@ -397,7 +397,9 @@ export class Context {
 
         if(Object.prototype.toString.call(response) === '[object AsyncGenerator]') {
             const stream = async function *(this: Context) {
-                let buffers : string[] = [];
+                const swipes : string[] = [];
+                let reasoning = '';
+                const toolCalls: ToolCalls = [];
                 let error = null;
                 try {
                     for await (const chunk of response as AsyncGenerator<GenStreamResponse>) {
@@ -408,8 +410,16 @@ export class Context {
                         }
                         
                         if(chunk.swipe) {
-                            if(buffers[chunk.swipe] == null) buffers[chunk.swipe] = '';
-                            buffers[chunk.swipe] += chunk.text;
+                            if(swipes[chunk.swipe] == null)
+                                swipes[chunk.swipe] = chunk.text;
+                            else
+                                swipes[chunk.swipe] += chunk.text;
+                        }
+                        if(chunk.reasoning) {
+                            reasoning += chunk.reasoning;
+                        }
+                        if(chunk.toolCalls) {
+                            toolCalls[chunk.swipe] = chunk.toolCalls;
                         }
                     }
                 } catch(err) {
@@ -418,19 +428,19 @@ export class Context {
 
                 if(!options.dontCreate) {
                     if(type === 'continue') {
-                        buffers = buffers.map(mes => this.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
+                        swipes = swipes.map(mes => this.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
                         if(this.lastMessage?.mes) {
-                            this.lastMessage.mes += buffers[0];
+                            this.lastMessage.mes += swipes[0];
                         }
                         if(this.lastMessage?.swipes?.[this.lastMessage.swipe_id ?? 0]) {
-                            this.lastMessage.swipes[this.lastMessage.swipe_id ?? 0] += buffers[0];
+                            this.lastMessage.swipes[this.lastMessage.swipe_id ?? 0] += swipes[0];
                         }
                     } else {
-                        buffers = await this.#recv(buffers, type === 'swipe');
+                        swipes = await this.#recv(swipes, type === 'swipe');
                     }
                 }
 
-                await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, responses: buffers, context: this, streaming: true, apiConfig });
+                await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, response: {swipes, reasoning, toolCalls}, context: this, streaming: true, apiConfig });
 
                 if(this.isGlobal) {
                     // Since there's no need to manage the generate button, just send it directly.
