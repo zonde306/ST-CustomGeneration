@@ -397,7 +397,7 @@ export class Context {
 
         if(Object.prototype.toString.call(response) === '[object AsyncGenerator]') {
             const stream = async function *(this: Context) {
-                const swipes : string[] = [];
+                let swipes : string[] = [];
                 let reasoning = '';
                 const toolCalls: ToolCalls = [];
                 let error = null;
