@@ -30,7 +30,7 @@ interface GenerateLogEntry {
     options: GenerateOptionsLite;
     model: string;
     streaming: boolean;
-    response: string[];
+    responses: string[];
     error: Error | null;
     done: boolean;
     type: string;
@@ -186,7 +186,7 @@ async function buildLoggerTitle(entry: GenerateLogEntry, index: number): Promise
 
 function buildLoggerMeta(entry: GenerateLogEntry): string {
     const mode = entry.streaming ? 'Streaming' : entry.options?.streaming ? 'Half-streaming' : 'Non-streaming';
-    return `Messages: ${entry.messages.length} · Responses: ${entry.response.length} · ${mode}`;
+    return `Messages: ${entry.messages.length} · Responses: ${entry.responses?.length} · ${mode}`;
 }
 
 function buildLoggerInfoItem(label: string, value: string): JQuery<HTMLElement> {
@@ -255,7 +255,7 @@ async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise
     body.append(info);
 
     const messageBlocks = await buildLoggerMessageBlocks(entry.messages);
-    const responseBlocks = await buildLoggerResponseBlocks(entry.response);
+    const responseBlocks = await buildLoggerResponseBlocks(entry.responses);
     body.append(buildLoggerSection('Messages', messageBlocks));
     body.append(buildLoggerSection('Responses', responseBlocks));
 
@@ -294,12 +294,12 @@ async function updateLoggerList(): Promise<void> {
         return;
     }
 
-    list.empty();
+    const nodes : JQuery<HTMLElement>[] = [];
 
     if (loggers.length === 0) {
         const emptyText = String(list.attr('no-items-text') ?? 'No logs');
         const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text(emptyText);
-        list.append(empty);
+        nodes.push(empty);
         return;
     }
 
@@ -307,8 +307,10 @@ async function updateLoggerList(): Promise<void> {
     for (const [index, entry] of entries.entries()) {
         const logIndex = loggers.length - 1 - index;
         const block = await buildLoggerEntry(entry, logIndex);
-        list.append(block);
+        nodes.push(block);
     }
+
+    list.empty().append(...nodes);
 }
 
 async function refreshLoggerListIfVisible(): Promise<void> {
@@ -341,7 +343,7 @@ async function onGenerateBefore(data: GenerateBefore) {
         options: data.options ?? [],
         model: data.apiConfig.model ?? 'Auto',
         streaming: data.streaming ?? false,
-        response: [],
+        responses: [],
         error: null,
         done: false,
         type: data.type,
@@ -361,8 +363,8 @@ async function onGenerateAfter(data: GenerateAfter) {
         return;
     }
 
-    entry.response = data.responses;
-    entry.error = data.error;
+    entry.responses = data.responses ?? [];
+    entry.error = data.error ?? null;
     entry.done = true;
 
     await refreshLoggerListIfVisible();
