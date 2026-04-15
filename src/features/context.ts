@@ -13,12 +13,13 @@ import {
 import { settings } from '@/settings';
 import { generate as runGenerate, ApiConfig, Response as GenResponse, StreamResponse as GenStreamResponse } from '@/functions/generate';
 import { MessageBuilder, PromptFilter, MacroOverride } from '@/functions/message-builder';
-import { ContextRole, ToolCalls } from '@/utils/defines'
+import { ContextRole, ToolCalls, ToolDefinition } from '@/utils/defines'
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
 import { eventTypes } from '@/utils/events';
 import { Preset } from '@/utils/defines';
 import { defaultPreset } from '@/utils/default-settings';
 import { AsyncMutex } from '@/utils/mutex';
+import { z } from 'zod';
 
 const locker = new AsyncMutex();
 
@@ -65,10 +66,19 @@ export interface GenerateOptionsLite {
      */
     streaming?: boolean;
 
+    toolChoice?: 'none' | 'auto' | 'required';
+
     /**
      * Placeholders have no function; do not modify them.
      */
     context?: Context;
+}
+
+export interface Tool {
+    name: string;
+    description: string;
+    parameters: z.ZodSchema;
+    'function': (params: z.infer<z.ZodSchema>) => Promise<string>;
 }
 
 let taskIdCounter = 0;
@@ -81,6 +91,7 @@ export class Context {
     public apiOverride: Partial<ApiConfig>;
     public macroOverride: MacroOverride;
     public filters: PromptFilter;
+    public tools: Map<string, Tool>;
 
     constructor(_chat: ChatMessageEx[] = [], _metadata: ChatMetadataEx = {}) {
         this.chat = _chat;
@@ -90,6 +101,7 @@ export class Context {
         this.apiOverride = {};
         this.macroOverride = {};
         this.filters = {};
+        this.tools = new Map();
     }
 
     /**
@@ -382,6 +394,7 @@ export class Context {
         await eventSource.emit(eventTypes.GENERATE_BEFORE, { type, options, messages, abortController, taskId, context: this, streaming: !!options.streaming, apiConfig });
 
         let response : GenResponse | AsyncGenerator<GenStreamResponse>;
+        const tools = this.convertToolDefinition();
 
         try {
             response = await runGenerate(messages, {
@@ -390,6 +403,8 @@ export class Context {
                 api: apiConfig as ApiConfig,
                 hiddenOptions: { context: this },
                 streaming: options.streaming,
+                tools,
+                tool_choice: options.toolChoice,
             });
         } catch(error) {
             await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, response: null, context: this, streaming: !!options.streaming, apiConfig });
@@ -432,6 +447,18 @@ export class Context {
                     error = err;
                 }
 
+                if(toolCalls?.length) {
+                    const toolMessages = await this.handleToolCalls(toolCalls);
+                    if(toolMessages) {
+                        this.chat.push({ name: 'Tool Call', mes: JSON.stringify(toolCalls), is_system: true });
+                        this.chat.push(...toolMessages.map(msg => ({ mes: msg.content, is_system: true })));
+                        const nextResponse = await this.generate(type, options, dryRun);
+                        for await (const chunk of nextResponse as AsyncGenerator<GenStreamResponse | string>) {
+                            yield chunk;
+                        }
+                    }
+                }
+
                 if(!options.dontCreate) {
                     if(type === 'continue') {
                         swipes = swipes.map(mes => this.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
@@ -455,6 +482,18 @@ export class Context {
             }
 
             return stream.call(this);
+        }
+
+        // @ts-expect-error: 2339
+        const toolCalls = response.toolCalls as ToolCalls;
+        
+        if(toolCalls?.length) {
+            const toolMessages = await this.handleToolCalls(toolCalls);
+            if(toolMessages) {
+                this.chat.push({ name: 'Tool Call', mes: JSON.stringify(toolCalls), is_system: true });
+                this.chat.push(...toolMessages.map(msg => ({ mes: msg.content, is_system: true, name: msg.tool_call_id, is_user: true })));
+                return await this.generate(type, options, dryRun);
+            }
         }
 
         // @ts-expect-error: 2339
@@ -607,5 +646,60 @@ export class Context {
             // Reload swipes. Useful when a last message is hidden.
             refreshSwipeButtons();
         }
+    }
+
+    private convertToolDefinition(): ToolDefinition[] {
+        const tools: ToolDefinition[] = [];
+        for(const tool of this.tools.values()) {
+            tools.push({
+                type: 'function',
+                function: {
+                    name: tool.name,
+                    description: tool.description,
+                    parameters: tool.parameters.toJSONSchema(),
+                }
+            });
+        }
+
+        return tools;
+    }
+
+    private async handleToolCalls(calls: ToolCalls) {
+        if(!calls?.length)
+            return [];
+
+        if(calls.length > 1) {
+            console.error('Multiple choice tool calls are not supported yet');
+        }
+
+        return await Promise.all(calls[0].map(async(call) => {
+            const name = call.name ?? call?.function?.name ?? '';
+            const tool = this.tools.get(name);
+            if(!tool) {
+                console.error(`Tool ${name} not found`);
+                return {
+                    role: 'tool',
+                    tool_call_id: call.id ?? '',
+                    content: `Tool ${name} not found`,
+                };
+            }
+
+            try {
+                const parameters = call.args ?? JSON.parse(call.function?.arguments ?? '{}') ?? {};
+                return {
+                    role: 'tool',
+                    tool_call_id: call.id ?? '',
+                    content: await tool.function(await tool.parameters.parseAsync(parameters)),
+                }
+            } catch (e) {
+                console.error(`Tool ${name} failed`, e);
+                return {
+                    role: 'tool',
+                    tool_call_id: call.id ?? '',
+                    // @ts-expect-error: `e` always has a `message` property.
+                    content: `Tool ${name} error: ${e.message ?? e}`,
+                };
+            }
+        }));
     }
 }

@@ -570,23 +570,13 @@ export interface ToolDefinition {
     function: {
         name: string;
         description?: string;
-        parameters?: JsonSchema;
+        parameters?: Record<string, any>;
         strict?: boolean;
     }
 }
 
 export interface ToolMessage {
     role: "tool";
-    tool_call_id: string;
+    tool_call_id: string; // for PartialToolCall.id
     content: string;
-}
-
-export interface JsonSchema {
-    type?: 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null';
-    properties?: Record<string, JsonSchema>;
-    required?: string[];
-    items?: JsonSchema;
-    enum?: unknown[];
-    description?: string;
-    [key: string]: unknown;
 }
