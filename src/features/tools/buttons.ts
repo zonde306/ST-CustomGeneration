@@ -7,9 +7,9 @@ const TOOL_NAME = 'buttons';
 const SCHEMA = z.object({
     message: z.string().describe('Dialog messages allow the use of HTML and inline CSS code.'),
     buttons: z.array(z.string()).describe('The choices to be presented to the user.'),
-    multiple: z.boolean().describe('Whether multiple choices can be selected.').default(false),
-    ok: z.string().describe('If multiple is enabled, close the dialog box button text.').default('OK'),
-    cancel: z.string().describe('If multiple is not enabled, close the dialog box button text.').default('Cancel'),
+    multiple: z.boolean().describe('Whether multiple choices can be selected.').default(false).optional(),
+    ok: z.string().describe('If multiple is enabled, close the dialog box button text.').default('OK').optional(),
+    cancel: z.string().describe('If multiple is not enabled, close the dialog box button text.').default('Cancel').optional(),
 });
 
 export async function setup() {
@@ -69,7 +69,15 @@ async function call(params: any): Promise<string> {
     popupContainer.style.flexDirection = 'column';
     popupContainer.style.maxHeight = '80vh'; // Limit the overall height of the popup
 
-    const popup = new Popup(popupContainer, POPUP_TYPE.TEXT, '', { okButton: args.multiple ? args.ok : args.cancel, allowVerticalScrolling: true });
+    const popup = new Popup(
+        popupContainer,
+        POPUP_TYPE.TEXT,
+        '',
+        {
+            okButton: args.multiple ? (args.ok ?? 'OK') : (args.cancel ?? 'Cancel'),
+            allowVerticalScrolling: true
+        }
+    );
     const result = (await popup.show()) as number;
 
     let selected : null | string | string[] = null;

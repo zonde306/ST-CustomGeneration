@@ -6,8 +6,8 @@ import { DOMPurify } from '@st/lib.js';
 const TOOL_NAME = 'confirm';
 const SCHEMA = z.object({
     message: z.string().describe('Dialog messages allow the use of HTML and inline CSS code.'),
-    ok: z.string().describe('The text of the "OK" button.').default('OK'),
-    cancel: z.string().describe('The text of the "Cancel" button.').default('Cancel'),
+    ok: z.string().describe('The text of the "OK" button.').default('OK').optional(),
+    cancel: z.string().describe('The text of the "Cancel" button.').default('Cancel').optional(),
 });
 
 export async function setup() {
@@ -27,8 +27,8 @@ async function call(params: any): Promise<string> {
         POPUP_TYPE.CONFIRM,
         '',
         {
-            okButton: args.ok,
-            cancelButton: args.cancel,
+            okButton: args.ok ?? 'OK',
+            cancelButton: args.cancel ?? 'Cancel',
         }
     ) as number;
 
