@@ -141,5 +141,18 @@
 	"cg_continue": "繼續生成",
 
 	"Drag to reorder": "拖拽重新排序",
-	"Max Concurrency": "最大並行數"
+	"Max Concurrency": "最大並行數",
+
+	"Tools": "工具",
+	"cg_tools_help": "啟用或停用工具",
+	"cg_tool_buttons": "選擇列表框",
+	"cg_tool_confirm": "確認取消框",
+	"cg_tool_input": "輸入框",
+	"Tool Editor": "工具編輯器",
+	"cg_tool_name_help": "工具名稱",
+	"cg_tool_triggers_help": "生成觸發器列表",
+	"Description": "描述",
+	"cg_tool_description_help": "這個工具的介紹，會影響到LLM如何去使用它",
+	"Parameters": "參數描述",
+	"cg_tool_parameters_help": "工具參數的描述，會影響到LLM如何去使用它"
 }

@@ -145,9 +145,16 @@
 	"Drag to reorder": "拖动重新排序",
 	"Max Concurrency": "最大并发数",
 
-	"Tools": "工具调用",
-	"cg_tools_help": "启用或禁用工具调用功能",
+	"Tools": "工具",
+	"cg_tools_help": "启用或禁用工具",
 	"cg_tool_buttons": "选择列表框",
 	"cg_tool_confirm": "确认取消框",
-	"cg_tool_input": "输入框"
+	"cg_tool_input": "输入框",
+	"Tool Editor": "工具编辑器",
+	"cg_tool_name_help": "工具名称",
+	"cg_tool_triggers_help": "生成触发器列表",
+	"Description": "工具描述",
+	"cg_tool_description_help": "这个工具的介绍，会影响到LLM如何去使用它",
+	"Parameters": "参数描述",
+	"cg_tool_parameters_help": "工具参数的描述，会影响到LLM如何去使用它"
 }
