@@ -19,6 +19,7 @@ import { eventTypes } from '@/utils/events';
 import { Preset } from '@/utils/defines';
 import { defaultPreset } from '@/utils/default-settings';
 import { AsyncMutex } from '@/utils/mutex';
+import { getAvailableTools, getTool } from '@/features/tool-manager';
 import { z } from 'zod';
 
 const locker = new AsyncMutex();
@@ -400,7 +401,7 @@ export class Context {
         await eventSource.emit(eventTypes.GENERATE_BEFORE, { type, options, messages, abortController, taskId, context: this, streaming: !!options.streaming, apiConfig });
 
         let response : GenResponse | AsyncGenerator<GenStreamResponse>;
-        const tools = this.convertToolDefinition();
+        const tools = this.createToolDefinitions(type);
 
         try {
             response = await runGenerate(messages, {
@@ -658,9 +659,26 @@ export class Context {
         }
     }
 
-    private convertToolDefinition(): ToolDefinition[] {
+    private createToolDefinitions(type: string): ToolDefinition[] {
         const tools: ToolDefinition[] = [];
+        const exists: Set<string> = new Set();
+
         for(const tool of this.tools.values()) {
+            tools.push({
+                type: 'function',
+                function: {
+                    name: tool.name,
+                    description: tool.description,
+                    parameters: tool.parameters.toJSONSchema(),
+                }
+            });
+            exists.add(tool.name);
+        }
+
+        for(const tool of getAvailableTools(type)) {
+            if(exists.has(tool.name))
+                continue;
+
             tools.push({
                 type: 'function',
                 function: {
@@ -685,7 +703,7 @@ export class Context {
 
         return await Promise.all(calls[0].map(async(call) => {
             const name = call.name ?? call?.function?.name ?? '';
-            const tool = this.tools.get(name);
+            const tool = this.tools.get(name) ?? getTool(name);
             if(!tool) {
                 console.error(`Tool ${name} not found`);
                 return {

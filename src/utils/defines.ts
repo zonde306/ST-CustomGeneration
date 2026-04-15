@@ -469,6 +469,9 @@ export interface ApiSettings {
 
     // linked preset
     linkedPreset: string;
+
+    // max concurrency for world info generation
+    maxConcurrency: number;
 }
 
 export interface Settings {
@@ -484,8 +487,13 @@ export interface Settings {
     // default preset (current active preset)
     currentPreset: string;
 
-    // max concurrency for world info generation
-    maxConcurrency: number;
+    // tools
+    tools: Record<string, ToolSettings>;
+}
+
+export interface ToolSettings {
+    enabled: boolean;
+    triggers: string[];
 }
 
 export interface ExportPayload {

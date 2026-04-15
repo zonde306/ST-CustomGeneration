@@ -1,4 +1,4 @@
-import { Template, Preset, Settings, ApiSettings } from '@/utils/defines';
+import { Template, Preset, Settings, ApiSettings, ToolSettings } from '@/utils/defines';
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { t } from "@st/scripts/i18n.js"
 
@@ -2326,7 +2326,10 @@ export const defaultApiSettings: ApiSettings = {
     excludeBody: {},
     promptPostProcessing: 'none',
     linkedPreset: '',
+    maxConcurrency: 1,
 };
+
+export const defaultToolSettings: ToolSettings = { enabled: false, triggers: [] };
 
 export const defaultSettings: Settings = {
     apis: {
@@ -2337,5 +2340,5 @@ export const defaultSettings: Settings = {
         [defaultPreset.name]: defaultPreset,
     },
     currentPreset: defaultPreset.name,
-    maxConcurrency: 1,
+    tools: {},
 };

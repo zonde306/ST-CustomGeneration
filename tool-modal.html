@@ -1,0 +1,77 @@
+<dialog id="custom_generation_tool_dialog">
+    <form class="completion_prompt_manager_popup_entry_form flex-container flexFlowColumn" method="dialog" onsubmit="return false;">
+        <div class="completion_prompt_manager_popup_header">
+            <label for="custom_generation_tool_name">
+                <span data-i18n="Tool Editor">Tool Editor</span>
+            </label>
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <label for="custom_generation_tool_name">
+                <span data-i18n="Name">Name</span>
+            </label>
+            <div id="custom_generation_tool_name" class="text_pole" style="min-height: 1.5em; padding: 3px 5px; background: var(--black30a); cursor: not-allowed;"></div>
+            <small class="text_muted" data-i18n="cg_tool_name_help">
+                Tool name is defined in code and cannot be changed.
+            </small>
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <label class="checkbox_label" for="custom_generation_tool_enabled">
+                <input id="custom_generation_tool_enabled" type="checkbox" />
+                <span data-i18n="Enabled">Enabled</span>
+            </label>
+        </div>
+        <div class="completion_prompt_manager_popup_entry_form_control">
+            <label for="custom_generation_tool_triggers">
+                <span data-i18n="Triggers (comma separated)">Triggers (comma separated)</span>
+            </label>
+            <select id="custom_generation_tool_triggers" class="text_pole" multiple="multiple" data-placeholder="normal, @@record"></select>
+            <small class="text_muted" data-i18n="cg_tool_triggers_help">
+                Select which generation types this tool should be available for.
+            </small>
+        </div>
+        <div class="flex-container justifySpaceBetween marginTop5">
+            <div></div>
+            <div class="flex-container">
+                <button id="custom_generation_tool_cancel" class="custom_generation_button" type="button" data-i18n="Cancel">Cancel</button>
+                <button id="custom_generation_tool_save" class="custom_generation_button" type="button" data-i18n="Save">Save</button>
+            </div>
+        </div>
+    </form>
+    <style>
+        #custom_generation_tool_dialog {
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        #custom_generation_tool_dialog[open] {
+            max-height: min(86vh, 400px);
+            overflow: hidden;
+        }
+
+        #custom_generation_tool_dialog .completion_prompt_manager_popup_entry_form {
+            width: min(520px, 92vw);
+            max-width: 92vw;
+            max-height: min(calc(86vh - 24px), 360px);
+            margin: 5px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        #custom_generation_tool_dialog .flex-container,
+        #custom_generation_tool_dialog .completion_prompt_manager_popup_entry_form_control,
+        #custom_generation_tool_dialog .flex-container > .flex1,
+        #custom_generation_tool_dialog .select2-container,
+        #custom_generation_tool_dialog input,
+        #custom_generation_tool_dialog select {
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        #custom_generation_tool_dialog .custom_generation_button {
+            min-width: 72px;
+            white-space: nowrap;
+        }
+    </style>
+</dialog>

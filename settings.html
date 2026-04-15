@@ -263,6 +263,16 @@
             </div>
             <div id="custom_generation_template_list" class="flex-container flexFlowColumn" no-items-text="No templates" data-i18n="[no-items-text]No templates"></div>
             <input id="custom_generation_template_import_input" type="file" accept=".json,application/json" style="display: none;" />
+
+            <hr />
+
+            <div class="flex-container alignItemsBaseline">
+                <h3 class="margin0 flex1">
+                    <span data-i18n="Tools">Tools</span>
+                </h3>
+            </div>
+            <small class="text_muted" data-i18n="cg_tools_help">Tools are defined in code. Enable/disable and configure triggers here.</small>
+            <div id="custom_generation_tool_list" class="flex-container flexFlowColumn" no-items-text="No tools" data-i18n="[no-items-text]No tools"></div>
         </div>
     </div>
 
@@ -296,7 +306,8 @@
         #custom_generation_prompt_list,
         #custom_generation_regex_list,
         #custom_generation_template_list,
-        #custom_generation_template_prompt_list {
+        #custom_generation_template_prompt_list,
+        #custom_generation_tool_list {
             width: 100%;
             max-width: 100%;
             align-items: stretch;
@@ -306,7 +317,8 @@
         #custom_generation_prompt_list > *,
         #custom_generation_regex_list > *,
         #custom_generation_template_list > *,
-        #custom_generation_template_prompt_list > * {
+        #custom_generation_template_prompt_list > *,
+        #custom_generation_tool_list > * {
             width: 100%;
             max-width: 100%;
             box-sizing: border-box;

@@ -3,10 +3,11 @@ import { extension_settings, renderExtensionTemplateAsync } from '@st/scripts/ex
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { generate as runGenerate, ApiConfig } from '@/functions/generate';
 import { KNOWN_DECORATORS } from '@/functions/worldinfo';
-import { PresetPrompt, RegEx, Template, Preset, Settings, ExportPayload, ListExportKind, ListExportItem, ListExportDialogState, ListExportPayload, ImportPayload, ApiSettings, ApiExportPayload, ApiImportPayload } from '@/utils/defines';
-import { defaultSettings, defaultTemplate, defaultPreset, defaultApiSettings, defaultApiName } from './utils/default-settings';
+import { PresetPrompt, RegEx, Template, Preset, Settings, ExportPayload, ListExportKind, ListExportItem, ListExportDialogState, ListExportPayload, ImportPayload, ApiSettings, ApiExportPayload, ApiImportPayload, ToolSettings } from '@/utils/defines';
+import { defaultSettings, defaultTemplate, defaultPreset, defaultApiSettings, defaultApiName, defaultToolSettings } from './utils/default-settings';
 import { yaml } from "@st/lib.js";
 import { copyText } from '@st/scripts/utils.js';
+import { TOOL_DEFINITION } from '@/features/tool-manager';
 
 export const settings: Settings = clone(defaultSettings);
 
@@ -53,10 +54,12 @@ let selectedPromptIndex = 0;
 let selectedRegexIndex = 0;
 let selectedTemplateIndex = 0;
 let selectedTemplatePromptIndex = 0;
+let selectedToolIndex = 0;
 let editingPromptIndex: number | null = null;
 let editingRegexIndex: number | null = null;
 let editingTemplateIndex: number | null = null;
 let editingTemplatePromptIndex: number | null = null;
+let editingToolIndex: number | null = null;
 let promptEditorTarget: 'preset' | 'template' = 'preset';
 let isCreatingPrompt = false;
 let isCreatingRegex = false;
@@ -694,6 +697,7 @@ function normalizeApiSettings(input: Partial<ApiSettings>): ApiSettings {
         excludeBody: normalizeRecord(input.excludeBody),
         promptPostProcessing: parsePromptPostProcessing(input.promptPostProcessing),
         linkedPreset: String(input.linkedPreset ?? ''),
+        maxConcurrency: parseNumber(input.maxConcurrency, defaultApiSettings.maxConcurrency, 1, 100, true),
     };
 }
 
@@ -734,19 +738,65 @@ function ensureSettingsIntegrity(resetSelections: boolean = false) {
     }
     settings.currentPreset = ensureCurrentPresetKey();
 
-    // Ensure max concurrency
-    settings.maxConcurrency = parseNumber(settings.maxConcurrency, defaultSettings.maxConcurrency, 1, 100, true);
+    // Ensure tools settings are synced with TOOL_DEFINITION
+    syncToolsWithDefinitions();
 
     if (resetSelections) {
         selectedPromptIndex = 0;
         selectedRegexIndex = 0;
         selectedTemplateIndex = 0;
         selectedTemplatePromptIndex = 0;
+        selectedToolIndex = 0;
         editingPromptIndex = null;
         editingRegexIndex = null;
         editingTemplateIndex = null;
         editingTemplatePromptIndex = null;
+        editingToolIndex = null;
     }
+}
+
+/**
+ * Sync tools settings with TOOL_DEFINITION
+ * - Add new tools from TOOL_DEFINITION that don't exist in settings
+ * - Remove tools from settings that no longer exist in TOOL_DEFINITION
+ */
+function syncToolsWithDefinitions(): void {
+    const definedToolKeys = Array.from(TOOL_DEFINITION.keys());
+    const currentToolKeys = Object.keys(settings.tools ?? {});
+
+    // Add missing tools
+    for (const key of definedToolKeys) {
+        if (!settings.tools[key]) {
+            settings.tools[key] = clone(defaultToolSettings);
+        }
+    }
+
+    // Remove obsolete tools
+    for (const key of currentToolKeys) {
+        if (!definedToolKeys.includes(key)) {
+            delete settings.tools[key];
+        }
+    }
+}
+
+/**
+ * Get tool keys as an array
+ */
+function getToolKeys(): string[] {
+    return Array.from(TOOL_DEFINITION.keys());
+}
+
+/**
+ * Get tool entries as an array of key-value pairs
+ */
+function getToolEntries(): Array<{ key: string; settings: ToolSettings }> {
+    const entries: Array<{ key: string; settings: ToolSettings }> = [];
+    const keys = getToolKeys();
+    for (const key of keys) {
+        const toolSettings = settings.tools[key] ?? clone(defaultToolSettings);
+        entries.push({ key, settings: toolSettings });
+    }
+    return entries;
 }
 
 function getCurrentPreset(): Preset {
@@ -2595,6 +2645,132 @@ function deleteTemplateFromEditor(): void {
     saveSettings();
 }
 
+// ============================================
+// Tool Editor Functions
+// ============================================
+
+function buildToolRow(entry: { key: string; settings: ToolSettings }, index: number) {
+    const row = $('<div class="custom_generation_list_row flex-container alignItemsCenter justifySpaceBetween marginTop5"></div>');
+    row.attr('data-index', String(index));
+    row.toggleClass('active', index === selectedToolIndex);
+
+    const left = $('<div class="flex-container alignItemsCenter flex1"></div>');
+    const toggle = $('<input type="checkbox" />').prop('checked', entry.settings.enabled);
+    const name = $('<div class="flex1"></div>').text(entry.key);
+
+    left.append(toggle, name);
+
+    const actions = $('<div class="flex-container alignItemsCenter"></div>');
+    const editButton = $('<i class="menu_button fa-solid fa-pen-to-square" title="Edit" data-i18n="[title]Edit"></i>');
+    actions.append(editButton);
+
+    row.on('click', () => {
+        selectedToolIndex = index;
+        updateSettingsUI();
+    });
+
+    toggle.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+    });
+
+    toggle.on('change', () => {
+        const toolEntries = getToolEntries();
+        const target = toolEntries[index];
+        if (!target) {
+            return;
+        }
+
+        target.settings.enabled = Boolean(toggle.prop('checked'));
+        settings.tools[target.key] = target.settings;
+        selectedToolIndex = index;
+        updateSettingsUI();
+        saveSettings();
+    });
+
+    editButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        openToolEditor(index);
+    });
+
+    row.append(left, actions);
+    return row;
+}
+
+function setToolEditorEnabled(enabled: boolean) {
+    const selectors = [
+        '#custom_generation_tool_enabled',
+        '#custom_generation_tool_triggers',
+        '#custom_generation_tool_save',
+    ];
+
+    for (const selector of selectors) {
+        $(selector).prop('disabled', !enabled);
+    }
+}
+
+function updateToolEditor() {
+    const entries = getToolEntries();
+    const entry = editingToolIndex === null ? null : entries[editingToolIndex] ?? null;
+
+    isUpdatingUI = true;
+
+    if (!entry) {
+        setToolEditorEnabled(false);
+        $('#custom_generation_tool_name').text('');
+        $('#custom_generation_tool_enabled').prop('checked', false);
+        setSelectValues('#custom_generation_tool_triggers', []);
+        isUpdatingUI = false;
+        return;
+    }
+
+    setToolEditorEnabled(true);
+    $('#custom_generation_tool_name').text(entry.key);
+    $('#custom_generation_tool_enabled').prop('checked', entry.settings.enabled);
+    setSelectValues('#custom_generation_tool_triggers', entry.settings.triggers ?? []);
+
+    isUpdatingUI = false;
+}
+
+function openToolEditor(index: number): void {
+    const entries = getToolEntries();
+    if (!entries[index]) {
+        return;
+    }
+
+    editingToolIndex = index;
+    selectedToolIndex = index;
+    updateToolEditor();
+    openDialog('#custom_generation_tool_dialog');
+}
+
+function closeToolEditor(): void {
+    editingToolIndex = null;
+    closeDialog('#custom_generation_tool_dialog');
+}
+
+function saveToolEditor(): void {
+    const entries = getToolEntries();
+    if (editingToolIndex === null) {
+        return;
+    }
+
+    const entry = entries[editingToolIndex];
+    if (!entry) {
+        return;
+    }
+
+    const nextSettings: ToolSettings = {
+        enabled: Boolean($('#custom_generation_tool_enabled').prop('checked')),
+        triggers: getSelectValues('#custom_generation_tool_triggers'),
+    };
+
+    settings.tools[entry.key] = nextSettings;
+    selectedToolIndex = editingToolIndex;
+    closeToolEditor();
+    updateSettingsUI();
+    saveSettings();
+}
+
 function buildExportPayload(includeApiConnection: boolean): ExportPayload {
     const api = getCurrentApi();
     const payload: ExportPayload = {
@@ -2834,6 +3010,10 @@ async function ensureModalTemplatesInjected(): Promise<void> {
         $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'template-modal'));
     }
 
+    if (!$('#custom_generation_tool_dialog').length) {
+        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'tool-modal'));
+    }
+
     const decoratorSelect = $('#custom_generation_template_decorator');
     if (decoratorSelect.length && decoratorSelect.children().length === 0) {
         for (const decorator of ALL_DECORATORS) {
@@ -2843,6 +3023,7 @@ async function ensureModalTemplatesInjected(): Promise<void> {
 
     initSelect2Multi('#custom_generation_prompt_triggers', PROMPT_TRIGGER_OPTIONS);
     initSelect2Multi('#custom_generation_template_filters', TEMPLATE_FILTER_OPTIONS);
+    initSelect2Multi('#custom_generation_tool_triggers', PROMPT_TRIGGER_OPTIONS);
 }
 
 function bindEvents() {
@@ -3044,7 +3225,8 @@ function bindEvents() {
     });
 
     $('#custom_generation_max_concurrency').on('input', () => {
-        settings.maxConcurrency = parseNumber($('#custom_generation_max_concurrency').val(), defaultSettings.maxConcurrency, 1, 100, true);
+        const api = getCurrentApi();
+        api.maxConcurrency = parseNumber($('#custom_generation_max_concurrency').val(), api.maxConcurrency, 1, 100, true);
         saveSettings();
     });
 
@@ -3677,6 +3859,19 @@ function bindEvents() {
         resetTemplateCreationState();
         resetTemplateEditorDraft();
     });
+
+    // Tool editor events
+    $('#custom_generation_tool_cancel').on('click', () => {
+        closeToolEditor();
+    });
+
+    $('#custom_generation_tool_save').on('click', () => {
+        saveToolEditor();
+    });
+
+    $('#custom_generation_tool_dialog').on('close', () => {
+        editingToolIndex = null;
+    });
 }
 
 /**
@@ -3750,7 +3945,7 @@ export function updateSettingsUI() {
     $('#custom_generation_frequency_penalty').val(api.frequencyPenalty);
     $('#custom_generation_presence_penalty').val(api.presencePenalty);
     $('#custom_generation_stream').prop('checked', api.stream);
-    $('#custom_generation_max_concurrency').val(settings.maxConcurrency);
+    $('#custom_generation_max_concurrency').val(api.maxConcurrency);
     $('#custom_generation_prompt_post_processing').val(api.promptPostProcessing);
     $('#custom_generation_include_headers_yaml').val(stringifyYamlRecord(api.includeHeaders));
     $('#custom_generation_include_body_yaml').val(stringifyYamlRecord(api.includeBody));
@@ -3796,6 +3991,18 @@ export function updateSettingsUI() {
         });
     }
 
+    // Update tool list
+    const toolList = $('#custom_generation_tool_list');
+    toolList.empty();
+    const toolEntries = getToolEntries();
+    if (toolEntries.length === 0) {
+        toolList.text(String(toolList.attr('no-items-text') ?? 'No tools'));
+    } else {
+        toolEntries.forEach((entry, index) => {
+            toolList.append(buildToolRow(entry, index));
+        });
+    }
+
     initSortableLists();
 
     updatePresetSummary(currentPreset);
@@ -3827,6 +4034,15 @@ export function updateSettingsUI() {
             updateTemplateEditor();
         } else {
             closeTemplateEditor();
+        }
+    }
+
+    if (editingToolIndex !== null) {
+        const toolEntries = getToolEntries();
+        if (toolEntries[editingToolIndex]) {
+            updateToolEditor();
+        } else {
+            closeToolEditor();
         }
     }
 }
