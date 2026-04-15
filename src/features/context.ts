@@ -72,6 +72,11 @@ export interface GenerateOptionsLite {
      * Placeholders have no function; do not modify them.
      */
     context?: Context;
+
+    /**
+     * Tool messages
+     */
+    toolMessages?: any[];
 }
 
 export interface Tool {
@@ -330,6 +335,7 @@ export class Context {
         const builder = new MessageBuilder(this.chat, preset, api.promptPostProcessing);
         builder.filters = this.filters;
         builder.macroOverride = this.macroOverride;
+        builder.toolMessages = options.toolMessages ?? [];
 
         // To avoid conflicts caused by concurrent read and write operations of chat_metadata in worldinfo.
         const messages = await locker.invoke(async() => {
@@ -449,9 +455,11 @@ export class Context {
 
                 if(toolCalls?.length) {
                     const toolMessages = await this.handleToolCalls(toolCalls);
-                    if(toolMessages) {
-                        this.chat.push({ name: 'Tool Call', mes: JSON.stringify(toolCalls), is_system: true });
-                        this.chat.push(...toolMessages.map(msg => ({ mes: msg.content, is_system: true })));
+                    if(toolMessages.length) {
+                        if(!options.toolMessages)
+                            options.toolMessages = [];
+                        options.toolMessages.push({ role: 'function', content: JSON.stringify(toolCalls[0]) });
+                        options.toolMessages.push(...toolMessages);
                         const nextResponse = await this.generate(type, options, dryRun);
                         for await (const chunk of nextResponse as AsyncGenerator<GenStreamResponse | string>) {
                             yield chunk;
@@ -490,8 +498,10 @@ export class Context {
         if(toolCalls?.length) {
             const toolMessages = await this.handleToolCalls(toolCalls);
             if(toolMessages) {
-                this.chat.push({ name: 'Tool Call', mes: JSON.stringify(toolCalls), is_system: true });
-                this.chat.push(...toolMessages.map(msg => ({ mes: msg.content, is_system: true, name: msg.tool_call_id, is_user: true })));
+                if(!options.toolMessages)
+                    options.toolMessages = [];
+                options.toolMessages.push({ role: 'function', content: JSON.stringify(toolCalls[0]) });
+                options.toolMessages.push(...toolMessages);
                 return await this.generate(type, options, dryRun);
             }
         }
@@ -669,6 +679,7 @@ export class Context {
             return [];
 
         if(calls.length > 1) {
+            // Multiple choices can only be responded to via fork.
             console.error('Multiple choice tool calls are not supported yet');
         }
 

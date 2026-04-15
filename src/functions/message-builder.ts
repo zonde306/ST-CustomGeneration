@@ -78,6 +78,7 @@ export class MessageBuilder {
     private presetDepth: string[];
     private charDepth: string;
     private postProcessing: string;
+    public toolMessages: any[];
 
     constructor(chat: ChatMessage[], preset?: Preset, postProcessing: string = 'none') {
         this.chat = chat;
@@ -89,6 +90,7 @@ export class MessageBuilder {
         this.authorsNoteDepth = '';
         this.presetDepth = [];
         this.charDepth = '';
+        this.toolMessages = [];
 
         preset = preset ?? settings.presets[Number(settings.currentPreset)] ?? defaultPreset;
         this.regexs = preset.regexs;
@@ -159,6 +161,7 @@ export class MessageBuilder {
             const authorNoteRange = this.#insertAuthorsNoteByMetadata(messages, null);
             this.#insertWorldInfoAroundAuthorsNote(messages, prompts, authorNoteRange);
             this.#assignOutletMacros(messages);
+            messages.push(...this.toolMessages);
             return this.#postprocessMessages(messages);
         }
 
@@ -926,7 +929,7 @@ export class MessageBuilder {
             case 'worldInfoAfter':
                 return this.#applyRegex(prompts.worldInfoCharAfter, { world: true });
             case 'chatHistory':
-                return historyMessages;
+                return historyMessages.concat(this.toolMessages);
             case 'charNote':
                 return this.charDepth;
             case 'authorsNote':
