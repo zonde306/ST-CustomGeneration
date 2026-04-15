@@ -565,3 +565,28 @@ export interface ApiImportPayload {
     currentApi?: unknown;
 }
 
+export interface ToolDefinition {
+    type?: 'function';
+    function: {
+        name: string;
+        description?: string;
+        parameters?: JsonSchema;
+        strict?: boolean;
+    }
+}
+
+export interface ToolMessage {
+    role: "tool";
+    tool_call_id: string;
+    content: string;
+}
+
+export interface JsonSchema {
+    type?: 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null';
+    properties?: Record<string, JsonSchema>;
+    required?: string[];
+    items?: JsonSchema;
+    enum?: unknown[];
+    description?: string;
+    [key: string]: unknown;
+}

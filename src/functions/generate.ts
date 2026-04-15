@@ -3,7 +3,7 @@ import { oai_settings, sendOpenAIRequest, chat_completion_sources } from '@st/sc
 import { TokenLogprobs } from '@st/scripts/logprobs.js';
 import { uuidv4 } from '@st/scripts/utils.js';
 import { eventTypes } from '@/utils/events'
-import { ToolCalls, ToolSignatures, PartialToolCall } from '@/utils/defines';
+import { ToolCalls, ToolSignatures, PartialToolCall, ToolDefinition } from '@/utils/defines';
 
 export interface ApiConfig {
     url: string;
@@ -59,17 +59,30 @@ interface StreamChunk {
 
 export async function generate(
     messages: ChatCompletionMessage[],
-    singal: AbortSignal,
-    taskId: string = '',
-    api?: ApiConfig,
-    customOptions?: Record<string, any>,
-    streaming: boolean = false,
+    {
+        signal,
+        taskId,
+        api,
+        hiddenOptions: customOptions,
+        streaming,
+        tools,
+        tool_choice,
+    } : {
+        signal?: AbortSignal,
+        taskId?: string,
+        api?: ApiConfig,
+        hiddenOptions?: Record<string, any>,
+        streaming?: boolean,
+        tools?: ToolDefinition[],
+        tool_choice?: 'none' | 'auto' | 'required',
+    } = {}
 ): Promise<Response | AsyncGenerator<StreamResponse>> {
     if(!taskId)
         taskId = uuidv4();
 
     let eventHandler: ((data: any) => void) | null = null;
     const originalStream = oai_settings.stream_openai;
+    const originalFunctionCalling = oai_settings.function_calling;
 
     await eventSource.emit(eventTypes.GENERATION_START, {
         messages,
@@ -104,6 +117,11 @@ export async function generate(
             assign('custom_include_body');
             assign('custom_include_headers');
 
+            if(tools?.length)
+                data.tools = tools;
+            if(tools?.length && tool_choice?.length)
+                data.tool_choice = tool_choice;
+
             for(const [key, val] of Object.entries(customOptions ?? {})) {
                 Object.defineProperty(data, key, {
                     value: val,
@@ -116,23 +134,28 @@ export async function generate(
             // @ts-expect-error: 2345
             eventSource.removeListener(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
             oai_settings.stream_openai = originalStream;
+            oai_settings.function_calling = originalFunctionCalling;
         };
         eventSource.makeFirst(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
     }
 
     let result = null;
+    signal = signal ?? new AbortController().signal;
+    taskId = taskId || uuidv4();
     try {
+        // Disabling injection of built-in tools
+        oai_settings.function_calling = false;
         if(api?.stream) {
             oai_settings.stream_openai = true;
-            const handler = new StreamHandler(taskId, singal);
-            handler.generator = await sendOpenAIRequest(api?.type || 'quiet', messages, singal) as typeof handler.generator;
+            const handler = new StreamHandler(taskId, signal);
+            handler.generator = await sendOpenAIRequest(api?.type || 'quiet', messages, signal) as typeof handler.generator;
             if(streaming)
                 result = handler.streaming();
             else
                 result = await handler.generate();
         } else {
             oai_settings.stream_openai = false;
-            const response = await sendOpenAIRequest(api?.type || 'quiet', messages, singal);
+            const response = await sendOpenAIRequest(api?.type || 'quiet', messages, signal);
             result = await responseHandler(response, taskId);
         }
     } catch(err) {
@@ -149,6 +172,7 @@ export async function generate(
         if(eventHandler)
             eventSource.removeListener(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
         oai_settings.stream_openai = originalStream;
+        oai_settings.function_calling = originalFunctionCalling;
     }
 
     return result;

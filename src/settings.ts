@@ -1462,7 +1462,7 @@ async function testGenerateConnection(): Promise<string> {
         url: baseUrl,
         key: apiKey,
         model,
-        type: 'quiet',
+        type: 'test-connection',
         stream: api.stream,
         max_context: api.contextSize,
         max_tokens: Math.max(1, Math.min(api.maxTokens, 64)),
@@ -1483,7 +1483,10 @@ async function testGenerateConnection(): Promise<string> {
         },
     ];
 
-    const response = await runGenerate(messages, new AbortController().signal, 'custom_generation_connection_test', apiConfig, {}, false);
+    const response = await runGenerate(messages, {
+        api: apiConfig,
+        taskId: 'test-connection',
+    });
     const responseList = Array.isArray(response) ? response : [response];
     return responseList.map(item => String(item ?? '').trim()).find(Boolean) ?? '';
 }

@@ -384,7 +384,13 @@ export class Context {
         let response : GenResponse | AsyncGenerator<GenStreamResponse>;
 
         try {
-            response = await runGenerate(messages, abortController.signal, taskId, apiConfig as ApiConfig, { context: this }, options.streaming);
+            response = await runGenerate(messages, {
+                signal: abortController.signal,
+                taskId,
+                api: apiConfig as ApiConfig,
+                hiddenOptions: { context: this },
+                streaming: options.streaming,
+            });
         } catch(error) {
             await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, response: null, context: this, streaming: !!options.streaming, apiConfig });
             throw error;
