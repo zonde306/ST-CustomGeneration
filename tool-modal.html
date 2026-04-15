@@ -39,12 +39,14 @@
             </small>
         </div>
         <div class="completion_prompt_manager_popup_entry_form_control">
-            <label for="custom_generation_tool_parameters">
+            <label>
                 <span data-i18n="Parameters">Parameters</span>
             </label>
-            <textarea id="custom_generation_tool_parameters" class="text_pole" rows="5" placeholder="parameter_name=Description of the parameter"></textarea>
+            <div id="custom_generation_tool_parameters_container" class="flex-container flexFlowColumn">
+                <!-- Parameters will be dynamically generated here -->
+            </div>
             <small class="text_muted" data-i18n="cg_tool_parameters_help">
-                One parameter per line in format: name=description. These descriptions will be sent to the AI model.
+                Parameter descriptions that will be sent to the AI model.
             </small>
         </div>
         <div class="flex-container justifySpaceBetween marginTop5">
@@ -91,6 +93,22 @@
         #custom_generation_tool_dialog .custom_generation_button {
             min-width: 72px;
             white-space: nowrap;
+        }
+
+        #custom_generation_tool_parameters_container .tool-parameter-row {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 8px;
+        }
+
+        #custom_generation_tool_parameters_container .tool-parameter-label {
+            font-size: 0.9em;
+            color: var(--grey70);
+            margin-bottom: 2px;
+        }
+
+        #custom_generation_tool_parameters_container .tool-parameter-input {
+            width: 100%;
         }
     </style>
 </dialog>

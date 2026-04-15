@@ -2773,13 +2773,15 @@ function setToolEditorEnabled(enabled: boolean) {
         '#custom_generation_tool_enabled',
         '#custom_generation_tool_triggers',
         '#custom_generation_tool_description',
-        '#custom_generation_tool_parameters',
         '#custom_generation_tool_save',
     ];
 
     for (const selector of selectors) {
         $(selector).prop('disabled', !enabled);
     }
+
+    // Also disable all parameter inputs
+    $('#custom_generation_tool_parameters_container input').prop('disabled', !enabled);
 }
 
 function updateToolEditor() {
@@ -2794,7 +2796,7 @@ function updateToolEditor() {
         $('#custom_generation_tool_enabled').prop('checked', false);
         setSelectValues('#custom_generation_tool_triggers', []);
         $('#custom_generation_tool_description').val('');
-        $('#custom_generation_tool_parameters').val('');
+        $('#custom_generation_tool_parameters_container').empty();
         isUpdatingUI = false;
         return;
     }
@@ -2805,11 +2807,40 @@ function updateToolEditor() {
     setSelectValues('#custom_generation_tool_triggers', entry.settings.triggers ?? []);
     $('#custom_generation_tool_description').val(entry.settings.description ?? '');
 
-    // Format parameters as key=value pairs
-    const parametersText = Object.entries(entry.settings.parameters ?? {})
-        .map(([key, value]) => `${key}=${value}`)
-        .join('\n');
-    $('#custom_generation_tool_parameters').val(parametersText);
+    // Build parameters UI from TOOL_DEFINITION schema
+    const toolDef = TOOL_DEFINITION.get(entry.key);
+    const container = $('#custom_generation_tool_parameters_container');
+    container.empty();
+
+    if (toolDef?.parameters) {
+        try {
+            const schema = toolDef.parameters.toJSONSchema();
+            if (schema?.properties && typeof schema.properties === 'object') {
+                for (const [paramName, paramValue] of Object.entries(schema.properties as Record<string, any>)) {
+                    const row = $('<div class="tool-parameter-row"></div>');
+                    const label = $('<div class="tool-parameter-label"></div>').text(paramName);
+                    const input = $('<input type="text" class="text_pole tool-parameter-input">')
+                        .attr('data-param-name', paramName)
+                        .attr('placeholder', 'Parameter description')
+                        .val(entry.settings.parameters?.[paramName] ?? paramValue?.description ?? '');
+                    row.append(label, input);
+                    container.append(row);
+                }
+            }
+        } catch {
+            // If schema parsing fails, show existing parameters
+            for (const [paramName, paramDesc] of Object.entries(entry.settings.parameters ?? {})) {
+                const row = $('<div class="tool-parameter-row"></div>');
+                const label = $('<div class="tool-parameter-label"></div>').text(paramName);
+                const input = $('<input type="text" class="text_pole tool-parameter-input">')
+                    .attr('data-param-name', paramName)
+                    .attr('placeholder', 'Parameter description')
+                    .val(paramDesc);
+                row.append(label, input);
+                container.append(row);
+            }
+        }
+    }
 
     isUpdatingUI = false;
 }
@@ -2846,30 +2877,21 @@ function saveToolEditor(): void {
     // Read description from the editor
     const description = String($('#custom_generation_tool_description').val() ?? entry.settings.description ?? '');
 
-    // Read parameters from the editor (key=value pairs, one per line)
-    const parametersText = String($('#custom_generation_tool_parameters').val() ?? '');
+    // Read parameters from dynamically generated input fields
     const parameters: Record<string, string> = {};
-    parametersText.split('\n').forEach(line => {
-        const trimmed = line.trim();
-        if (!trimmed) return;
-        const separatorIndex = trimmed.indexOf('=');
-        if (separatorIndex > 0) {
-            const key = trimmed.substring(0, separatorIndex).trim();
-            const value = trimmed.substring(separatorIndex + 1).trim();
-            if (key) {
-                parameters[key] = value;
-            }
+    $('#custom_generation_tool_parameters_container input[data-param-name]').each(function() {
+        const paramName = $(this).attr('data-param-name');
+        const paramValue = String($(this).val() ?? '');
+        if (paramName) {
+            parameters[paramName] = paramValue;
         }
     });
-
-    // Merge with existing parameters (keep any that weren't edited)
-    const mergedParameters = { ...entry.settings.parameters, ...parameters };
 
     const nextSettings: ToolSettings = {
         enabled: Boolean($('#custom_generation_tool_enabled').prop('checked')),
         triggers: getSelectValues('#custom_generation_tool_triggers'),
         description,
-        parameters: mergedParameters,
+        parameters,
     };
 
     preset.tools[entry.key] = nextSettings;
