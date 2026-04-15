@@ -83,7 +83,7 @@ export interface Tool {
     name: string;
     description: string;
     parameters: z.ZodSchema;
-    'function': (params: z.infer<z.ZodSchema>) => Promise<string>;
+    'function': (params: any) => Promise<string>;
 }
 
 let taskIdCounter = 0;

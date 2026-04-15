@@ -7,6 +7,7 @@ import { eventTypes } from "@/utils/events";
 import { setup as setupGenerates, runAfterGenerates, isGenerating } from "@/features/generate-processor";
 import { setup as setupOverrides, DataOverride } from "@/features/override";
 import { setup as setupLogger } from "@/features/generate-logger";
+import { setup as setupTools } from "@/features/tool-manager";
 
 // jQuery
 $(async () => {
@@ -15,6 +16,7 @@ $(async () => {
     await setupGenerates();
     await setupOverrides();
     await setupLogger();
+    await setupTools();
 
     // @ts-expect-error: 7017
     globalThis.CustomGeneration = {
