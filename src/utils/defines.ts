@@ -418,6 +418,9 @@ export interface Preset {
 
     // templates
     templates: Record<string, Template>;
+
+    // tools
+    tools: Record<string, ToolSettings>;
 }
 
 export interface ApiSettings {
@@ -486,14 +489,20 @@ export interface Settings {
 
     // default preset (current active preset)
     currentPreset: string;
-
-    // tools
-    tools: Record<string, ToolSettings>;
 }
 
 export interface ToolSettings {
+    // Enable or disable?
     enabled: boolean;
-    triggers: string[];
+
+    // Filter to specific generation types. empty means all.
+    triggers: (typeof KNOWN_DECORATORS[number] | string)[];
+
+    // Description of each parameter
+    parameters: Record<string, string>;
+
+    // Tool Description
+    description: string;
 }
 
 export interface ExportPayload {

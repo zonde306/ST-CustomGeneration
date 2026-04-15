@@ -2307,6 +2307,7 @@ export const defaultPreset: Preset = {
             "retryInterval": 1000,
         },
     },
+    tools: {},
 };
 
 export const defaultApiSettings: ApiSettings = {
@@ -2329,7 +2330,12 @@ export const defaultApiSettings: ApiSettings = {
     maxConcurrency: 1,
 };
 
-export const defaultToolSettings: ToolSettings = { enabled: false, triggers: [] };
+export const defaultToolSettings: ToolSettings = {
+    enabled: false,
+    triggers: [],
+    parameters: {},
+    description: '',
+};
 
 export const defaultSettings: Settings = {
     apis: {
@@ -2340,5 +2346,4 @@ export const defaultSettings: Settings = {
         [defaultPreset.name]: defaultPreset,
     },
     currentPreset: defaultPreset.name,
-    tools: {},
 };

@@ -83,7 +83,7 @@ export interface GenerateOptionsLite {
 export interface Tool {
     name: string;
     description: string;
-    parameters: z.ZodSchema;
+    parameters: z.ZodObject;
     'function': (params: any) => Promise<string>;
 }
 
@@ -662,14 +662,41 @@ export class Context {
     private createToolDefinitions(type: string): ToolDefinition[] {
         const tools: ToolDefinition[] = [];
         const exists: Set<string> = new Set();
+        const preset = this.currentPreset;
 
         for(const tool of this.tools.values()) {
+            const toolSettings = preset.tools?.[tool.name];
+            const description = toolSettings?.description || tool.description;
+            let parameters = tool.parameters.toJSONSchema() as Record<string, any>;
+
+            // Apply custom parameter descriptions if available
+            if (toolSettings?.parameters && Object.keys(toolSettings.parameters).length > 0) {
+                if (parameters?.properties && typeof parameters.properties === 'object') {
+                    const updatedProperties: Record<string, any> = {};
+                    for (const [key, value] of Object.entries(parameters.properties as Record<string, any>)) {
+                        const customDesc = toolSettings.parameters[key];
+                        if (typeof value === 'object' && value !== null) {
+                            updatedProperties[key] = {
+                                ...value,
+                                ...(customDesc ? { description: customDesc } : {}),
+                            };
+                        } else {
+                            updatedProperties[key] = value;
+                        }
+                    }
+                    parameters = {
+                        ...parameters,
+                        properties: updatedProperties,
+                    };
+                }
+            }
+
             tools.push({
                 type: 'function',
                 function: {
                     name: tool.name,
-                    description: tool.description,
-                    parameters: tool.parameters.toJSONSchema(),
+                    description,
+                    parameters,
                 }
             });
             exists.add(tool.name);
@@ -679,12 +706,38 @@ export class Context {
             if(exists.has(tool.name))
                 continue;
 
+            const toolSettings = preset.tools?.[tool.name];
+            const description = toolSettings?.description || tool.description;
+            let parameters = tool.parameters.toJSONSchema() as Record<string, any>;
+
+            // Apply custom parameter descriptions if available
+            if (toolSettings?.parameters && Object.keys(toolSettings.parameters).length > 0) {
+                if (parameters?.properties && typeof parameters.properties === 'object') {
+                    const updatedProperties: Record<string, any> = {};
+                    for (const [key, value] of Object.entries(parameters.properties as Record<string, any>)) {
+                        const customDesc = toolSettings.parameters[key];
+                        if (typeof value === 'object' && value !== null) {
+                            updatedProperties[key] = {
+                                ...value,
+                                ...(customDesc ? { description: customDesc } : {}),
+                            };
+                        } else {
+                            updatedProperties[key] = value;
+                        }
+                    }
+                    parameters = {
+                        ...parameters,
+                        properties: updatedProperties,
+                    };
+                }
+            }
+
             tools.push({
                 type: 'function',
                 function: {
                     name: tool.name,
-                    description: tool.description,
-                    parameters: tool.parameters.toJSONSchema(),
+                    description,
+                    parameters,
                 }
             });
         }

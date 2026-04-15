@@ -143,5 +143,11 @@
 	"cg_continue": "继续生成",
 
 	"Drag to reorder": "拖动重新排序",
-	"Max Concurrency": "最大并发数"
+	"Max Concurrency": "最大并发数",
+
+	"Tools": "工具调用",
+	"cg_tools_help": "启用或禁用工具调用功能",
+	"cg_tool_buttons": "选择列表框",
+	"cg_tool_confirm": "确认取消框",
+	"cg_tool_input": "输入框"
 }

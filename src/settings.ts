@@ -8,6 +8,7 @@ import { defaultSettings, defaultTemplate, defaultPreset, defaultApiSettings, de
 import { yaml } from "@st/lib.js";
 import { copyText } from '@st/scripts/utils.js';
 import { TOOL_DEFINITION } from '@/features/tool-manager';
+import { z } from 'zod';
 
 export const settings: Settings = clone(defaultSettings);
 
@@ -476,6 +477,34 @@ function normalizeTemplates(raw: unknown): Record<string, Template> {
     return buildTemplateMap(templates);
 }
 
+function normalizeToolSettings(raw: unknown): Record<string, ToolSettings> {
+    const result: Record<string, ToolSettings> = {};
+
+    if (!isRecord(raw)) {
+        return result;
+    }
+
+    Object.entries(raw).forEach(([key, value]) => {
+        if (isRecord(value)) {
+            const toolSetting = value as Partial<ToolSettings>;
+            result[key] = {
+                enabled: Boolean(toolSetting.enabled),
+                triggers: Array.isArray(toolSetting.triggers)
+                    ? toolSetting.triggers.map(x => String(x).trim()).filter(Boolean)
+                    : [],
+                parameters: isRecord(toolSetting.parameters)
+                    ? Object.fromEntries(
+                        Object.entries(toolSetting.parameters).map(([k, v]) => [k, String(v ?? '')])
+                    )
+                    : {},
+                description: String(toolSetting.description ?? ''),
+            };
+        }
+    });
+
+    return result;
+}
+
 type TemplateEntry = { key: string; template: Template };
 
 function getTemplateEntries(preset: Preset): TemplateEntry[] {
@@ -552,11 +581,14 @@ function normalizePreset(input: Partial<Preset>, fallbackName: string): Preset {
 
     const templates = normalizeTemplates((input as { templates?: unknown }).templates);
 
+    const tools = normalizeToolSettings((input as { tools?: unknown }).tools);
+
     return {
         name: sanitizePresetName(String(input.name ?? ''), fallbackName),
         prompts,
         regexs,
         templates,
+        tools,
     };
 }
 
@@ -761,21 +793,55 @@ function ensureSettingsIntegrity(resetSelections: boolean = false) {
  * - Remove tools from settings that no longer exist in TOOL_DEFINITION
  */
 function syncToolsWithDefinitions(): void {
-    const definedToolKeys = Array.from(TOOL_DEFINITION.keys());
-    const currentToolKeys = Object.keys(settings.tools ?? {});
+    const preset = getCurrentPreset();
+    if (!preset.tools) {
+        preset.tools = {};
+    }
 
-    // Add missing tools
+    const definedToolKeys = Array.from(TOOL_DEFINITION.keys());
+    const currentToolKeys = Object.keys(preset.tools);
+
+    // Add missing tools with default values from TOOL_DEFINITION
     for (const key of definedToolKeys) {
-        if (!settings.tools[key]) {
-            settings.tools[key] = clone(defaultToolSettings);
+        if (!preset.tools[key]) {
+            const toolDef = TOOL_DEFINITION.get(key);
+            preset.tools[key] = {
+                enabled: false,
+                triggers: [],
+                description: toolDef?.description ?? '',
+                parameters: extractDefaultParameters(toolDef?.parameters),
+            };
         }
     }
 
     // Remove obsolete tools
     for (const key of currentToolKeys) {
         if (!definedToolKeys.includes(key)) {
-            delete settings.tools[key];
+            delete preset.tools[key];
         }
+    }
+}
+
+/**
+ * Extract default parameter descriptions from a Zod schema
+ */
+function extractDefaultParameters(schema: z.ZodSchema | undefined): Record<string, string> {
+    if (!schema) return {};
+
+    try {
+        const jsonSchema = schema.toJSONSchema();
+        const properties = jsonSchema?.properties ?? {};
+        const result: Record<string, string> = {};
+
+        for (const [key, value] of Object.entries(properties)) {
+            if (typeof value === 'object' && value !== null && 'description' in value) {
+                result[key] = String((value as any).description ?? '');
+            }
+        }
+
+        return result;
+    } catch {
+        return {};
     }
 }
 
@@ -790,10 +856,15 @@ function getToolKeys(): string[] {
  * Get tool entries as an array of key-value pairs
  */
 function getToolEntries(): Array<{ key: string; settings: ToolSettings }> {
+    const preset = getCurrentPreset();
+    if (!preset.tools) {
+        preset.tools = {};
+    }
+
     const entries: Array<{ key: string; settings: ToolSettings }> = [];
     const keys = getToolKeys();
     for (const key of keys) {
-        const toolSettings = settings.tools[key] ?? clone(defaultToolSettings);
+        const toolSettings = preset.tools[key] ?? clone(defaultToolSettings);
         entries.push({ key, settings: toolSettings });
     }
     return entries;
@@ -2656,7 +2727,7 @@ function buildToolRow(entry: { key: string; settings: ToolSettings }, index: num
 
     const left = $('<div class="flex-container alignItemsCenter flex1"></div>');
     const toggle = $('<input type="checkbox" />').prop('checked', entry.settings.enabled);
-    const name = $('<div class="flex1"></div>').text(entry.key);
+    const name = $('<div class="flex1"></div>').text(entry.key).data('i18n', `cg_tool_${entry.key}`);
 
     left.append(toggle, name);
 
@@ -2674,6 +2745,7 @@ function buildToolRow(entry: { key: string; settings: ToolSettings }, index: num
     });
 
     toggle.on('change', () => {
+        const preset = getCurrentPreset();
         const toolEntries = getToolEntries();
         const target = toolEntries[index];
         if (!target) {
@@ -2681,7 +2753,7 @@ function buildToolRow(entry: { key: string; settings: ToolSettings }, index: num
         }
 
         target.settings.enabled = Boolean(toggle.prop('checked'));
-        settings.tools[target.key] = target.settings;
+        preset.tools[target.key] = target.settings;
         selectedToolIndex = index;
         updateSettingsUI();
         saveSettings();
@@ -2700,6 +2772,8 @@ function setToolEditorEnabled(enabled: boolean) {
     const selectors = [
         '#custom_generation_tool_enabled',
         '#custom_generation_tool_triggers',
+        '#custom_generation_tool_description',
+        '#custom_generation_tool_parameters',
         '#custom_generation_tool_save',
     ];
 
@@ -2719,6 +2793,8 @@ function updateToolEditor() {
         $('#custom_generation_tool_name').text('');
         $('#custom_generation_tool_enabled').prop('checked', false);
         setSelectValues('#custom_generation_tool_triggers', []);
+        $('#custom_generation_tool_description').val('');
+        $('#custom_generation_tool_parameters').val('');
         isUpdatingUI = false;
         return;
     }
@@ -2727,6 +2803,13 @@ function updateToolEditor() {
     $('#custom_generation_tool_name').text(entry.key);
     $('#custom_generation_tool_enabled').prop('checked', entry.settings.enabled);
     setSelectValues('#custom_generation_tool_triggers', entry.settings.triggers ?? []);
+    $('#custom_generation_tool_description').val(entry.settings.description ?? '');
+
+    // Format parameters as key=value pairs
+    const parametersText = Object.entries(entry.settings.parameters ?? {})
+        .map(([key, value]) => `${key}=${value}`)
+        .join('\n');
+    $('#custom_generation_tool_parameters').val(parametersText);
 
     isUpdatingUI = false;
 }
@@ -2749,6 +2832,7 @@ function closeToolEditor(): void {
 }
 
 function saveToolEditor(): void {
+    const preset = getCurrentPreset();
     const entries = getToolEntries();
     if (editingToolIndex === null) {
         return;
@@ -2759,12 +2843,36 @@ function saveToolEditor(): void {
         return;
     }
 
+    // Read description from the editor
+    const description = String($('#custom_generation_tool_description').val() ?? entry.settings.description ?? '');
+
+    // Read parameters from the editor (key=value pairs, one per line)
+    const parametersText = String($('#custom_generation_tool_parameters').val() ?? '');
+    const parameters: Record<string, string> = {};
+    parametersText.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        const separatorIndex = trimmed.indexOf('=');
+        if (separatorIndex > 0) {
+            const key = trimmed.substring(0, separatorIndex).trim();
+            const value = trimmed.substring(separatorIndex + 1).trim();
+            if (key) {
+                parameters[key] = value;
+            }
+        }
+    });
+
+    // Merge with existing parameters (keep any that weren't edited)
+    const mergedParameters = { ...entry.settings.parameters, ...parameters };
+
     const nextSettings: ToolSettings = {
         enabled: Boolean($('#custom_generation_tool_enabled').prop('checked')),
         triggers: getSelectValues('#custom_generation_tool_triggers'),
+        description,
+        parameters: mergedParameters,
     };
 
-    settings.tools[entry.key] = nextSettings;
+    preset.tools[entry.key] = nextSettings;
     selectedToolIndex = editingToolIndex;
     closeToolEditor();
     updateSettingsUI();
