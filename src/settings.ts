@@ -2727,7 +2727,7 @@ function buildToolRow(entry: { key: string; settings: ToolSettings }, index: num
 
     const left = $('<div class="flex-container alignItemsCenter flex1"></div>');
     const toggle = $('<input type="checkbox" />').prop('checked', entry.settings.enabled);
-    const name = $('<div class="flex1"></div>').text(entry.key).data('i18n', `cg_tool_${entry.key}`);
+    const name = $(`<div class="flex1" data-i18n="cg_tool_${entry.key}"></div>`).text(entry.key);
 
     left.append(toggle, name);
 
