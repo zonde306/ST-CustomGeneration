@@ -7,16 +7,16 @@ import { DataOverride } from "@/features/override";
 import { Context } from "@/features/context";
 import { generate } from "@/utils/retries"
 import { WorldInfoEntry, WorldInfoLoaded } from "@/utils/defines";
-import { setup as setupReplace } from "@/features/after-generates/replace"
-import { setup as setupReplaceDiff } from "@/features/after-generates/replace-diff";
-import { setup as setupVarJson } from "@/features/after-generates/variable-json";
-import { setup as setupVarYaml } from "@/features/after-generates/variable-yaml";
-import { setup as setupVarJsonPatch } from "@/features/after-generates/variable-json-patch";
-import { setup as setupEjsEvaluate } from "@/features/after-generates/ejs-evaluate";
-import { setup as setupReplaceEjs } from "@/features/after-generates/ejs-replace";
-import { setup as setupReplaceSearch } from "@/features/after-generates/replace-search";
-import { setup as setupAppendMessage } from "@/features/after-generates/append-message";
-import { setup as setupAppendEjs } from "@/features/after-generates/ejs-append";
+import { setup as setupReplace } from "@/features/generates/replace"
+import { setup as setupReplaceDiff } from "@/features/generates/replace-diff";
+import { setup as setupVarJson } from "@/features/generates/variable-json";
+import { setup as setupVarYaml } from "@/features/generates/variable-yaml";
+import { setup as setupVarJsonPatch } from "@/features/generates/variable-json-patch";
+import { setup as setupEjsEvaluate } from "@/features/generates/ejs-evaluate";
+import { setup as setupReplaceEjs } from "@/features/generates/ejs-replace";
+import { setup as setupReplaceSearch } from "@/features/generates/replace-search";
+import { setup as setupAppendMessage } from "@/features/generates/append-message";
+import { setup as setupAppendEjs } from "@/features/generates/ejs-append";
 import { eventTypes } from "@/utils/events";
 import { execute as batchExecute } from "@/utils/concurrency-limiter";
 import { settings } from "@/settings";
