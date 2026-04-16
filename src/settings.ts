@@ -2808,7 +2808,8 @@ function buildToolRow(entry: { key: string; settings: ToolSettings }, index: num
 
     const actions = $('<div class="flex-container alignItemsCenter"></div>');
     const editButton = $('<i class="menu_button fa-solid fa-pen-to-square" title="Edit" data-i18n="[title]Edit"></i>');
-    actions.append(editButton);
+    const exportButton = $('<i class="menu_button fa-solid fa-file-export" title="Export" data-i18n="[title]Export"></i>');
+    actions.append(editButton, exportButton);
 
     row.on('click', () => {
         selectedToolIndex = index;
@@ -2837,6 +2838,11 @@ function buildToolRow(entry: { key: string; settings: ToolSettings }, index: num
     editButton.on('click', (event: JQuery.TriggeredEvent) => {
         event.stopPropagation();
         openToolEditor(index);
+    });
+
+    exportButton.on('click', (event: JQuery.TriggeredEvent) => {
+        event.stopPropagation();
+        openToolExportDialogForSingle(index);
     });
 
     row.append(left, actions);
