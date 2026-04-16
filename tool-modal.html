@@ -5,51 +5,53 @@
                 <span data-i18n="Tool Editor">Tool Editor</span>
             </label>
         </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label for="custom_generation_tool_name">
-                <span data-i18n="Name">Name</span>
-            </label>
-            <div id="custom_generation_tool_name" class="text_pole" style="min-height: 1.5em; padding: 3px 5px; background: var(--black30a); cursor: not-allowed;"></div>
-            <small class="text_muted" data-i18n="cg_tool_name_help">
-                Tool name is defined in code and cannot be changed.
-            </small>
-        </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label class="checkbox_label" for="custom_generation_tool_enabled">
-                <input id="custom_generation_tool_enabled" type="checkbox" />
-                <span data-i18n="Enabled">Enabled</span>
-            </label>
-        </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label for="custom_generation_tool_triggers">
-                <span data-i18n="Triggers (comma separated)">Triggers (comma separated)</span>
-            </label>
-            <select id="custom_generation_tool_triggers" class="text_pole" multiple="multiple" data-placeholder="normal, @@record"></select>
-            <small class="text_muted" data-i18n="cg_tool_triggers_help">
-                Select which generation types this tool should be available for.
-            </small>
-        </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label for="custom_generation_tool_description">
-                <span data-i18n="Description">Description</span>
-            </label>
-            <textarea id="custom_generation_tool_description" class="text_pole" rows="3" placeholder="Tool description for the AI model"></textarea>
-            <small class="text_muted" data-i18n="cg_tool_description_help">
-                The description that will be sent to the AI model to explain what this tool does.
-            </small>
-        </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label>
-                <span data-i18n="Parameters">Parameters</span>
-            </label>
-            <div id="custom_generation_tool_parameters_container" class="flex-container flexFlowColumn">
-                <!-- Parameters will be dynamically generated here -->
+        <div class="custom_generation_modal_body">
+            <div class="completion_prompt_manager_popup_entry_form_control">
+                <label for="custom_generation_tool_name">
+                    <span data-i18n="Name">Name</span>
+                </label>
+                <div id="custom_generation_tool_name" class="text_pole" style="min-height: 1.5em; padding: 3px 5px; background: var(--black30a); cursor: not-allowed;"></div>
+                <small class="text_muted" data-i18n="cg_tool_name_help">
+                    Tool name is defined in code and cannot be changed.
+                </small>
             </div>
-            <small class="text_muted" data-i18n="cg_tool_parameters_help">
-                Parameter descriptions that will be sent to the AI model.
-            </small>
+            <div class="completion_prompt_manager_popup_entry_form_control">
+                <label class="checkbox_label" for="custom_generation_tool_enabled">
+                    <input id="custom_generation_tool_enabled" type="checkbox" />
+                    <span data-i18n="Enabled">Enabled</span>
+                </label>
+            </div>
+            <div class="completion_prompt_manager_popup_entry_form_control">
+                <label for="custom_generation_tool_triggers">
+                    <span data-i18n="Triggers (comma separated)">Triggers (comma separated)</span>
+                </label>
+                <select id="custom_generation_tool_triggers" class="text_pole" multiple="multiple" data-placeholder="normal, @@record"></select>
+                <small class="text_muted" data-i18n="cg_tool_triggers_help">
+                    Select which generation types this tool should be available for.
+                </small>
+            </div>
+            <div class="completion_prompt_manager_popup_entry_form_control">
+                <label for="custom_generation_tool_description">
+                    <span data-i18n="Description">Description</span>
+                </label>
+                <textarea id="custom_generation_tool_description" class="text_pole" rows="3" placeholder="Tool description for the AI model"></textarea>
+                <small class="text_muted" data-i18n="cg_tool_description_help">
+                    The description that will be sent to the AI model to explain what this tool does.
+                </small>
+            </div>
+            <div class="completion_prompt_manager_popup_entry_form_control">
+                <label>
+                    <span data-i18n="Parameters">Parameters</span>
+                </label>
+                <div id="custom_generation_tool_parameters_container" class="flex-container flexFlowColumn">
+                    <!-- Parameters will be dynamically generated here -->
+                </div>
+                <small class="text_muted" data-i18n="cg_tool_parameters_help">
+                    Parameter descriptions that will be sent to the AI model.
+                </small>
+            </div>
         </div>
-        <div class="flex-container justifySpaceBetween marginTop5">
+        <div class="custom_generation_modal_footer flex-container justifySpaceBetween marginTop5">
             <div></div>
             <div class="flex-container">
                 <button id="custom_generation_tool_cancel" class="custom_generation_button" type="button" data-i18n="Cancel">Cancel</button>
@@ -74,8 +76,23 @@
             max-height: min(calc(86vh - 24px), 560px);
             margin: 5px;
             box-sizing: border-box;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #custom_generation_tool_dialog .custom_generation_modal_body {
+            flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
+            min-height: 0;
+        }
+
+        #custom_generation_tool_dialog .custom_generation_modal_footer {
+            flex-shrink: 0;
+            padding-top: 8px;
+            border-top: 1px solid var(--SmartThemeBorderColor);
+            margin-top: 8px;
         }
 
         #custom_generation_tool_dialog .flex-container,

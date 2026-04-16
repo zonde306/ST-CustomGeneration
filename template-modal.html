@@ -5,72 +5,74 @@
                 <span data-i18n="Template Editor">Template Editor</span>
             </label>
         </div>
-        <div class="flex-container">
-            <div class="completion_prompt_manager_popup_entry_form_control flex1">
-                <label for="custom_generation_template_decorator">
-                    <span data-i18n="Decorator">Decorator</span>
-                </label>
-                <select id="custom_generation_template_decorator" class="text_pole"></select>
+        <div class="custom_generation_modal_body">
+            <div class="flex-container">
+                <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                    <label for="custom_generation_template_decorator">
+                        <span data-i18n="Decorator">Decorator</span>
+                    </label>
+                    <select id="custom_generation_template_decorator" class="text_pole"></select>
+                </div>
+                <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                    <label for="custom_generation_template_tag">
+                        <span data-i18n="Tag">Tag</span>
+                    </label>
+                    <input id="custom_generation_template_tag" class="text_pole" type="text" />
+                </div>
             </div>
-            <div class="completion_prompt_manager_popup_entry_form_control flex1">
-                <label for="custom_generation_template_tag">
-                    <span data-i18n="Tag">Tag</span>
-                </label>
-                <input id="custom_generation_template_tag" class="text_pole" type="text" />
-            </div>
-        </div>
-        <small class="text_muted" data-i18n="cg_template_decorator_help">
-            In WI, this is utilized in the form of an `@@decorator` tag; if no matching tag is found, it falls back to an empty tag.
-        </small>
-        <div class="flex-container">
-            <div class="completion_prompt_manager_popup_entry_form_control flex1">
-                <label for="custom_generation_template_retry_count">
-                    <span data-i18n="Retry Count">Retry Count</span>
-                </label>
-                <input id="custom_generation_template_retry_count" class="text_pole" type="number" min="0" step="1" />
-            </div>
-            <div class="completion_prompt_manager_popup_entry_form_control flex1">
-                <label for="custom_generation_template_retry_interval">
-                    <span data-i18n="Retry Interval (ms)">Retry Interval (ms)</span>
-                </label>
-                <input id="custom_generation_template_retry_interval" class="text_pole" type="number" min="0" step="1" />
-            </div>
-        </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label for="custom_generation_template_filters">
-                <span data-i18n="Filters (comma separated)">Filters (comma separated)</span>
-            </label>
-            <select id="custom_generation_template_filters" class="text_pole" multiple="multiple" data-placeholder="main, charDescription"></select>
-        </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label for="custom_generation_template_regex">
-                <span data-i18n="Regex">Regex</span>
-            </label>
-            <input id="custom_generation_template_regex" class="text_pole textarea_compact" rows="3" />
-            <small class="text_muted p_compact" data-i18n="cg_template_regex_help">
-                If the AI ​​outputs an expression that does not match, it will retry.
+            <small class="text_muted" data-i18n="cg_template_decorator_help">
+                In WI, this is utilized in the form of an `@@decorator` tag; if no matching tag is found, it falls back to an empty tag.
             </small>
-        </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label for="custom_generation_template_find_regex">
-                <span data-i18n="Find Regex">Find Regex</span>
-            </label>
-            <input id="custom_generation_template_find_regex" class="text_pole textarea_compact" rows="3" />
-            <small class="text_muted p_compact" data-i18n="cg_template_find_regex_help">
-                If the chat message does not match the expression, it will not trigger.
-            </small>
-        </div>
-        <div class="flex-container alignItemsBaseline">
-            <h3 class="margin0 flex1">
-                <span data-i18n="Prompts">Prompts</span>
-            </h3>
-            <div id="custom_generation_template_add_prompt" class="custom_generation_button custom_generation_button_icon" title="Add prompt" data-i18n="[title]New prompt">
-                <i class="fa-solid fa-plus"></i>
-                <small data-i18n="Add">Add</small>
+            <div class="flex-container">
+                <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                    <label for="custom_generation_template_retry_count">
+                        <span data-i18n="Retry Count">Retry Count</span>
+                    </label>
+                    <input id="custom_generation_template_retry_count" class="text_pole" type="number" min="0" step="1" />
+                </div>
+                <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                    <label for="custom_generation_template_retry_interval">
+                        <span data-i18n="Retry Interval (ms)">Retry Interval (ms)</span>
+                    </label>
+                    <input id="custom_generation_template_retry_interval" class="text_pole" type="number" min="0" step="1" />
+                </div>
             </div>
+            <div class="completion_prompt_manager_popup_entry_form_control">
+                <label for="custom_generation_template_filters">
+                    <span data-i18n="Filters (comma separated)">Filters (comma separated)</span>
+                </label>
+                <select id="custom_generation_template_filters" class="text_pole" multiple="multiple" data-placeholder="main, charDescription"></select>
+            </div>
+            <div class="completion_prompt_manager_popup_entry_form_control">
+                <label for="custom_generation_template_regex">
+                    <span data-i18n="Regex">Regex</span>
+                </label>
+                <input id="custom_generation_template_regex" class="text_pole textarea_compact" rows="3" />
+                <small class="text_muted p_compact" data-i18n="cg_template_regex_help">
+                    If the AI ​​outputs an expression that does not match, it will retry.
+                </small>
+            </div>
+            <div class="completion_prompt_manager_popup_entry_form_control">
+                <label for="custom_generation_template_find_regex">
+                    <span data-i18n="Find Regex">Find Regex</span>
+                </label>
+                <input id="custom_generation_template_find_regex" class="text_pole textarea_compact" rows="3" />
+                <small class="text_muted p_compact" data-i18n="cg_template_find_regex_help">
+                    If the chat message does not match the expression, it will not trigger.
+                </small>
+            </div>
+            <div class="flex-container alignItemsBaseline">
+                <h3 class="margin0 flex1">
+                    <span data-i18n="Prompts">Prompts</span>
+                </h3>
+                <div id="custom_generation_template_add_prompt" class="custom_generation_button custom_generation_button_icon" title="Add prompt" data-i18n="[title]New prompt">
+                    <i class="fa-solid fa-plus"></i>
+                    <small data-i18n="Add">Add</small>
+                </div>
+            </div>
+            <div id="custom_generation_template_prompt_list" class="flex-container flexFlowColumn" no-items-text="No prompts" data-i18n="[no-items-text]No prompts"></div>
         </div>
-        <div id="custom_generation_template_prompt_list" class="flex-container flexFlowColumn" no-items-text="No prompts" data-i18n="[no-items-text]No prompts"></div>
-        <div class="flex-container justifySpaceBetween marginTop5">
+        <div class="custom_generation_modal_footer flex-container justifySpaceBetween marginTop5">
             <a id="custom_generation_template_delete" class="custom_generation_button fa-solid fa-trash" title="Delete template" data-i18n="[title]Delete template"></a>
             <div class="flex-container">
                 <button id="custom_generation_template_cancel" class="custom_generation_button" type="button" data-i18n="Cancel">Cancel</button>
@@ -97,8 +99,23 @@
             max-height: min(calc(86vh - 24px), 720px);
             margin: 5px;
             box-sizing: border-box;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #custom_generation_template_dialog .custom_generation_modal_body {
+            flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
+            min-height: 0;
+        }
+
+        #custom_generation_template_dialog .custom_generation_modal_footer {
+            flex-shrink: 0;
+            padding-top: 8px;
+            border-top: 1px solid var(--SmartThemeBorderColor);
+            margin-top: 8px;
         }
 
         #custom_generation_template_dialog .flex-container,

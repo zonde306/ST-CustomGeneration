@@ -526,13 +526,13 @@ export interface ExportPayload {
     };
 }
 
-export type ListExportKind = 'prompt' | 'regex' | 'template';
+export type ListExportKind = 'prompt' | 'regex' | 'template' | 'tool';
 
 export type ListExportItem = {
     id: string;
     label: string;
     checked: boolean;
-    data: PresetPrompt | RegEx | Template;
+    data: PresetPrompt | RegEx | Template | ToolSettings;
 };
 
 export type ListExportDialogState = {
@@ -543,7 +543,7 @@ export type ListExportDialogState = {
 export interface ListExportPayload {
     version: string;
     kind: ListExportKind;
-    items: Array<PresetPrompt | RegEx | Template>;
+    items: Array<PresetPrompt | RegEx | Template | ToolSettings>;
 }
 
 export interface ImportPayload {

@@ -392,13 +392,38 @@ function normalizeListExportTemplate(raw: unknown): Template {
     return normalizeTemplate(isRecord(raw) ? raw as Partial<Template> : {});
 }
 
-function normalizeListExportPayload(raw: unknown): { kind: ListExportKind; items: Array<PresetPrompt | RegEx | Template> } {
+function normalizeListExportTool(raw: unknown): ToolSettings {
+    if (!isRecord(raw)) {
+        return {
+            enabled: false,
+            triggers: [],
+            parameters: {},
+            description: '',
+        };
+    }
+
+    const toolSetting = raw as Partial<ToolSettings>;
+    return {
+        enabled: Boolean(toolSetting.enabled),
+        triggers: Array.isArray(toolSetting.triggers)
+            ? toolSetting.triggers.map(x => String(x).trim()).filter(Boolean)
+            : [],
+        parameters: isRecord(toolSetting.parameters)
+            ? Object.fromEntries(
+                Object.entries(toolSetting.parameters).map(([k, v]) => [k, String(v ?? '')])
+            )
+            : {},
+        description: String(toolSetting.description ?? ''),
+    };
+}
+
+function normalizeListExportPayload(raw: unknown): { kind: ListExportKind; items: Array<PresetPrompt | RegEx | Template | ToolSettings> } {
     if (!isRecord(raw)) {
         throw new Error('Invalid JSON payload.');
     }
 
     const kind = String(raw.kind ?? '').trim();
-    if (kind !== 'prompt' && kind !== 'regex' && kind !== 'template') {
+    if (kind !== 'prompt' && kind !== 'regex' && kind !== 'template' && kind !== 'tool') {
         throw new Error('Invalid import format: kind is required.');
     }
 
@@ -421,6 +446,13 @@ function normalizeListExportPayload(raw: unknown): { kind: ListExportKind; items
         return {
             kind,
             items: raw.items.map((item, index) => normalizeListExportRegex(item, index)),
+        };
+    }
+
+    if (kind === 'tool') {
+        return {
+            kind,
+            items: raw.items.map(item => normalizeListExportTool(item)),
         };
     }
 
@@ -1281,7 +1313,7 @@ function downloadListExportPayload(kind: ListExportKind, payload: ListExportPayl
     const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
-    const filenameSuffix = kind === 'prompt' ? 'prompts' : kind === 'regex' ? 'regex' : 'templates';
+    const filenameSuffix = kind === 'prompt' ? 'prompts' : kind === 'regex' ? 'regex' : kind === 'tool' ? 'tools' : 'templates';
 
     link.href = url;
     link.download = `st-custom-generation-${filenameSuffix}-${Date.now()}.json`;
@@ -1332,6 +1364,15 @@ function buildTemplateExportItems(entries: TemplateEntry[]): ListExportItem[] {
         label: buildTemplateDisplayName(entry.template),
         checked: true,
         data: clone(entry.template),
+    }));
+}
+
+function buildToolExportItems(entries: Array<{ key: string; settings: ToolSettings }>): ListExportItem[] {
+    return entries.map((entry) => ({
+        id: `tool-${entry.key}`,
+        label: entry.key,
+        checked: true,
+        data: clone(entry.settings),
     }));
 }
 
@@ -1403,6 +1444,28 @@ function openTemplateExportDialogForSingle(index: number): void {
     openListExportDialog('template', items, 'Export Template');
 }
 
+function openToolExportDialogForPreset(): void {
+    const entries = getToolEntries();
+    if (entries.length === 0) {
+        window.alert('No tools to export.');
+        return;
+    }
+
+    const items = buildToolExportItems(entries);
+    openListExportDialog('tool', items, 'Export Tools');
+}
+
+function openToolExportDialogForSingle(index: number): void {
+    const entries = getToolEntries();
+    const entry = entries[index];
+    if (!entry) {
+        return;
+    }
+
+    const items = buildToolExportItems([entry]);
+    openListExportDialog('tool', items, 'Export Tool');
+}
+
 async function importListFromFile(kind: ListExportKind, file: File): Promise<void> {
     const text = await file.text();
     let parsed: unknown;
@@ -1446,6 +1509,18 @@ async function importListFromFile(kind: ListExportKind, file: File): Promise<voi
             }
         }
         selectedRegexIndex = clamp(preset.regexs.length - 1, 0, Math.max(0, preset.regexs.length - 1));
+    } else if (kind === 'tool') {
+        const incomingTools = normalized.items as ToolSettings[];
+        const toolKeys = getToolKeys();
+        
+        // Tools are keyed by their definition name, so we need to match by index
+        // The export stores tool settings in order, so we import them back in order
+        for (let i = 0; i < toolKeys.length && i < incomingTools.length; i++) {
+            const toolKey = toolKeys[i];
+            const toolSettings = incomingTools[i];
+            preset.tools[toolKey] = toolSettings;
+        }
+        selectedToolIndex = clamp(toolKeys.length - 1, 0, Math.max(0, toolKeys.length - 1));
     } else {
         const templateList = normalized.items as Template[];
         const existingTemplateKeys = Object.keys(preset.templates);
@@ -3791,6 +3866,38 @@ function bindEvents() {
 
     $('#custom_generation_export_template').on('click', () => {
         openTemplateExportDialogForPreset();
+    });
+
+    $('#custom_generation_import_tool').on('click', () => {
+        const input = document.getElementById('custom_generation_tool_import_input');
+        if (!(input instanceof HTMLInputElement)) {
+            return;
+        }
+
+        input.value = '';
+        input.click();
+    });
+
+    $('#custom_generation_tool_import_input').on('change', async () => {
+        const input = document.getElementById('custom_generation_tool_import_input');
+        if (!(input instanceof HTMLInputElement) || !input.files || input.files.length === 0) {
+            return;
+        }
+
+        const file = input.files[0];
+        try {
+            await importListFromFile('tool', file);
+            window.alert('Tools imported successfully.');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error ?? 'Unknown import error');
+            window.alert(`Import failed: ${message}`);
+        } finally {
+            input.value = '';
+        }
+    });
+
+    $('#custom_generation_export_tool').on('click', () => {
+        openToolExportDialogForPreset();
     });
 
     $('#custom_generation_add_prompt').on('click', () => {

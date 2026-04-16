@@ -5,85 +5,87 @@
                 <span data-i18n="prompt_manager_edit">Prompt Editor</span>
             </label>
         </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label for="custom_generation_prompt_name">
-                <span data-i18n="Name">Name</span>
-            </label>
-            <input id="custom_generation_prompt_name" class="text_pole" type="text" />
-        </div>
-        <div class="flex-container">
-            <div class="completion_prompt_manager_popup_entry_form_control flex1">
-                <label for="custom_generation_prompt_role">
-                    <span data-i18n="Role">Role</span>
+        <div class="custom_generation_modal_body">
+            <div class="completion_prompt_manager_popup_entry_form_control">
+                <label for="custom_generation_prompt_name">
+                    <span data-i18n="Name">Name</span>
                 </label>
-                <select id="custom_generation_prompt_role" class="text_pole">
-                    <option value="system" data-i18n="System">System</option>
-                    <option value="user" data-i18n="User">User</option>
-                    <option value="assistant" data-i18n="Assistant">Assistant</option>
+                <input id="custom_generation_prompt_name" class="text_pole" type="text" />
+            </div>
+            <div class="flex-container">
+                <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                    <label for="custom_generation_prompt_role">
+                        <span data-i18n="Role">Role</span>
+                    </label>
+                    <select id="custom_generation_prompt_role" class="text_pole">
+                        <option value="system" data-i18n="System">System</option>
+                        <option value="user" data-i18n="User">User</option>
+                        <option value="assistant" data-i18n="Assistant">Assistant</option>
+                    </select>
+                </div>
+                <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                    <label for="custom_generation_prompt_injection_position">
+                        <span data-i18n="injection_position">Position</span>
+                    </label>
+                    <select id="custom_generation_prompt_injection_position" class="text_pole">
+                        <option value="relative" data-i18n="prompt_manager_relative">Relative (to other prompts in prompt manager)</option>
+                        <option value="inChat" data-i18n="prompt_manager_in_chat">In-chat @ Depth</option>
+                    </select>
+                </div>
+            </div>
+            <div id="custom_generation_prompt_inchat_controls" class="flex-container" style="display: none;">
+                <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                    <label for="custom_generation_prompt_injection_depth">
+                        <span data-i18n="prompt_manager_depth">In-chat depth</span>
+                    </label>
+                    <input id="custom_generation_prompt_injection_depth" class="text_pole" type="number" min="0" step="1" />
+                </div>
+                <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                    <label for="custom_generation_prompt_injection_order">
+                        <span data-i18n="prompt_manager_order">In-chat order</span>
+                    </label>
+                    <input id="custom_generation_prompt_injection_order" class="text_pole" type="number" step="1" />
+                </div>
+            </div>
+            <div id="custom_generation_prompt_chat_history_controls" class="flex-container" style="display: none;">
+                <div class="completion_prompt_manager_popup_entry_form_control flex1">
+                    <label for="custom_generation_prompt_max_depth">
+                        <span data-i18n="Chat history max depth">Chat history max depth</span>
+                    </label>
+                    <input id="custom_generation_prompt_max_depth" class="text_pole" type="number" min="0" step="1" />
+                </div>
+            </div>
+            <div class="completion_prompt_manager_popup_entry_form_control">
+                <label for="custom_generation_prompt_triggers">
+                    <span data-i18n="Triggers (comma separated)">Triggers (comma separated)</span>
+                </label>
+                <select id="custom_generation_prompt_triggers" class="text_pole" multiple="multiple" data-placeholder="normal, @@record"></select>
+            </div>
+            <div class="completion_prompt_manager_popup_entry_form_control">
+                <label for="custom_generation_prompt_internal">
+                    <span data-i18n="Internal">Internal</span>
+                </label>
+                <select id="custom_generation_prompt_internal" class="text_pole">
+                    <option value="" data-i18n="none">none</option>
                 </select>
+                <small class="text_muted" data-i18n="cg_prompt_internal_help">
+                    Dynamically retrieve prompt content during generation.
+                </small>
             </div>
-            <div class="completion_prompt_manager_popup_entry_form_control flex1">
-                <label for="custom_generation_prompt_injection_position">
-                    <span data-i18n="injection_position">Position</span>
+            <div class="completion_prompt_manager_popup_entry_form_control">
+                <label class="checkbox_label" for="custom_generation_prompt_enable">
+                    <input id="custom_generation_prompt_enable" type="checkbox" />
+                    <span data-i18n="Enabled">Enabled</span>
                 </label>
-                <select id="custom_generation_prompt_injection_position" class="text_pole">
-                    <option value="relative" data-i18n="prompt_manager_relative">Relative (to other prompts in prompt manager)</option>
-                    <option value="inChat" data-i18n="prompt_manager_in_chat">In-chat @ Depth</option>
-                </select>
             </div>
-        </div>
-        <div id="custom_generation_prompt_inchat_controls" class="flex-container" style="display: none;">
-            <div class="completion_prompt_manager_popup_entry_form_control flex1">
-                <label for="custom_generation_prompt_injection_depth">
-                    <span data-i18n="prompt_manager_depth">In-chat depth</span>
+            <div class="completion_prompt_manager_popup_entry_form_control">
+                <label for="custom_generation_prompt_content">
+                    <span data-i18n="Prompt">Prompt</span>
                 </label>
-                <input id="custom_generation_prompt_injection_depth" class="text_pole" type="number" min="0" step="1" />
-            </div>
-            <div class="completion_prompt_manager_popup_entry_form_control flex1">
-                <label for="custom_generation_prompt_injection_order">
-                    <span data-i18n="prompt_manager_order">In-chat order</span>
-                </label>
-                <input id="custom_generation_prompt_injection_order" class="text_pole" type="number" step="1" />
+                <textarea id="custom_generation_prompt_content" class="text_pole textarea_compact" rows="8"></textarea>
             </div>
         </div>
-        <div id="custom_generation_prompt_chat_history_controls" class="flex-container" style="display: none;">
-            <div class="completion_prompt_manager_popup_entry_form_control flex1">
-                <label for="custom_generation_prompt_max_depth">
-                    <span data-i18n="Chat history max depth">Chat history max depth</span>
-                </label>
-                <input id="custom_generation_prompt_max_depth" class="text_pole" type="number" min="0" step="1" />
-            </div>
-        </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label for="custom_generation_prompt_triggers">
-                <span data-i18n="Triggers (comma separated)">Triggers (comma separated)</span>
-            </label>
-            <select id="custom_generation_prompt_triggers" class="text_pole" multiple="multiple" data-placeholder="normal, @@record"></select>
-        </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label for="custom_generation_prompt_internal">
-                <span data-i18n="Internal">Internal</span>
-            </label>
-            <select id="custom_generation_prompt_internal" class="text_pole">
-                <option value="" data-i18n="none">none</option>
-            </select>
-            <small class="text_muted" data-i18n="cg_prompt_internal_help">
-                Dynamically retrieve prompt content during generation.
-            </small>
-        </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label class="checkbox_label" for="custom_generation_prompt_enable">
-                <input id="custom_generation_prompt_enable" type="checkbox" />
-                <span data-i18n="Enabled">Enabled</span>
-            </label>
-        </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <label for="custom_generation_prompt_content">
-                <span data-i18n="Prompt">Prompt</span>
-            </label>
-            <textarea id="custom_generation_prompt_content" class="text_pole textarea_compact" rows="8"></textarea>
-        </div>
-        <div class="flex-container justifySpaceBetween marginTop5">
+        <div class="custom_generation_modal_footer flex-container justifySpaceBetween marginTop5">
             <a id="custom_generation_prompt_delete" class="custom_generation_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></a>
             <div class="flex-container">
                 <button id="custom_generation_prompt_cancel" class="custom_generation_button" type="button" data-i18n="Cancel">Cancel</button>
@@ -109,8 +111,23 @@
             max-height: min(calc(86vh - 24px), 720px);
             margin: 5px;
             box-sizing: border-box;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #custom_generation_prompt_dialog .custom_generation_modal_body {
+            flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
+            min-height: 0;
+        }
+
+        #custom_generation_prompt_dialog .custom_generation_modal_footer {
+            flex-shrink: 0;
+            padding-top: 8px;
+            border-top: 1px solid var(--SmartThemeBorderColor);
+            margin-top: 8px;
         }
 
         #custom_generation_prompt_dialog .flex-container,
