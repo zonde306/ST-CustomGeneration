@@ -394,7 +394,6 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
             console.debug(`remove chat lore ${entry.world}/${entry.uid}-${entry.comment} used for after/before-generate`);
         }
     }
-    
 }
 
 async function onGenerateStarting(type: string, options: any, dryRun: boolean) {
