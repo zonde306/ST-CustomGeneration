@@ -1,5 +1,6 @@
 import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
 import { yaml } from "@st/lib.js";
+import { SCHEMA } from "@/features/schema";
 
 /**
  * The generated results are parsed into YAML to update the current chat message variable.
@@ -26,9 +27,10 @@ async function processor(data: DecoratorProcessData) {
         last.variables[data.swipeId] = {};
 
     const patched = _.mergeWith(last.variables[data.swipeId], yaml.parse(data.content), (_dst: unknown, src: unknown) => _.isArray(src) ? src : undefined);
+    const validated = SCHEMA.parse(patched);
     
-    console.debug(`update ${data.messageId}#${data.swipeId} variables: `, last.variables[data.swipeId], patched);
+    console.debug(`update ${data.messageId}#${data.swipeId} variables: `, last.variables[data.swipeId], validated);
 
-    last.variables[data.swipeId] = patched;
+    last.variables[data.swipeId] = validated;
     return true;
 }

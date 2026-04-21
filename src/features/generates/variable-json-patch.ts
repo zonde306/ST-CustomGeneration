@@ -1,5 +1,6 @@
 import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
 import { jsonPatch } from "@/utils/json-patch";
+import { SCHEMA } from "@/features/schema";
 import { jsonrepair } from 'jsonrepair';
 
 /**
@@ -28,9 +29,10 @@ async function processor(data: DecoratorProcessData) {
 
     const patchs = JSON.parse(jsonrepair(data.content));
     const patched = jsonPatch(last.variables[data.swipeId], patchs);
+    const validated = SCHEMA.parse(patched);
 
-    console.debug(`update ${data.messageId}#${data.swipeId} variables: `, last.variables[data.swipeId], patched);
+    console.debug(`update ${data.messageId}#${data.swipeId} variables: `, last.variables[data.swipeId], validated);
 
-    last.variables[data.swipeId] = patched;
+    last.variables[data.swipeId] = validated;
     return true;
 }
