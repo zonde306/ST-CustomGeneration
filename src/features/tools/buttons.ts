@@ -3,6 +3,9 @@ import { Popup, POPUP_TYPE, POPUP_RESULT } from "@st/scripts/popup.js";
 import { TOOL_DEFINITION } from "@/features/tool-manager";
 import { DOMPurify } from '@st/lib.js';
 
+/**
+ * Display a list of options for the user to choose from.
+ */
 const TOOL_NAME = 'buttons';
 const SCHEMA = z.object({
     message: z.string().describe('Dialog messages allow the use of HTML and inline CSS code.'),

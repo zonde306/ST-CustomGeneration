@@ -3,6 +3,9 @@ import { callGenericPopup, POPUP_TYPE, POPUP_RESULT } from "@st/scripts/popup.js
 import { TOOL_DEFINITION } from "@/features/tool-manager";
 import { DOMPurify } from '@st/lib.js';
 
+/**
+ * Display a confirmation dialog box, allowing the user to choose whether to accept.
+ */
 const TOOL_NAME = 'confirm';
 const SCHEMA = z.object({
     message: z.string().describe('Dialog messages allow the use of HTML and inline CSS code.'),

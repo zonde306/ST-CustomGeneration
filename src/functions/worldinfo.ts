@@ -32,14 +32,17 @@ export const KNOWN_DECORATORS = [
     '@@append_output_ejs_before',   // Process the results using EJS and append them to the output.
     '@@batch_order',        // Batch order of entries.
     '@@preset',             // Process using the specified preset.
+    '@@json_schema',        // Define a JSON Schema to validate variables.
+    '@@zod_schema',        // Define a Zod Schema to validate variables.
 ];
 
 /**
  * Gets the WI by name, or selects a suitable WI if name is not provided.
  * @param name WI name
+ * @param sorted if true, sort the entries by order
  * @returns WI entries
  */
-export async function loadWorldInfoEntries(name?: string): Promise<WorldInfoEntry[]> {
+export async function loadWorldInfoEntries(name?: string, sorted: boolean = true): Promise<WorldInfoEntry[]> {
     // @ts-expect-error: this_chid always exists
     const lore = (name || characters[this_chid]?.data?.extensions?.world || power_user.persona_description_lorebook || chat_metadata[METADATA_KEY] || '') as string;
     const lorebook = await loadWorldInfo(lore) as LoreBook;
@@ -58,6 +61,9 @@ export async function loadWorldInfoEntries(name?: string): Promise<WorldInfoEntr
         clone.world = lore;
         return clone;
     });
+
+    if(!sorted)
+        return entries;
 
     return entries.sort(getWorldInfoSorter(entries));
 }
@@ -299,7 +305,7 @@ const DEPTH_MAPPING = {
     [world_info_position.ANBottom]: -1, // Bottom of Author's Note
 };
 
-function getWorldInfoSorter(entries: WorldInfoEntry[]) {
+export function getWorldInfoSorter(entries: WorldInfoEntry[]) {
     return (a: WorldInfoEntry, b: WorldInfoEntry) => worldInfoSorter(a, b, Math.max(...entries.map(x => x.position === world_info_position.atDepth ? x.depth : 0)));
 }
 
@@ -435,6 +441,9 @@ export async function getActivatedEntries(triggerWords: string[], type: string =
  * @param decorator specified decorator
  * @returns WI entries
  */
-export function filterWIByDecorator(entries: WorldInfoEntry[], decorator: string): WorldInfoEntry[] {
-    return entries.filter(entry => entry.decorators?.some(x => x.startsWith(decorator)) || entry.content.includes(decorator));
+export function filterWIByDecorator(entries: WorldInfoEntry[], decorators: string[]): WorldInfoEntry[] {
+    return entries.filter(entry =>
+        entry.decorators?.some(x => decorators.some(y => x.startsWith(y))) ||
+        decorators.some(x => entry.content.includes(x))
+    );
 }

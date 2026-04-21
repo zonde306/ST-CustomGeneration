@@ -13,7 +13,7 @@ import {
 import { settings } from '@/settings';
 import { generate as runGenerate, ApiConfig, Response as GenResponse, StreamResponse as GenStreamResponse } from '@/functions/generate';
 import { MessageBuilder, PromptFilter, MacroOverride } from '@/functions/message-builder';
-import { ContextRole, ToolCalls, ToolDefinition, ApiSettings } from '@/utils/defines'
+import { ContextRole, ToolCalls, ToolDefinition } from '@/utils/defines'
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
 import { eventTypes } from '@/utils/events';
 import { Preset } from '@/utils/defines';

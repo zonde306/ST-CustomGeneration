@@ -3,6 +3,9 @@ import { callGenericPopup, POPUP_TYPE } from "@st/scripts/popup.js";
 import { TOOL_DEFINITION } from "@/features/tool-manager";
 import { DOMPurify } from '@st/lib.js';
 
+/**
+ * Display an input dialog box for the user to enter content.
+ */
 const TOOL_NAME = 'input';
 const SCHEMA = z.object({
     message: z.string().describe('Dialog messages allow the use of HTML and inline CSS code.'),

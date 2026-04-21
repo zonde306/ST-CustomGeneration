@@ -8,6 +8,7 @@ import { setup as setupGenerates, runAfterGenerates, isGenerating } from "@/feat
 import { setup as setupOverrides, DataOverride } from "@/features/override";
 import { setup as setupLogger } from "@/features/generate-logger";
 import { setup as setupTools } from "@/features/tool-manager";
+import { setup as setupSchema } from "@/features/schema";
 
 // jQuery
 $(async () => {
@@ -17,6 +18,7 @@ $(async () => {
     await setupOverrides();
     await setupLogger();
     await setupTools();
+    await setupSchema();
 
     // @ts-expect-error: 7017
     globalThis.CustomGeneration = {
