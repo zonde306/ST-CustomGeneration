@@ -63,7 +63,7 @@ async function loadSchema(): Promise<z.ZodObject> {
                 const zod = (await sandbox.eval(entry.content, { _, z, registerSchema })) as z.ZodType<any>;
 
                 if(zod?.type !== 'object') {
-                    console.warn(`json schema is not an object: ${entry.world}/${entry.comment} #${entry.uid}`);
+                    console.warn(`zod schema is not an object: ${entry.world}/${entry.comment} #${entry.uid}`);
                     continue;
                 }
 
