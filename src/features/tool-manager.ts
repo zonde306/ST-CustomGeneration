@@ -12,6 +12,12 @@ export async function setup() {
     await setupConfirm();
 }
 
+/**
+ * Get the list of built-in tools
+ * @param type Generate type
+ * @param presetName Specify preset
+ * @returns Tool definitions
+ */
 export function getAvailableTools(type: string, presetName?: string): Tool[] {
     const preset = settings.presets[presetName ?? settings.currentPreset];
     if (!preset?.tools) {
@@ -25,6 +31,7 @@ export function getAvailableTools(type: string, presetName?: string): Tool[] {
         const overrides = Object.entries(preset.tools[t.name].parameters).map(([key, value]) => {
             const def = t.parameters.shape[key];
             return {
+                // Replace describe from preset
                 [key]: def.describe(value),
             }
         });
@@ -37,6 +44,11 @@ export function getAvailableTools(type: string, presetName?: string): Tool[] {
     }));
 }
 
+/**
+ * Get the definition of built-in tool
+ * @param name Tool Name
+ * @returns Tool definition
+ */
 export function getTool(name: string): Tool | null {
     return TOOL_DEFINITION.get(name) ?? null;
 }

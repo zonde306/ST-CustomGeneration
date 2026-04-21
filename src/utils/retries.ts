@@ -2,6 +2,16 @@ import { Context, GenerateOptionsLite } from "../features/context";
 
 type Validator = (s: string | string[]) => (boolean | Promise<boolean>);
 
+/**
+ * The `generate` wrapper provides error retry functionality.
+ * @param ctx Context object
+ * @param type Generate type
+ * @param options Generate options
+ * @param dryRun 
+ * @param retries Number of retries
+ * @param interval Retry interval
+ * @returns 
+ */
 export async function generate(
     ctx: Context,
     type: string = 'normal',

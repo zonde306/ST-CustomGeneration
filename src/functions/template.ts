@@ -2,6 +2,7 @@ import { settings } from "@/settings";
 import { MessageBuilder } from "@/functions/message-builder";
 import { PromptFilter } from "@/functions/message-builder";
 import { Template, PresetPrompt } from "@/utils/defines";
+import { parseRegexString } from "@/utils/stringutl";
 
 interface TemplateResult {
     success: boolean;
@@ -16,6 +17,12 @@ export class TemplateHandler {
         this.template = template;
     }
 
+    /**
+     * Find a matching template, or the default template.
+     * @param decorator Decorator type
+     * @param tag Tag name
+     * @returns Template handler instance or null if not found
+     */
     static find(decorator: string, tag: string): TemplateHandler | null {
         const preset = settings.presets[settings.currentPreset];
         if (!preset) {
@@ -51,6 +58,11 @@ export class TemplateHandler {
         return null;
     }
 
+    /**
+     * Check if the message content meets the requirements and return the normalized message content.
+     * @param content message content
+     * @returns Check results
+     */
     test(content: string): TemplateResult {
         if(!this.template.findRegex)
             return { success: true, content };
@@ -74,6 +86,12 @@ export class TemplateHandler {
         };
     }
 
+    /**
+     * Process the final generated result and return the processing result.
+     * @param content generated content
+     * @param raise Should an exception be thrown if the specification is not met?
+     * @returns Processing results
+     */
     process(content: string, raise: boolean = false): TemplateResult {
         if(!this.template.regex)
             return { success: true, content };
@@ -101,6 +119,12 @@ export class TemplateHandler {
         };
     }
 
+    /**
+     * The `Chat History` prompt content is constructed without macro processing.
+     * @param chat The current chat history may need to be filtered first.
+     * @param type The generation type defaults to using the current decorator.
+     * @returns Chat History List
+     */
     async buildChatHistory(chat: ChatMessage[] = [], type: string = ''): Promise<ChatMessage[]> {
         const builder = new MessageBuilder(chat);
         builder.regexs = [];
@@ -131,47 +155,3 @@ export class TemplateHandler {
     }
 }
 
-function parseRegexString(str: string) {
-    if (typeof str !== 'string' || str[0] !== '/') {
-        throw new Error('invalid regex string');
-    }
-
-    let i = 1;
-    const n = str.length;
-    let endSlashPos = -1;
-
-    while (i < n) {
-        if (str[i] === '/') {
-            let backslashCount = 0;
-            let j = i - 1;
-            while (j >= 0 && str[j] === '\\') {
-                backslashCount++;
-                j--;
-            }
-            if (backslashCount % 2 === 0) {
-                endSlashPos = i;
-                break;
-            }
-        }
-        i++;
-    }
-
-    if (endSlashPos === -1) {
-        throw new Error('invalid regex string');
-    }
-
-    const pattern = str.substring(1, endSlashPos);
-    const flags = str.substring(endSlashPos + 1);
-
-    const validFlags = /^[gimsuyd]*$/;
-    if (!validFlags.test(flags)) {
-        throw new Error(`unknown flags: ${flags}`);
-    }
-
-    try {
-        return new RegExp(pattern, flags);
-    } catch (e) {
-        // @ts-expect-error: 18046
-        throw new Error(`invalid regex string: ${e.message}`);
-    }
-}

@@ -102,10 +102,10 @@ export class MessageBuilder {
     async build(type: string = 'normal', dryRun: boolean = false, wiDepth = world_info_depth): Promise<ChatCompletionMessage[]> {
         const worldinfoTrigger: string[] = this.chat.slice(-wiDepth).map(x => x.mes ?? '');
         const prompt = await PromptContext.create(worldinfoTrigger, type, dryRun, settings.apis[settings.currentApi]?.contextSize);
-        const historyMessages = this.#buildChatHistory();
-        this.#rebuildDepthInjections(prompt, historyMessages, type);
-        const historyInjectedMessages = this.#injectDepthPromptsToHistory(historyMessages, type === 'continue');
-        const result = this.#buildMessages(prompt, historyInjectedMessages, type);
+        const historyMessages = this.buildChatHistory();
+        this.rebuildDepthInjections(prompt, historyMessages, type);
+        const historyInjectedMessages = this.injectDepthPromptsToHistory(historyMessages, type === 'continue');
+        const result = this.buildMessages(prompt, historyInjectedMessages, type);
         this.extensionPrompts = {};
         return result;
     }
@@ -155,14 +155,14 @@ export class MessageBuilder {
         return messages;
     }
 
-    #buildMessages(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal'): ChatCompletionMessage[] {
+    private buildMessages(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal'): ChatCompletionMessage[] {
         if (!this.prompts.length) {
             const messages = [...historyMessages];
-            const authorNoteRange = this.#insertAuthorsNoteByMetadata(messages, null);
-            this.#insertWorldInfoAroundAuthorsNote(messages, prompts, authorNoteRange);
-            this.#assignOutletMacros(messages);
+            const authorNoteRange = this.insertAuthorsNoteByMetadata(messages, null);
+            this.insertWorldInfoAroundAuthorsNote(messages, prompts, authorNoteRange);
+            this.assignOutletMacros(messages);
             messages.push(...this.toolMessages);
-            return this.#postprocessMessages(messages);
+            return this.postprocessMessages(messages);
         }
 
         const messages: ChatCompletionMessage[] = [];
@@ -191,12 +191,12 @@ export class MessageBuilder {
                 if(filting === 'string' || Array.isArray(filting)) {
                     content = filting;
                 } else {
-                    content = this.#getInternalContent(prompt, prompts, historyMessages);
+                    content = this.getInternalContent(prompt, prompts, historyMessages);
                 }
 
-                this.#appendPresetContent(messages, prompt.role, content);
+                this.appendPresetContent(messages, prompt.role, content);
             } else {
-                this.#appendPresetContent(messages, prompt.role, prompt.prompt);
+                this.appendPresetContent(messages, prompt.role, prompt.prompt);
             }
 
             if (prompt.internal === 'main' && messages.length > insertStart) {
@@ -207,13 +207,13 @@ export class MessageBuilder {
             }
         }
 
-        const authorNoteRange = this.#insertAuthorsNoteByMetadata(messages, mainPromptRange);
-        this.#insertWorldInfoAroundAuthorsNote(messages, prompts, authorNoteRange);
-        this.#assignOutletMacros(messages);
-        return this.#postprocessMessages(messages);
+        const authorNoteRange = this.insertAuthorsNoteByMetadata(messages, mainPromptRange);
+        this.insertWorldInfoAroundAuthorsNote(messages, prompts, authorNoteRange);
+        this.assignOutletMacros(messages);
+        return this.postprocessMessages(messages);
     }
 
-    #appendPresetContent(messages: ChatCompletionMessage[], fallbackRole: ContextRole, content: string | string[] | ChatCompletionMessage[]) {
+    private appendPresetContent(messages: ChatCompletionMessage[], fallbackRole: ContextRole, content: string | string[] | ChatCompletionMessage[]) {
         if (typeof content === 'string') {
             const text = content.trim();
             if (text) {
@@ -245,7 +245,7 @@ export class MessageBuilder {
         }
 
         for (const item of content as ChatCompletionMessage[]) {
-            const role = this.#normalizeRole(item.role);
+            const role = this.normalizeRole(item.role);
             const value = String(item.content ?? '').trim();
             if (!value) {
                 continue;
@@ -258,7 +258,7 @@ export class MessageBuilder {
         }
     }
 
-    #insertAuthorsNoteByMetadata(
+    private insertAuthorsNoteByMetadata(
         messages: ChatCompletionMessage[],
         mainPromptRange: { start: number, end: number } | null,
     ): { start: number, end: number } | null {
@@ -273,10 +273,10 @@ export class MessageBuilder {
             return null;
         }
 
-        const role = this.#normalizeRole(chat_metadata[metadata_keys.role]);
+        const role = this.normalizeRole(chat_metadata[metadata_keys.role]);
         const noteMessage: ChatCompletionMessage = {
             role,
-            content: this.#evaluateMacros(prompt),
+            content: this.evaluateMacros(prompt),
         };
 
         const insertIndex = position === 2
@@ -291,7 +291,7 @@ export class MessageBuilder {
         };
     }
 
-    #insertWorldInfoAroundAuthorsNote(
+    private insertWorldInfoAroundAuthorsNote(
         messages: ChatCompletionMessage[],
         prompts: PromptContext,
         authorNoteRange: { start: number, end: number } | null,
@@ -307,9 +307,9 @@ export class MessageBuilder {
             return;
         }
 
-        const noteRole = this.#normalizeRole(messages[authorNoteRange.start]?.role ?? chat_metadata[metadata_keys.role]);
-        const beforeMessages = beforeEntries.map(content => ({ role: noteRole, content: this.#evaluateMacros(this.#applyRegex(content, { world: true })) } as ChatCompletionMessage));
-        const afterMessages = afterEntries.map(content => ({ role: noteRole, content: this.#evaluateMacros(this.#applyRegex(content, { world: true })) } as ChatCompletionMessage));
+        const noteRole = this.normalizeRole(messages[authorNoteRange.start]?.role ?? chat_metadata[metadata_keys.role]);
+        const beforeMessages = beforeEntries.map(content => ({ role: noteRole, content: this.evaluateMacros(this.applyRegex(content, { world: true })) } as ChatCompletionMessage));
+        const afterMessages = afterEntries.map(content => ({ role: noteRole, content: this.evaluateMacros(this.applyRegex(content, { world: true })) } as ChatCompletionMessage));
 
         if (beforeMessages.length) {
             messages.splice(authorNoteRange.start, 0, ...beforeMessages);
@@ -321,10 +321,10 @@ export class MessageBuilder {
         }
     }
 
-    #buildChatHistory(): ChatCompletionMessage[] {
+    private buildChatHistory(): ChatCompletionMessage[] {
         const history: ChatCompletionMessage[] = this.chat.slice(-this.maxChatHistory).map((msg, idx) => ({
             role: msg.is_user ? 'user' : msg.is_system ? 'system' : 'assistant',
-            content: this.#applyRegex(msg.mes ?? '', {
+            content: this.applyRegex(msg.mes ?? '', {
                 user: msg.is_user,
                 assistant: !msg.is_user && !msg.is_system,
                 depth: this.chat.length - idx - 1,
@@ -334,7 +334,7 @@ export class MessageBuilder {
         return history;
     }
 
-    #injectDepthPromptsToHistory(history: ChatCompletionMessage[], isContinue: boolean): ChatCompletionMessage[] {
+    private injectDepthPromptsToHistory(history: ChatCompletionMessage[], isContinue: boolean): ChatCompletionMessage[] {
         const depthBuckets = new Map<number, Map<ContextRole, string[]>>();
         let maxDepth = 0;
 
@@ -348,8 +348,8 @@ export class MessageBuilder {
                 continue;
             }
 
-            const depth = this.#normalizeDepth(prompt.depth, 0);
-            const role = this.#normalizeRole(prompt.role);
+            const depth = this.normalizeDepth(prompt.depth, 0);
+            const role = this.normalizeRole(prompt.role);
 
             if (!depthBuckets.has(depth)) {
                 depthBuckets.set(depth, new Map<ContextRole, string[]>());
@@ -386,7 +386,7 @@ export class MessageBuilder {
                     continue;
                 }
 
-                roleMessages.push({ role, content: this.#evaluateMacros(text) });
+                roleMessages.push({ role, content: this.evaluateMacros(text) });
             }
 
             if (!roleMessages.length) {
@@ -402,18 +402,18 @@ export class MessageBuilder {
         return reversedHistory.reverse();
     }
 
-    #rebuildDepthInjections(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal') {
-        this.#removeDepthPrompts();
-        this.#flushWIInjections();
+    private rebuildDepthInjections(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal') {
+        this.removeDepthPrompts();
+        this.flushWIInjections();
 
-        this.#injectPresetDepthPrompts(prompts, historyMessages, type);
-        this.#injectCharacterDepthPrompt(prompts.charDepthPrompt);
-        this.#injectWorldInfoDepth(prompts.worldInfoDepth);
-        this.#injectOutletEntries(prompts.worldInfoOutletEntries);
-        this.#injectAuthorsNoteDepthPrompt();
+        this.injectPresetDepthPrompts(prompts, historyMessages, type);
+        this.injectCharacterDepthPrompt(prompts.charDepthPrompt);
+        this.injectWorldInfoDepth(prompts.worldInfoDepth);
+        this.injectOutletEntries(prompts.worldInfoOutletEntries);
+        this.injectAuthorsNoteDepthPrompt();
     }
 
-    #injectPresetDepthPrompts(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal') {
+    private injectPresetDepthPrompts(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal') {
         if (!this.prompts.length) {
             return;
         }
@@ -445,8 +445,8 @@ export class MessageBuilder {
             }
 
             if(this.filters.presetDepth !== false) {
-                const extensionRole = this.#normalizeExtensionRole(role);
-                this.#setExtensionPrompt(
+                const extensionRole = this.normalizeExtensionRole(role);
+                this.setExtensionPrompt(
                     `${inject_ids.DEPTH_PROMPT}_PRESET_${sequence++}`,
                     text,
                     extension_prompt_types.IN_CHAT,
@@ -467,11 +467,11 @@ export class MessageBuilder {
         };
 
         for (const { preset } of inChatPrompts) {
-            const depth = this.#normalizeDepth(preset.injectionDepth, depth_prompt_depth_default);
+            const depth = this.normalizeDepth(preset.injectionDepth, depth_prompt_depth_default);
 
             let content: string | string[] | ChatCompletionMessage[] = '';
             if (preset.internal) {
-                content = this.#getInternalContent(preset, prompts, historyMessages);
+                content = this.getInternalContent(preset, prompts, historyMessages);
             } else {
                 content = preset.prompt;
             }
@@ -498,7 +498,7 @@ export class MessageBuilder {
         }
     }
 
-    #injectCharacterDepthPrompt(text: string) {
+    private injectCharacterDepthPrompt(text: string) {
         const value = String(text ?? '').trim();
         if (!value) {
             return;
@@ -509,16 +509,16 @@ export class MessageBuilder {
             ? characters[charIndex]?.data?.extensions?.depth_prompt
             : undefined;
 
-        const depth = this.#normalizeDepth(
+        const depth = this.normalizeDepth(
             depthPromptConfig?.depth,
             depth_prompt_depth_default,
         );
-        const role = this.#normalizeExtensionRole(
+        const role = this.normalizeExtensionRole(
             depthPromptConfig?.role ?? depth_prompt_role_default,
         );
 
         if(this.filters.charDepth !== false) {
-            this.#setExtensionPrompt(
+            this.setExtensionPrompt(
                 inject_ids.DEPTH_PROMPT,
                 value,
                 extension_prompt_types.IN_CHAT,
@@ -535,7 +535,7 @@ export class MessageBuilder {
         this.macroOverride.macros[`charNote`] = () => this.charDepth;
     }
 
-    #injectWorldInfoDepth(worldInfoDepth: { depth: number, entries: string[], role: string | number }[]) {
+    private injectWorldInfoDepth(worldInfoDepth: { depth: number, entries: string[], role: string | number }[]) {
         if (!Array.isArray(worldInfoDepth) || worldInfoDepth.length === 0) {
             return;
         }
@@ -550,11 +550,11 @@ export class MessageBuilder {
                 continue;
             }
 
-            const depth = this.#normalizeDepth(entry.depth, depth_prompt_depth_default);
-            const role = this.#normalizeExtensionRole(entry.role);
+            const depth = this.normalizeDepth(entry.depth, depth_prompt_depth_default);
+            const role = this.normalizeExtensionRole(entry.role);
 
             if(this.filters.worldInfoDepth !== false) {
-                this.#setExtensionPrompt(
+                this.setExtensionPrompt(
                     inject_ids.CUSTOM_WI_DEPTH_ROLE(depth, role),
                     value,
                     extension_prompt_types.IN_CHAT,
@@ -575,7 +575,7 @@ export class MessageBuilder {
         }
     }
 
-    #injectOutletEntries(outletEntries: Record<string, string[]>) {
+    private injectOutletEntries(outletEntries: Record<string, string[]>) {
         if (!outletEntries || typeof outletEntries !== 'object') {
             return;
         }
@@ -591,7 +591,7 @@ export class MessageBuilder {
             }
 
             if(this.filters.worldInfoOutlet !== false) {
-                this.#setExtensionPrompt(
+                this.setExtensionPrompt(
                     inject_ids.CUSTOM_WI_OUTLET(key),
                     value,
                     extension_prompt_types.NONE,
@@ -601,17 +601,17 @@ export class MessageBuilder {
         }
     }
 
-    #injectAuthorsNoteDepthPrompt() {
+    private injectAuthorsNoteDepthPrompt() {
         const prompt = String(chat_metadata[metadata_keys.prompt] ?? '').trim();
         if (!prompt || Number(chat_metadata[metadata_keys.position]) !== 1) {
             return;
         }
 
-        const depth = this.#normalizeDepth(chat_metadata[metadata_keys.depth], depth_prompt_depth_default);
-        const role = this.#normalizeExtensionRole(chat_metadata[metadata_keys.role]);
+        const depth = this.normalizeDepth(chat_metadata[metadata_keys.depth], depth_prompt_depth_default);
+        const role = this.normalizeExtensionRole(chat_metadata[metadata_keys.role]);
 
         if(this.filters.authorsNoteDepth !== false) {
-            this.#setExtensionPrompt(
+            this.setExtensionPrompt(
                 `${inject_ids.DEPTH_PROMPT}_AUTHOR_NOTE`,
                 prompt,
                 extension_prompt_types.IN_CHAT,
@@ -628,7 +628,7 @@ export class MessageBuilder {
         this.macroOverride.macros[`authorsNote`] = () => this.authorsNoteDepth;
     }
 
-    #normalizeDepth(value: unknown, fallback: number): number {
+    private normalizeDepth(value: unknown, fallback: number): number {
         const depth = Number(value);
         if (!Number.isFinite(depth) || depth < 0) {
             return fallback;
@@ -637,7 +637,7 @@ export class MessageBuilder {
         return Math.floor(depth);
     }
 
-    #normalizeRole(value: unknown): ContextRole {
+    private normalizeRole(value: unknown): ContextRole {
         if (typeof value === 'number') {
             switch (value) {
                 case extension_prompt_roles.USER:
@@ -659,7 +659,7 @@ export class MessageBuilder {
         }
     }
 
-    #normalizeExtensionRole(value: unknown): typeof extension_prompt_roles[keyof typeof extension_prompt_roles] {
+    private normalizeExtensionRole(value: unknown): typeof extension_prompt_roles[keyof typeof extension_prompt_roles] {
         if (typeof value === 'number' && Object.values(extension_prompt_roles).includes(value as any)) {
             return value as typeof extension_prompt_roles[keyof typeof extension_prompt_roles];
         }
@@ -684,7 +684,7 @@ export class MessageBuilder {
      * @param scan Should the prompt be included in the world info scan.
      * @param filter Filter function to determine if the prompt should be injected.
      */
-    #setExtensionPrompt(
+    private setExtensionPrompt(
         key: string,
         value: string,
         position: number,
@@ -703,7 +703,7 @@ export class MessageBuilder {
         };
     }
 
-    #removeDepthPrompts() {
+    private removeDepthPrompts() {
         for (const key of Object.keys(this.extensionPrompts)) {
             if (key.startsWith(inject_ids.DEPTH_PROMPT)) {
                 delete this.extensionPrompts[key];
@@ -711,7 +711,7 @@ export class MessageBuilder {
         }
     }
 
-    #flushWIInjections() {
+    private flushWIInjections() {
         const depthPrefix = inject_ids.CUSTOM_WI_DEPTH;
         const outletPrefix = inject_ids.CUSTOM_WI_OUTLET('');
 
@@ -722,12 +722,12 @@ export class MessageBuilder {
         }
     }
 
-    #postprocessMessages(messages: ChatCompletionMessage[]): ChatCompletionMessage[] {
+    private postprocessMessages(messages: ChatCompletionMessage[]): ChatCompletionMessage[] {
         const mergeConsecutive = (input: ChatCompletionMessage[]): ChatCompletionMessage[] => {
             const merged: ChatCompletionMessage[] = [];
 
             for (const item of input) {
-                const role = this.#normalizeRole(item.role);
+                const role = this.normalizeRole(item.role);
                 const content = String(item.content ?? '').trim();
                 if (!content) {
                     continue;
@@ -751,7 +751,7 @@ export class MessageBuilder {
         const toAlternate = (input: ChatCompletionMessage[]): ChatCompletionMessage[] => {
             const merged = mergeConsecutive(input);
             const normalized = merged.map((item, index) => {
-                let role = this.#normalizeRole(item.role);
+                let role = this.normalizeRole(item.role);
                 if (index > 0 && role === 'system') {
                     role = 'user';
                 }
@@ -803,7 +803,7 @@ export class MessageBuilder {
         }
     }
 
-    #applyRegex(content: string, { user, assistant, depth, world } = {} as { user?: boolean, assistant?: boolean, depth?: number, world?: boolean }): string {
+    private applyRegex(content: string, { user, assistant, depth, world } = {} as { user?: boolean, assistant?: boolean, depth?: number, world?: boolean }): string {
         for(const regex of this.regexs) {
             if(!regex.enabled || regex.ephemerality || !regex.request)
                 continue;
@@ -850,7 +850,7 @@ export class MessageBuilder {
         return content;
     }
 
-    #buildExampleMessages(prompt: PromptContext): string[] {
+    private buildExampleMessages(prompt: PromptContext): string[] {
         const examples = prompt.chatExampleArray;
 
         // Add message example WI
@@ -858,7 +858,7 @@ export class MessageBuilder {
             if (!example.content)
                 continue;
 
-            const cleanedExample = parseMesExamples(baseChatReplace(example.content), false).map(s => this.#applyRegex(s, { world: true }));
+            const cleanedExample = parseMesExamples(baseChatReplace(example.content), false).map(s => this.applyRegex(s, { world: true }));
             // Insert depending on before or after position
             if (example.position === wi_anchor_position.before) {
                 examples.unshift(...cleanedExample);
@@ -873,11 +873,11 @@ export class MessageBuilder {
     getOutletPrompt(key: string): string {
         const value = this.extensionPrompts[inject_ids.CUSTOM_WI_OUTLET(key)]?.value;
         if(value)
-            return this.#evaluateMacros(value);
+            return this.evaluateMacros(value);
         return '';
     }
 
-    #assignOutletMacros(history: ChatCompletionMessage[]) {
+    private assignOutletMacros(history: ChatCompletionMessage[]) {
         for(const message of history) {
             if(message.content.includes('{{outlet::')) {
                 message.content = message.content.replace(/\{\{outlet::(.+?)\}\}/gi, (_, key: string) => this.getOutletPrompt(key));
@@ -885,7 +885,7 @@ export class MessageBuilder {
         }
     }
 
-    #evaluateMacros(content: string): string {
+    private evaluateMacros(content: string): string {
         if(!this.evaluateMacro)
             return content;
 
@@ -905,7 +905,7 @@ export class MessageBuilder {
         );
     }
 
-    #getInternalContent(
+    private getInternalContent(
         preset: PresetPrompt,
         prompts: PromptContext,
         historyMessages: ChatCompletionMessage[]
@@ -923,11 +923,11 @@ export class MessageBuilder {
             case 'scenario':
                 return prompts.scenario;
             case 'chatExamples':
-                return this.#buildExampleMessages(prompts);
+                return this.buildExampleMessages(prompts);
             case 'worldInfoBefore':
-                return this.#applyRegex(prompts.worldInfoCharBefore, { world: true });
+                return this.applyRegex(prompts.worldInfoCharBefore, { world: true });
             case 'worldInfoAfter':
-                return this.#applyRegex(prompts.worldInfoCharAfter, { world: true });
+                return this.applyRegex(prompts.worldInfoCharAfter, { world: true });
             case 'chatHistory':
                 return historyMessages.concat(this.toolMessages);
             case 'charNote':

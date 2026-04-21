@@ -156,6 +156,9 @@ async function processMessage(env: Context, override: DataOverride, before: bool
 
     const cache = new Map<string, TemplateHandler>();
 
+    // TODO: Since different APIs have different concurrency limits, we should set limits for them separately.
+    const maxConcurrency = settings.apis[settings.currentApi].maxConcurrency;
+
     for(const [ batch, entrites ] of Object.entries(groups)) {
         const tasks: (() => Promise<any>)[] = [];
         let activeTasks = 0;
@@ -288,7 +291,7 @@ async function processMessage(env: Context, override: DataOverride, before: bool
         }
 
         // Waiting for batch completion
-        let collected = batchExecute(tasks, settings.maxConcurrency);
+        let collected = batchExecute(tasks, maxConcurrency);
 
         if(tasks.length) {
             collected = collected.then(async(results) => {

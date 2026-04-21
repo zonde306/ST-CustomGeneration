@@ -13,7 +13,7 @@ import {
 import { settings } from '@/settings';
 import { generate as runGenerate, ApiConfig, Response as GenResponse, StreamResponse as GenStreamResponse } from '@/functions/generate';
 import { MessageBuilder, PromptFilter, MacroOverride } from '@/functions/message-builder';
-import { ContextRole, ToolCalls, ToolDefinition } from '@/utils/defines'
+import { ContextRole, ToolCalls, ToolDefinition, ApiSettings } from '@/utils/defines'
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
 import { eventTypes } from '@/utils/events';
 import { Preset } from '@/utils/defines';
@@ -154,7 +154,7 @@ export class Context {
      * @param name Character Name
      */
     async send(content: string, role: ContextRole = 'user', name: string = name1) {
-        const mes = this.#applyRegex(content, {
+        const mes = this.applyRegex(content, {
             user: role === 'user',
             assistant: role === 'assistant',
             request: true,
@@ -177,7 +177,12 @@ export class Context {
         await eventSource.emit(eventTypes.MESSAGE_SEND, { messageId: this.chat.length - 1, message: this.chat[this.chat.length - 1], context: this });
     }
 
-    async #recv(contents: string[], swipe: boolean = false, role: ContextRole = 'assistant', name: string = name2): Promise<string[]> {
+    private async recv(
+        contents: string[],
+        swipe: boolean = false,
+        role: ContextRole = 'assistant',
+        name: string = name2
+    ): Promise<string[]> {
         if(contents.length < 1)
             return [];
 
@@ -186,7 +191,7 @@ export class Context {
         const variables: VariableData[] = [];
 
         for(const idx in contents) {
-            const mes = this.#applyRegex(contents[idx], {
+            const mes = this.applyRegex(contents[idx], {
                 user: role === 'user',
                 assistant: role === 'assistant',
                 request: false,
@@ -291,6 +296,12 @@ export class Context {
         return preset;
     }
 
+    getCurrentApi(presetName?: string) {
+        // @ts-expect-error: If `presetName` is `undefined`, then `this.currentPreset` is selected.
+        const preset = settings.presets[presetName] ?? this.currentPreset;
+        return Object.values(settings.apis).find(x => x.linkedPreset === preset.name) ?? settings.apis[settings.currentApi];
+    }
+
     /**
      * Start generating
      * @param type Generation type, used for triggers
@@ -329,10 +340,14 @@ export class Context {
         }
 
         let preset : Preset | undefined = this.currentPreset;
-        if(options.preset)
+        if(options.preset) {
             preset = settings.presets[options.preset];
+            if(preset == null) {
+                throw new Error(`Preset not found: ${options.preset}`);
+            }
+        }
 
-        const api = Object.values(settings.apis).find(x => x.linkedPreset === preset.name) ?? settings.apis[settings.currentApi];
+        const api = this.getCurrentApi(preset.name);
         const builder = new MessageBuilder(this.chat, preset, api.promptPostProcessing);
         builder.filters = this.filters;
         builder.macroOverride = this.macroOverride;
@@ -387,9 +402,9 @@ export class Context {
         if(dryRun)
             return '';
 
-        const abortController = options.abortController ?? this.#createAbortController(options.signal);
+        const abortController = options.abortController ?? this.createAbortController(options.signal);
         const taskId = String(this.variables?.taskId || ++taskIdCounter);
-        let apiConfig: Partial<ApiConfig> | undefined = this.#buildApiConfig(type, preset.name);
+        let apiConfig: Partial<ApiConfig> | undefined = this.buildApiConfig(type, preset.name);
 
         if(options.apiConfig) {
             if(apiConfig)
@@ -401,7 +416,7 @@ export class Context {
         await eventSource.emit(eventTypes.GENERATE_BEFORE, { type, options, messages, abortController, taskId, context: this, streaming: !!options.streaming, apiConfig });
 
         let response : GenResponse | AsyncGenerator<GenStreamResponse>;
-        const tools = this.createToolDefinitions(type);
+        const tools = this.createToolDefinitions(type, preset);
 
         try {
             response = await runGenerate(messages, {
@@ -470,7 +485,7 @@ export class Context {
 
                 if(!options.dontCreate) {
                     if(type === 'continue') {
-                        swipes = swipes.map(mes => this.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
+                        swipes = swipes.map(mes => this.applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
                         if(this.lastMessage?.mes) {
                             this.lastMessage.mes += swipes[0];
                         }
@@ -478,7 +493,7 @@ export class Context {
                             this.lastMessage.swipes[this.lastMessage.swipe_id ?? 0] += swipes[0];
                         }
                     } else {
-                        swipes = await this.#recv(swipes, type === 'swipe');
+                        swipes = await this.recv(swipes, type === 'swipe');
                     }
                 }
 
@@ -517,7 +532,7 @@ export class Context {
 
         if(!options.dontCreate) {
             if(type === 'continue') {
-                swipes = swipes.map(mes => this.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
+                swipes = swipes.map(mes => this.applyRegex(mes, { user: false, assistant: true, request: false, response: true, preset }));
                 if(this.lastMessage?.mes) {
                     this.lastMessage.mes += swipes[0];
                 }
@@ -525,10 +540,10 @@ export class Context {
                     this.lastMessage.swipes[this.lastMessage.swipe_id ?? 0] += swipes[0];
                 }
             } else {
-                swipes = await this.#recv(swipes, type === 'swipe');
+                swipes = await this.recv(swipes, type === 'swipe');
             }
         } else {
-            swipes = swipes.map(mes => this.#applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
+            swipes = swipes.map(mes => this.applyRegex(mes, { user: false, assistant: true, request: false, response: true, preset }));
         }
 
         // @ts-expect-error: 2339
@@ -549,7 +564,7 @@ export class Context {
         return data.response.swipes.find(mes => !!mes.trim()) ?? '';
     }
 
-    #buildApiConfig(type: string, preset: string): ApiConfig | undefined {
+    private buildApiConfig(type: string, preset: string): ApiConfig | undefined {
         const api = Object.values(settings.apis).find(x => x.linkedPreset === preset) ?? settings.apis[settings.currentApi] ?? {};
         const hasCustomApi = Boolean(api.baseUrl || api.apiKey || api.model);
         if (!hasCustomApi) {
@@ -574,7 +589,7 @@ export class Context {
     }
 
     
-    #createAbortController(signal?: AbortSignal): AbortController {
+    private createAbortController(signal?: AbortSignal): AbortController {
         const controller = new AbortController();
 
         if (!signal) {
@@ -596,7 +611,7 @@ export class Context {
         return controller;
     }
 
-    #applyRegex(content: string, { user, assistant, request, response, preset } = {} as { user?: boolean, assistant?: boolean, request?: boolean, response?: boolean, preset?: Preset }): string {
+    private applyRegex(content: string, { user, assistant, request, response, preset } = {} as { user?: boolean, assistant?: boolean, request?: boolean, response?: boolean, preset?: Preset }): string {
         for(const regex of preset?.regexs ?? this.currentPreset.regexs) {
             if(!regex.enabled || !regex.ephemerality)
                 continue;
@@ -659,10 +674,10 @@ export class Context {
         }
     }
 
-    private createToolDefinitions(type: string): ToolDefinition[] {
+    private createToolDefinitions(type: string, preset?: Preset): ToolDefinition[] {
         const tools: ToolDefinition[] = [];
         const exists: Set<string> = new Set();
-        const preset = this.currentPreset;
+        preset = preset ?? this.currentPreset;
 
         for(const tool of this.tools.values()) {
             const toolSettings = preset.tools?.[tool.name];
@@ -702,7 +717,7 @@ export class Context {
             exists.add(tool.name);
         }
 
-        for(const tool of getAvailableTools(type)) {
+        for(const tool of getAvailableTools(type, preset.name)) {
             if(exists.has(tool.name))
                 continue;
 

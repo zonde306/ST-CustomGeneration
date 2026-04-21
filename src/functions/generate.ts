@@ -10,6 +10,8 @@ export interface ApiConfig {
     key: string;
     model: string;
     type?: string;
+
+    // `openai` is generally used.
     source?: string;
 
     stream?: boolean | null;
@@ -21,27 +23,23 @@ export interface ApiConfig {
     frequency_penalty?: number | null;
     presence_penalty?: number | null;
     
-    custom_exclude_body?: string; // yaml
-    custom_include_body?: string; // yaml
-    custom_include_headers?: string; // yaml
-
-    /**
-     * When enabled, the return value is [reasoning_content, message_content, other message_content...].
-     */
-    include_reasoning?: boolean;
+    custom_exclude_body?: string; // yaml string
+    custom_include_body?: string; // yaml string
+    custom_include_headers?: string; // yaml string
 }
 
 export interface Response {
     swipes: string[];
     toolCalls: ToolCalls;
-    reasoning: string[];
+    reasoning: string[]; // Streaming multi-swipe only provides the first one
 }
 
+// When making a tool call, only need to retrieve the last `toolCalls` response, which is complete.
 export interface StreamResponse {
-    toolCalls: PartialToolCall[];
-    reasoning: string;
+    toolCalls: PartialToolCall[]; // All chunk combinations
     swipe: number;
-    text: string;
+    reasoning: string; // chunk only
+    text: string; // chunk only
 }
 
 interface StreamChunk {
@@ -51,7 +49,7 @@ interface StreamChunk {
     toolCalls: ToolCalls, // Aggregate the tool calls of all historical chunks.
     state: {
         reasoning: string, // Aggregate the contents of all historical chunks.
-        images: never[], // unsupported
+        images: never[], // unsupported for openai
         signature: string,
         toolSignatures: ToolSignatures
     }
@@ -136,6 +134,8 @@ export async function generate(
             oai_settings.stream_openai = originalStream;
             oai_settings.function_calling = originalFunctionCalling;
         };
+
+        // compatibility with other extensions and API parameter passing
         eventSource.makeFirst(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
     }
 

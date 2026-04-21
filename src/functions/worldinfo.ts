@@ -6,6 +6,7 @@ import { getGroupMembers } from '@st/scripts/group-chats.js';
 import { WorldInfoEntry, LoreBook } from '@/utils/defines';
 import { eventSource, event_types } from '@st/scripts/events.js';
 import { GENERATION_TYPE_TRIGGERS } from '@st/scripts/constants.js';
+import { splitWithQuotes } from '@/utils/stringutl';
 
 
 export const KNOWN_DECORATORS = [
@@ -361,6 +362,11 @@ interface WorldInfoScanResult {
     timedEffects: any;
 }
 
+/**
+ * Normalize the processed WI entries to an unprocessed state to obtain the correct decorators.
+ * @param entry WI entry
+ * @returns WI entry
+ */
 export function normalizeWorldInfoEntry(entry: WorldInfoEntry): WorldInfoEntry {
     const lorebook = worldInfoCache.get(entry.world) as LoreBook;
     if (!lorebook) {
@@ -384,6 +390,13 @@ export function normalizeWorldInfoEntry(entry: WorldInfoEntry): WorldInfoEntry {
     return cloned;
 }
 
+/**
+ * Scan for active WI entries based on the `triggerWords` list.
+ * @param triggerWords In other words, the `mes` in the `chat` array needs to be processed using regular expressions and macros first.
+ * @param type The generation type and WI entries will be filtered by it.
+ * @param dryRun It may be used by other extensions, so it is recommended to keep it set to `true`.
+ * @returns List of active WI entries, unsorted
+ */
 export async function getActivatedEntries(triggerWords: string[], type: string = 'normal', dryRun: boolean = true): Promise<WorldInfoEntry[]> {
     const fields = getCharacterCardFieldsLazy();
     const globalScanData = {
@@ -406,66 +419,22 @@ export async function getActivatedEntries(triggerWords: string[], type: string =
             }
         };
 
+        // compatibility with other extensions
         eventSource.makeLast(event_types.WORLDINFO_SCAN_DONE, handler);
         
-        getWorldInfoPrompt(triggerWords, getMaxContextSize(), dryRun, globalScanData).then(() => {
-            eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler);
-            resolve([]);
-        }).catch(e => {
-            eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler);
-            reject(e);
-            console.error(`Error getting activated entries`, e);
-        });
+        getWorldInfoPrompt(triggerWords, getMaxContextSize(), dryRun, globalScanData)
+            .then(() => resolve([]))
+            .catch(reject)
+            .finally(() => eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler));
     });
 }
 
+/**
+ * Select entries from the WI entry list that have the specified `decorator`.
+ * @param entries WI entries
+ * @param decorator specified decorator
+ * @returns WI entries
+ */
 export function filterWIByDecorator(entries: WorldInfoEntry[], decorator: string): WorldInfoEntry[] {
     return entries.filter(entry => entry.decorators?.some(x => x.startsWith(decorator)) || entry.content.includes(decorator));
-}
-
-
-export function splitWithQuotes(input: string): string[] {
-    const result: string[] = [];
-    let currentToken = '';
-
-    let inDoubleQuotes = false;
-    let inSingleQuotes = false;
-    let isEscaped = false;
-    let hasToken = false;
-
-    for (let i = 0; i < input.length; i++) {
-        const char = input[i];
-
-        if (isEscaped) {
-            currentToken += char;
-            isEscaped = false;
-            hasToken = true;
-        } else if (char === '\\') {
-            isEscaped = true;
-        } else if (char === '"' && !inSingleQuotes) {
-            inDoubleQuotes = !inDoubleQuotes;
-        } else if (char === "'" && !inDoubleQuotes) {
-            inSingleQuotes = !inSingleQuotes;
-            hasToken = true;
-        } else if (/\s/.test(char) && !inDoubleQuotes && !inSingleQuotes) {
-            if (hasToken) {
-                result.push(currentToken);
-                currentToken = '';
-                hasToken = false;
-            }
-        } else {
-            currentToken += char;
-            hasToken = true;
-        }
-    }
-
-    if (isEscaped) {
-        currentToken += '\\';
-    }
-
-    if (hasToken) {
-        result.push(currentToken);
-    }
-
-    return result;
 }

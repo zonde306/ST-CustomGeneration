@@ -271,9 +271,9 @@ async function checkEmbeddedPreset(chid?: number) {
 
 async function popupImportCardPreset(): Promise<string | number | boolean | null> {
     const html = `
-        <h3>This character has an embedded Preset.</h3>
-        <h3>Would you like to import it now?</h3>
-        <div class="m-b-1">If you want to import it later, select "Import Card Preset" in the "More..." dropdown menu on the character panel.</div>
+        <h3 data-i18n="cg_embed_title">This character has an embedded Preset.</h3>
+        <h3 data-i18n="cg_embed_ask">Would you like to import it now?</h3>
+        <div class="m-b-1" data-i18n="cg_embed_desc">If you want to import it later, select "Import Card Preset" in the "More..." dropdown menu on the character panel.</div>
     `;
     
     return await callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: 'Yes' });
