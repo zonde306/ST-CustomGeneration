@@ -53,9 +53,22 @@ async function loadSchema(): Promise<z.ZodObject> {
         return z.looseObject({});
     }
 
+    let result: z.ZodType<any> | z.ZodObject = z.looseObject({});
+    let registered = false;
+
+    const registerSchema = (schema: z.ZodType<any>) => {
+        if(schema.type !== 'object')
+            throw new Error(`schema is not an object`);
+        
+        result = deepMergeZod(result, schema) as z.ZodObject;
+        console.log(`Variable Schema registered `, (result as z.ZodObject).shape);
+        registered = true;
+        return result;
+    };
+
     using sandbox = new FunctionSandbox();
-    let result: z.ZodType<any> = z.looseObject({});
     for(const entry of entrites.sort(getWorldInfoSorter(entrites))) {
+        registered = false;
         try {
             if(entry.decorators.includes('@@json_schema')) {
                 const zod = z.fromJSONSchema(JSON.parse(entry.content));
@@ -68,12 +81,13 @@ async function loadSchema(): Promise<z.ZodObject> {
             } else if(entry.decorators.includes('@@zod_schema')) {
                 const zod = (await sandbox.eval(entry.content, { _, z, registerSchema })) as z.ZodType<any>;
 
-                if(zod?.type !== 'object') {
+                if(!registered && zod?.type !== 'object') {
                     console.warn(`zod schema is not an object: ${entry.world}/${entry.comment} #${entry.uid}`);
                     continue;
                 }
 
-                result = deepMergeZod(result, zod);
+                if(!registered && zod)
+                    result = deepMergeZod(result, zod);
             }
         } catch (e) {
             console.error(`failed to parse schema: ${entry.world}/${entry.comment} #${entry.uid}`, e);
@@ -81,16 +95,6 @@ async function loadSchema(): Promise<z.ZodObject> {
     }
 
     return result as z.ZodObject;
-}
-
-function registerSchema(schema: z.ZodType<any>) {
-    if(schema.type !== 'object') {
-        throw new Error(`schema is not an object`);
-    }
-
-    SCHEMA = deepMergeZod(SCHEMA, schema) as z.ZodObject;
-    console.log(`Variable Schema registered `, SCHEMA.shape);
-    return SCHEMA;
 }
 
 async function onWorldInfoLoaded(data: WorldInfoLoaded) {
