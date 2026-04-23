@@ -525,25 +525,24 @@ export class Context {
         // @ts-expect-error: 2339
         let swipes : string[] = response.swipes ?? [];
 
-        if(swipes.length < 1) {
-            console.error('Generate failed, empty responses');
-            return '';
-        }
-
-        if(!options.dontCreate) {
-            if(type === 'continue') {
-                swipes = swipes.map(mes => this.applyRegex(mes, { user: false, assistant: true, request: false, response: true, preset }));
-                if(this.lastMessage?.mes) {
-                    this.lastMessage.mes += swipes[0];
-                }
-                if(this.lastMessage?.swipes?.[this.lastMessage.swipe_id ?? 0]) {
-                    this.lastMessage.swipes[this.lastMessage.swipe_id ?? 0] += swipes[0];
+        if(swipes.length > 0) {
+            if(!options.dontCreate) {
+                if(type === 'continue') {
+                    swipes = swipes.map(mes => this.applyRegex(mes, { user: false, assistant: true, request: false, response: true, preset }));
+                    if(this.lastMessage?.mes) {
+                        this.lastMessage.mes += swipes[0];
+                    }
+                    if(this.lastMessage?.swipes?.[this.lastMessage.swipe_id ?? 0]) {
+                        this.lastMessage.swipes[this.lastMessage.swipe_id ?? 0] += swipes[0];
+                    }
+                } else {
+                    swipes = await this.recv(swipes, type === 'swipe');
                 }
             } else {
-                swipes = await this.recv(swipes, type === 'swipe');
+                swipes = swipes.map(mes => this.applyRegex(mes, { user: false, assistant: true, request: false, response: true, preset }));
             }
         } else {
-            swipes = swipes.map(mes => this.applyRegex(mes, { user: false, assistant: true, request: false, response: true, preset }));
+            console.error('Generate failed, empty responses');
         }
 
         // @ts-expect-error: 2339

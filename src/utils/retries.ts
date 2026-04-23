@@ -38,6 +38,12 @@ export async function generate(
         if(response.toString() === '[object AsyncGenerator]')
             break;
 
+        // @ts-expect-error: 2339
+        if(response.swipes?.length === 0 || response.toString().length === 0) {
+            console.log(`Empty response, retrying...`);
+            continue;
+        }
+
         try {
             // @ts-expect-error: 2345
             if(await options.validator?.call(null, response.swipes ?? response) || response)
