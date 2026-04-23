@@ -185,25 +185,6 @@ for await (const chunk of stream) {
 }
 ```
 
-#### `sendTemplate(content, macros, role?, name?)`
-
-使用模板宏发送消息。
-
-```typescript
-async sendTemplate(
-  content: string,
-  macros: Record<string, DynamicMacroValue>,
-  role?: ContextRole,
-  name?: string
-): Promise<void>
-```
-
-**参数：**
-- `content`: 消息内容
-- `macros`: 宏变量对象
-- `role` (可选): 消息角色
-- `name` (可选): 发送者名称
-
 #### `hideMessages(start, end, unhide?, nameFilter?)`
 
 隐藏或显示消息。

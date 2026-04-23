@@ -4,27 +4,113 @@
 
 ## 目录
 
-- [装饰器概述](#装饰器概述)
-- [工作原理](#工作原理)
-- [通用语法](#通用语法)
-- [内容替换装饰器](#内容替换装饰器)
-  - [@@replace](#replace)
-  - [@@replace_diff](#replace_diff)
-  - [@@replace_search](#replace_search)
-  - [@@replace_ejs](#replace_ejs)
-- [变量更新装饰器](#变量更新装饰器)
-  - [@@variables_json](#variables_json)
-  - [@@variables_yaml](#variables_yaml)
-  - [@@variables_jsonpatch](#variables_jsonpatch)
-- [输出追加装饰器](#输出追加装饰器)
-  - [@@append_output](#append_output)
-  - [@@append_output_ejs](#append_output_ejs)
-- [代码执行装饰器](#代码执行装饰器)
-  - [@@evaluate_ejs](#evaluate_ejs)
-- [辅助装饰器](#辅助装饰器)
-  - [@@batch_order](#batch_order)
-- [装饰器组合使用](#装饰器组合使用)
-- [最佳实践](#最佳实践)
+- [装饰器详细文档](#装饰器详细文档)
+  - [目录](#目录)
+  - [装饰器概述](#装饰器概述)
+    - [支持的装饰器列表](#支持的装饰器列表)
+  - [工作原理](#工作原理)
+    - [执行流程](#执行流程)
+    - [Before/After 处理流程](#beforeafter-处理流程)
+    - [详细步骤说明](#详细步骤说明)
+    - [Before/After 变体](#beforeafter-变体)
+    - [触发条件](#触发条件)
+  - [通用语法](#通用语法)
+    - [基本格式](#基本格式)
+    - [参数格式](#参数格式)
+    - [转义](#转义)
+  - [内容替换装饰器](#内容替换装饰器)
+    - [@@replace](#replace)
+      - [语法](#语法)
+      - [参数](#参数)
+      - [使用场景](#使用场景)
+      - [示例](#示例)
+      - [工作原理](#工作原理-1)
+    - [@@replace\_diff](#replace_diff)
+      - [语法](#语法-1)
+      - [参数](#参数-1)
+      - [使用场景](#使用场景-1)
+      - [示例](#示例-1)
+      - [工作原理](#工作原理-2)
+    - [@@replace\_search](#replace_search)
+      - [语法](#语法-2)
+      - [参数](#参数-2)
+      - [格式说明](#格式说明)
+      - [使用场景](#使用场景-2)
+      - [示例](#示例-2)
+      - [工作原理](#工作原理-3)
+    - [@@replace\_ejs](#replace_ejs)
+      - [语法](#语法-3)
+      - [参数](#参数-3)
+      - [可用变量](#可用变量)
+      - [使用场景](#使用场景-3)
+      - [示例](#示例-3)
+  - [变量更新装饰器](#变量更新装饰器)
+    - [@@variables\_json](#variables_json)
+      - [语法](#语法-4)
+      - [参数](#参数-4)
+      - [使用场景](#使用场景-4)
+      - [示例](#示例-4)
+      - [工作原理](#工作原理-4)
+    - [@@variables\_yaml](#variables_yaml)
+      - [语法](#语法-5)
+      - [参数](#参数-5)
+      - [使用场景](#使用场景-5)
+      - [示例](#示例-5)
+      - [工作原理](#工作原理-5)
+    - [@@variables\_jsonpatch](#variables_jsonpatch)
+      - [语法](#语法-6)
+      - [参数](#参数-6)
+      - [支持的操作](#支持的操作)
+      - [使用场景](#使用场景-6)
+      - [示例](#示例-6)
+  - [输出追加装饰器](#输出追加装饰器)
+    - [@@append\_output](#append_output)
+      - [语法](#语法-7)
+      - [参数](#参数-7)
+      - [使用场景](#使用场景-7)
+      - [示例](#示例-7)
+      - [工作原理](#工作原理-6)
+    - [@@append\_output\_ejs](#append_output_ejs)
+      - [语法](#语法-8)
+      - [参数](#参数-8)
+      - [可用变量](#可用变量-1)
+      - [使用场景](#使用场景-8)
+      - [示例](#示例-8)
+  - [代码执行装饰器](#代码执行装饰器)
+    - [@@evaluate\_ejs](#evaluate_ejs)
+      - [语法](#语法-9)
+      - [参数](#参数-9)
+      - [使用场景](#使用场景-9)
+      - [示例](#示例-9)
+  - [辅助装饰器](#辅助装饰器)
+    - [@@batch\_order](#batch_order)
+      - [语法](#语法-10)
+      - [参数](#参数-10)
+      - [顺序值](#顺序值)
+      - [示例](#示例-10)
+    - [@@preset](#preset)
+      - [语法](#语法-11)
+      - [参数](#参数-11)
+      - [示例](#示例-11)
+    - [@@json\_schema](#json_schema)
+      - [语法](#语法-12)
+      - [使用场景](#使用场景-10)
+    - [@@zod\_schema](#zod_schema)
+      - [语法](#语法-13)
+      - [使用场景](#使用场景-11)
+  - [装饰器组合使用](#装饰器组合使用)
+    - [组合规则](#组合规则)
+    - [示例](#示例-12)
+  - [最佳实践](#最佳实践)
+    - [1. 使用标签区分模板](#1-使用标签区分模板)
+    - [2. 合理使用 Before/After 变体](#2-合理使用-beforeafter-变体)
+    - [3. 错误处理](#3-错误处理)
+    - [4. 变量命名规范](#4-变量命名规范)
+    - [5. 避免过度使用](#5-避免过度使用)
+    - [6. 调试技巧](#6-调试技巧)
+    - [7. 性能优化](#7-性能优化)
+  - [相关文档](#相关文档)
+  - [参考标准](#参考标准)
 
 ---
 
@@ -45,12 +131,16 @@
 | `@@replace_diff` | Git Diff 格式更新 | 生成后 |
 | `@@replace_search` | 搜索替换文本 | 生成后 |
 | `@@replace_ejs` | EJS 模板替换 | 生成后 |
-| `@@variables_json` | JSON Merge Patch 更新变量 | 生成后 |
-| `@@variables_yaml` | YAML Merge Patch 更新变量 | 生成后 |
+| `@@variables_json` | JSON 合并更新变量 | 生成后 |
+| `@@variables_yaml` | YAML 合并更新变量 | 生成后 |
 | `@@variables_jsonpatch` | JSON Patch 更新变量 | 生成后 |
 | `@@append_output` | 追加内容到消息末尾 | 生成后 |
 | `@@append_output_ejs` | EJS 模板追加 | 生成后 |
 | `@@evaluate_ejs` | 执行 EJS 代码 | 生成后 |
+| `@@batch_order` | 控制执行顺序 | 解析时 |
+| `@@preset` | 指定使用的预设 | 解析时 |
+| `@@json_schema` | 定义 JSON Schema 验证 | 解析时 |
+| `@@zod_schema` | 定义 Zod Schema 验证 | 解析时 |
 
 ---
 
@@ -60,19 +150,61 @@
 
 ```mermaid
 flowchart TD
-    A[用户发送消息] --> B[触发 World Info 扫描]
-    B --> C{检测到装饰器?}
-    C -->|是| D[解析装饰器]
-    C -->|否| E[正常生成流程]
-    D --> F{Before 变体?}
-    F -->|是| G[生成前执行]
-    F -->|否| H[生成后执行]
-    G --> I[执行装饰器处理器]
-    H --> I
-    I --> J[更新 WI/变量/输出]
-    J --> K[完成]
-    E --> K
+    A[用户发送消息] --> B[开始生成]
+    B --> C[触发 Before 处理]
+    C --> D[原始生成逻辑]
+    D --> E[显示 AI 输出]
+    E --> F[触发 After 处理]
+    F --> G[完成]
 ```
+
+### Before/After 处理流程
+
+```mermaid
+flowchart TD
+    A[根据最后的 User/Char 消息触发 WI] --> B[根据 decorator 选择对应的 template]
+    B --> C{验证最后一条消息<br/>User/Char 是否满足查找正则?}
+    C -->|是| D[执行生成]
+    C -->|否| E[跳过处理]
+    D --> F[获取 AI 输出]
+    F --> G{验证 AI 输出是否满足正则?}
+    G -->|是| H[根据 decorator 执行对应的 processor]
+    G -->|否| I{是否达到重试次数?}
+    I -->|否| D
+    I -->|是| J[处理失败，记录错误]
+    H --> K[完成处理]
+```
+
+### 详细步骤说明
+
+1. **触发 WI**
+   - Before 处理：根据最后一条 User 消息触发
+   - After 处理：根据最后一条 Char 消息触发
+
+2. **选择模板**
+   - 根据装饰器名称和标签查找匹配的模板
+   - 如果没有找到模板，使用默认配置
+
+3. **验证触发条件**
+   - 使用模板的 `findRegex` 验证最后一条消息（User/Char）内容
+   - 如果验证失败，跳过该装饰器的处理
+
+4. **执行生成**
+   - 构建提示词上下文
+   - 应用模板配置的过滤器
+   - 调用 AI API 生成内容
+
+5. **获取 AI 输出**
+   - 获取 AI 生成的结果
+
+6. **验证生成结果**
+   - 使用模板的 `regex` 验证 AI 输出
+   - 如果验证失败，根据 `retryCount` 配置重新生成
+   - 重试间隔由 `retryInterval` 配置决定
+
+7. **执行处理器**
+   - 根据装饰器类型执行对应的 processor
+   - 更新 WI 内容、变量或追加输出
 
 ### Before/After 变体
 
@@ -232,14 +364,36 @@ flowchart TD
 
 ### @@replace_search
 
-使用搜索替换模式更新 WI 内容。
+使用搜索替换模式更新 WI 内容。支持两种格式：Git Conflict 风格和 JSON 风格。
 
 #### 语法
 
+**Git Conflict 风格：**
+
 ```
 @@replace_search [tag]
-搜索文本|||替换文本
+<<<<<<< SEARCH
+搜索文本
+=======
+替换文本
+>>>>>>> REPLACE
+```
 
+**JSON 风格（单个替换）：**
+
+```
+@@replace_search [tag]
+{"search": "搜索文本", "replace": "替换文本"}
+```
+
+**JSON 风格（多个替换）：**
+
+```
+@@replace_search [tag]
+[
+  {"search": "文本1", "replace": "替换1"},
+  {"search": "文本2", "replace": "替换2"}
+]
 ```
 
 #### 参数
@@ -248,39 +402,80 @@ flowchart TD
 |------|------|------|
 | tag | 否 | 模板标签 |
 
-#### 分隔符
+#### 格式说明
 
-使用 `|||` 作为搜索文本和替换文本的分隔符。
+**Git Conflict 风格：**
+- 使用 `<<<<<<< SEARCH` 标记搜索文本开始
+- 使用 `=======` 分隔搜索文本和替换文本
+- 使用 `>>>>>>> REPLACE` 标记替换文本结束
+- 支持多个替换块
+
+**JSON 风格：**
+- 单个替换：使用包含 `search` 和 `replace` 字段的对象
+- 多个替换：使用包含多个替换对象的数组
 
 #### 使用场景
 
 - 简单的文本替换
 - 更新特定字段值
 - 修改关键词
+- 批量替换多个文本
 
 #### 示例
 
-**替换单个文本：**
+**Git Conflict 风格（单个替换）：**
 
 ```
 @@replace_search
-开心|||兴奋
-
+<<<<<<< SEARCH
+开心
+=======
+兴奋
+>>>>>>> REPLACE
 ```
 
-**替换多个文本（需要多次调用）：**
+**Git Conflict 风格（多个替换）：**
 
 ```
 @@replace_search
-心情：开心|||心情：兴奋
+<<<<<<< SEARCH
+心情：开心
+=======
+心情：兴奋
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+位置：花园
+=======
+位置：图书馆
+>>>>>>> REPLACE
+```
 
+**JSON 风格（单个替换）：**
+
+```
+@@replace_search
+{"search": "开心", "replace": "兴奋"}
+```
+
+**JSON 风格（多个替换）：**
+
+```
+@@replace_search
+[
+  {"search": "心情：开心", "replace": "心情：兴奋"},
+  {"search": "位置：花园", "replace": "位置：图书馆"}
+]
 ```
 
 #### 工作原理
 
-1. 在 WI 内容中搜索指定文本
-2. 将找到的文本替换为新文本
-3. 更新 WI 内容
+1. 解析生成内容，识别格式类型（Git Conflict 或 JSON）
+2. 在 WI 内容中搜索指定的搜索文本
+3. 如果搜索文本不存在，抛出错误并记录失败
+4. 将找到的文本替换为新文本
+5. 更新 WI 内容
+
+> ⚠️ **注意**：搜索文本必须在原 WI 内容中存在，否则替换会失败。
 
 ---
 
@@ -293,7 +488,6 @@ flowchart TD
 ```
 @@replace_ejs [tag]
 <%= expression %>
-
 ```
 
 #### 参数
@@ -333,7 +527,6 @@ flowchart TD
 心情：<%= variables.mood || '未知' %>
 位置：<%= variables.location || '未知' %>
 时间：<%= new Date().toLocaleTimeString() %>
-
 ```
 
 **条件判断：**
@@ -345,7 +538,6 @@ flowchart TD
 <% } else { %>
 角色的表情有些复杂。
 <% } %>
-
 ```
 
 ---
@@ -354,7 +546,7 @@ flowchart TD
 
 ### @@variables_json
 
-使用 JSON Merge Patch 格式更新变量。
+使用 JSON 格式合并更新变量。
 
 #### 语法
 
@@ -366,7 +558,6 @@ flowchart TD
     "property": "updated"
   }
 }
-
 ```
 
 #### 参数
@@ -392,7 +583,6 @@ flowchart TD
   "energy": 80,
   "location": "花园"
 }
-
 ```
 
 **嵌套对象：**
@@ -406,16 +596,15 @@ flowchart TD
   },
   "inventory": ["剑", "盾牌"]
 }
-
 ```
 
 #### 工作原理
 
-使用 JSON Merge Patch (RFC 7396) 合并到现有变量：
+使用 `_.mergeWith` 合并到现有变量：
 
 - 新键会被添加
 - 已有键会被更新
-- 值为 `null` 的键会被删除
+- **不支持删除**，如需删除变量请使用 `@@variables_jsonpatch`
 - 数组会被完全替换（不会合并）
 
 ---
@@ -431,7 +620,6 @@ flowchart TD
 key: value
 nested:
   property: updated
-
 ```
 
 #### 参数
@@ -459,12 +647,16 @@ stats:
 inventory:
   - 剑
   - 盾牌
-
 ```
 
 #### 工作原理
 
-YAML 内容会被解析并转换为 JSON，然后使用 Merge Patch 合并。
+YAML 内容会被解析并转换为 JSON，然后使用 `_.mergeWith` 合并：
+
+- 新键会被添加
+- 已有键会被更新
+- **不支持删除**，如需删除变量请使用 `@@variables_jsonpatch`
+- 数组会被完全替换（不会合并）
 
 ---
 
@@ -481,7 +673,6 @@ YAML 内容会被解析并转换为 JSON，然后使用 Merge Patch 合并。
   { "op": "replace", "path": "/existingKey", "value": "updatedValue" },
   { "op": "remove", "path": "/oldKey" }
 ]
-
 ```
 
 #### 参数
@@ -517,7 +708,6 @@ YAML 内容会被解析并转换为 JSON，然后使用 Merge Patch 合并。
   { "op": "add", "path": "/mood", "value": "兴奋" },
   { "op": "replace", "path": "/energy", "value": 90 }
 ]
-
 ```
 
 **数组操作：**
@@ -528,7 +718,6 @@ YAML 内容会被解析并转换为 JSON，然后使用 Merge Patch 合并。
   { "op": "add", "path": "/inventory/-", "value": "新物品" },
   { "op": "remove", "path": "/inventory/0" }
 ]
-
 ```
 
 ---
@@ -544,7 +733,6 @@ YAML 内容会被解析并转换为 JSON，然后使用 Merge Patch 合并。
 ```
 @@append_output [tag]
 要追加的内容
-
 ```
 
 #### 参数
@@ -566,7 +754,6 @@ YAML 内容会被解析并转换为 JSON，然后使用 Merge Patch 合并。
 
 ---
 *角色陷入了沉思...*
-
 ```
 
 #### 工作原理
@@ -586,7 +773,6 @@ YAML 内容会被解析并转换为 JSON，然后使用 Merge Patch 合并。
 ```
 @@append_output_ejs [tag]
 <%= expression %>
-
 ```
 
 #### 参数
@@ -614,7 +800,6 @@ YAML 内容会被解析并转换为 JSON，然后使用 Merge Patch 合并。
 
 ---
 *<%= char.name %> 的当前心情：<%= variables.mood || '平静' %>*
-
 ```
 
 **条件追加：**
@@ -625,7 +810,6 @@ YAML 内容会被解析并转换为 JSON，然后使用 Merge Patch 合并。
 
 *<%= char.name %> 看起来有些疲惫...*
 <% } %>
-
 ```
 
 ---
@@ -641,7 +825,6 @@ YAML 内容会被解析并转换为 JSON，然后使用 Merge Patch 合并。
 ```
 @@evaluate_ejs [tag]
 // JavaScript 代码
-
 ```
 
 #### 参数
@@ -673,7 +856,6 @@ if (newEnergy < 20) {
   variables.mood = '疲惫';
 }
 %>
-
 ```
 
 **数据处理：**
@@ -686,7 +868,6 @@ const inventory = variables.inventory || [];
 const itemCount = inventory.length;
 variables.itemCount = itemCount;
 %>
-
 ```
 
 > ⚠️ **注意**：此装饰器不输出任何内容，仅执行代码。
@@ -705,7 +886,6 @@ variables.itemCount = itemCount;
 @@batch_order <order>
 @@其他装饰器
 内容
-
 ```
 
 #### 参数
@@ -731,8 +911,83 @@ variables.itemCount = itemCount;
 {
   "initialized": true
 }
+```
+
+---
+
+### @@preset
+
+指定后处理生成时使用的预设。
+
+#### 语法
 
 ```
+@@preset <preset_name>
+@@其他装饰器
+内容
+```
+
+#### 参数
+
+| 参数 | 必需 | 说明 |
+|------|------|------|
+| preset_name | 是 | 预设名称 |
+
+#### 示例
+
+```
+@@preset my_custom_preset
+@@replace
+新的内容
+```
+
+---
+
+### @@json_schema
+
+定义 JSON Schema 来验证变量。
+
+#### 语法
+
+```
+@@json_schema
+{
+  "type": "object",
+  "properties": {
+    "key": { "type": "string" }
+  }
+}
+```
+
+#### 使用场景
+
+- 验证变量结构
+- 确保数据类型正确
+- 提供变量文档
+
+---
+
+### @@zod_schema
+
+定义 Zod Schema 来验证变量。
+
+#### 语法
+
+```
+@@zod_schema
+registerSchema(
+  z.object({
+    name: z.string(),
+    age: z.number().optional()
+  })
+)
+```
+
+#### 使用场景
+
+- 更灵活的验证规则
+- 类型推断
+- 复杂验证逻辑
 
 ---
 
@@ -762,7 +1017,6 @@ variables.itemCount = itemCount;
 @@append_output_ejs
 
 *<%= char.name %> 看起来很<%= variables.mood %>！*
-
 ```
 
 **条件性更新：**
@@ -781,7 +1035,6 @@ if (variables.energy < 50) {
 
 *<%= char.name %> 需要休息一下...*
 <% } %>
-
 ```
 
 ---
@@ -799,7 +1052,6 @@ if (variables.energy < 50) {
 
 @@replace location
 位置：花园
-
 ```
 
 ### 2. 合理使用 Before/After 变体
@@ -823,7 +1075,6 @@ try {
   variables.parsed = null;
 }
 %>
-
 ```
 
 ### 4. 变量命名规范
@@ -837,7 +1088,6 @@ try {
   "characterLocation": "花园",
   "conversationTurn": 1
 }
-
 ```
 
 ### 5. 避免过度使用
@@ -856,7 +1106,6 @@ try {
 console.log('当前变量:', JSON.stringify(variables));
 console.log('角色名称:', char.name);
 %>
-
 ```
 
 ### 7. 性能优化
@@ -874,7 +1123,6 @@ console.log('角色名称:', char.name);
 
 ## 参考标准
 
-- [JSON Merge Patch (RFC 7396)](https://tools.ietf.org/html/rfc7396)
 - [JSON Patch (RFC 6902)](https://tools.ietf.org/html/rfc6902)
 - [Unified Diff Format](https://www.gnu.org/software/diffutils/manual/html_node/Detailed-Unified.html)
-- [EJS Documentation](https://ejs.co/)
+- [EJS Documentation](https://github.com/zonde306/ST-Prompt-Template/README.md)

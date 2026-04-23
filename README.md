@@ -105,13 +105,13 @@ git clone https://github.com/zonde306/ST-CustomGeneration.git
 
 ```javascript
 // 获取全局上下文
-const ctx = globalContext();
+const ctx = CustomGeneration.globalContext;
 
 // 构建消息
-const messages = await buildMessages(ctx);
+const messages = await CustomGeneration.buildMessages(chat, 'normal', false);
 
 // 监听生成事件
-eventSource.on(eventTypes.cg_generate_done, (data) => {
+eventSource.on(CustomGeneration.eventTypes.GENERATION_END, (data) => {
     console.log('生成完成:', data);
 });
 ```
@@ -176,7 +176,6 @@ eventSource.on(eventTypes.cg_generate_done, (data) => {
 ```
 @@append_output
 要追加的内容
-@@end
 ```
 
 ### `@@append_output_ejs`
@@ -186,7 +185,6 @@ eventSource.on(eventTypes.cg_generate_done, (data) => {
 ```
 @@append_output_ejs
 <%= message.content %>
-@@end
 ```
 
 ### `@@evaluate_ejs`
@@ -197,7 +195,6 @@ eventSource.on(eventTypes.cg_generate_done, (data) => {
 @@evaluate_ejs
 // 执行任意 JavaScript 代码
 const result = someOperation();
-@@end
 ```
 
 ### `@@replace_ejs`
@@ -207,7 +204,6 @@ const result = someOperation();
 ```
 @@replace_ejs
 新的 WI 内容：<%= newContent %>
-@@end
 ```
 
 ### `@@replace`
@@ -217,7 +213,6 @@ const result = someOperation();
 ```
 @@replace
 新的 WI 内容
-@@end
 ```
 
 ### `@@replace_diff`
@@ -231,7 +226,6 @@ const result = someOperation();
 @@ -1 +1 @@
 -old content
 +new content
-@@end
 ```
 
 ### `@@replace_search`
@@ -241,7 +235,6 @@ const result = someOperation();
 ```
 @@replace_search
 搜索文本|||替换文本
-@@end
 ```
 
 ### `@@variables_json`
@@ -256,7 +249,6 @@ const result = someOperation();
     "property": "updated"
   }
 }
-@@end
 ```
 
 ### `@@variables_yaml`
@@ -268,7 +260,6 @@ const result = someOperation();
 key: value
 nested:
   property: updated
-@@end
 ```
 
 ### `@@variables_jsonpatch`
@@ -281,30 +272,36 @@ nested:
   { "op": "replace", "path": "/key", "value": "new value" },
   { "op": "add", "path": "/newKey", "value": "added" }
 ]
-@@end
 ```
 
 ## API 参考
 
 ### 全局对象
 
+扩展初始化后，会在 `globalThis` 上注册 `CustomGeneration` 对象。
+
+```javascript
+const cg = globalThis.CustomGeneration;
+// 或
+const cg = window.CustomGeneration;
+```
+
 #### `Context`
 
 上下文管理类，管理生成过程中的上下文信息。
 
 ```javascript
-const ctx = new Context();
+const ctx = new CustomGeneration.Context();
+// 或获取全局上下文
+const ctx = CustomGeneration.Context.global();
 ```
 
 #### `DataOverride`
 
-数据覆盖类，用于覆盖默认的生成参数。
+数据覆盖类，用于管理 World Info 内容的覆盖。
 
 ```javascript
-const override = new DataOverride({
-    temperature: 0.8,
-    max_tokens: 2000
-});
+const override = CustomGeneration.DataOverride.global();
 ```
 
 #### `PromptContext`
@@ -312,7 +309,7 @@ const override = new DataOverride({
 提示词上下文类，管理提示词的构建和处理。
 
 ```javascript
-const promptCtx = new PromptContext();
+const promptCtx = await CustomGeneration.PromptContext.create(triggerWords, 'normal', false, 4096);
 ```
 
 #### `MessageBuilder`
@@ -320,79 +317,92 @@ const promptCtx = new PromptContext();
 消息构建器类，用于构建发送给 API 的消息列表。
 
 ```javascript
-const builder = new MessageBuilder();
-builder.addSystem('系统提示');
-builder.addUser('用户消息');
+const builder = new CustomGeneration.MessageBuilder(chat);
+const messages = await builder.build('normal');
 ```
 
-### 全局函数
+### 全局属性和方法
 
-#### `globalContext()`
+#### `globalContext`
 
-获取全局上下文实例。
+获取全局上下文实例（只读属性）。
 
 ```javascript
-const ctx = globalContext();
+const ctx = CustomGeneration.globalContext;
 ```
 
-#### `buildMessages(context)`
+#### `buildMessages(chat, type, dryRun)`
 
 构建消息的异步方法。
 
 ```javascript
-const messages = await buildMessages(ctx);
+const messages = await CustomGeneration.buildMessages(chat, 'normal', false);
 ```
 
-#### `runAfterGenerates(context, result)`
+#### `runAfterGenerates(lockButton)`
 
 执行后处理生成。
 
 ```javascript
-await runAfterGenerates(ctx, generateResult);
+await CustomGeneration.runAfterGenerates(true);
 ```
 
-### 常量
+#### `isWorldInfoGenerating()`
+
+检查 World Info 是否正在生成。
+
+```javascript
+if (CustomGeneration.isWorldInfoGenerating()) {
+    console.log('World Info 正在生成中...');
+}
+```
 
 #### `eventTypes`
 
 事件类型常量对象。
 
 ```javascript
-const { eventTypes } = window.customGeneration;
+const { eventTypes } = CustomGeneration;
+console.log(eventTypes.GENERATION_START); // 'cg_generate_start'
 ```
 
 ## 事件系统
 
 扩展提供以下事件类型，可用于监听生成过程：
 
-| 事件名 | 触发时机 | 数据 |
-|--------|----------|------|
-| `cg_generate_start` | 生成开始时 | 请求参数 |
-| `cg_generate_chunk` | 流式生成收到数据块时 | 数据块内容 |
-| `cg_generate_done` | 生成完成时 | 完整响应 |
-| `cg_generate_before` | 生成前处理 | 上下文信息 |
-| `cg_generate_after` | 生成后处理 | 生成结果 |
+| 事件名 | 常量 | 触发时机 |
+|--------|------|----------|
+| `cg_generate_start` | `GENERATION_START` | 生成开始时 |
+| `cg_generate_chunk` | `GENERATION_STREAM_CHUNK` | 流式生成收到数据块时 |
+| `cg_generate_done` | `GENERATION_END` | 生成完成时 |
+| `cg_generate_before` | `GENERATE_BEFORE` | 生成前处理 |
+| `cg_generate_after` | `GENERATE_AFTER` | 生成后处理 |
+| `cg_message_send` | `MESSAGE_SEND` | 消息发送时 |
+| `cg_message_received` | `MESSAGE_RECEIVED` | 消息接收时 |
+| `cg_message_deleted` | `MESSAGE_DELETED` | 消息删除时 |
 
 ### 事件使用示例
 
 ```javascript
+const { eventTypes } = CustomGeneration;
+
 // 监听生成开始
-eventSource.on(eventTypes.cg_generate_start, (data) => {
+eventSource.on(eventTypes.GENERATION_START, (data) => {
     console.log('开始生成:', data);
 });
 
 // 监听流式数据
-eventSource.on(eventTypes.cg_generate_chunk, (chunk) => {
+eventSource.on(eventTypes.GENERATION_STREAM_CHUNK, (chunk) => {
     console.log('收到数据块:', chunk);
 });
 
 // 监听生成完成
-eventSource.on(eventTypes.cg_generate_done, (result) => {
+eventSource.on(eventTypes.GENERATION_END, (result) => {
     console.log('生成完成:', result);
 });
 
 // 取消监听
-eventSource.off(eventTypes.cg_generate_done, listenerFunction);
+eventSource.off(eventTypes.GENERATION_END, listenerFunction);
 ```
 
 ## 项目结构

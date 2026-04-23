@@ -431,7 +431,6 @@ git clone https://github.com/zonde306/ST-CustomGeneration.git
 ```
 @@装饰器名称 参数
 内容
-@@end
 ```
 
 > 💡 **提示**：详细的装饰器文档请参阅 [DECORATORS.md](./DECORATORS.md)。
@@ -477,7 +476,6 @@ World Info 增强支持变量存储功能：
   "mood": "happy",
   "location": "garden"
 }
-@@end
 ```
 
 #### 使用 EJS 模板
@@ -487,7 +485,6 @@ World Info 增强支持变量存储功能：
 ```
 @@append_output_ejs
 <%= char.name %> 看起来很<%= variables.mood %>。
-@@end
 ```
 
 #### 使用搜索替换
@@ -497,7 +494,6 @@ World Info 增强支持变量存储功能：
 ```
 @@replace_search
 旧文本|||新文本
-@@end
 ```
 
 ---
