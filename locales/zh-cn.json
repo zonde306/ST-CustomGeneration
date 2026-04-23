@@ -120,6 +120,9 @@
 	"cg_chatDepth2": "楼层深度@D2（仅预设）",
 	"cg_chatDepth3": "楼层深度@D3（仅预设）",
 	"cg_chatDepth4": "楼层深度@D4（仅预设）",
+	"cg_charPersonality": "用户设定描述",
+	"cg_charNote": "角色备注",
+	"cg_authorsNote": "作者注释",
 
 	"Character Note": "角色备注",
 	"Author's Note": "作者注释",

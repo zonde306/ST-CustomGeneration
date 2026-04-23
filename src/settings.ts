@@ -3005,6 +3005,8 @@ function buildExportPayload(includeApiConnection: boolean): ExportPayload {
             includeHeaders: clone(api.includeHeaders),
             includeBody: clone(api.includeBody),
             excludeBody: clone(api.excludeBody),
+            maxConcurrency: api.maxConcurrency,
+            stream: api.stream,
         };
     }
 
@@ -3119,6 +3121,8 @@ async function importPresetsFromFile(file: File): Promise<void> {
         api.includeHeaders = normalizeRecord(normalized.apiConnection.includeHeaders);
         api.includeBody = normalizeRecord(normalized.apiConnection.includeBody);
         api.excludeBody = normalizeRecord(normalized.apiConnection.excludeBody);
+        api.maxConcurrency = parseNumber(normalized.apiConnection.maxConcurrency, api.maxConcurrency, 1, 100, true);
+        api.stream = Boolean(normalized.apiConnection.stream);
     }
 
     api.apiKey = previousApiKey;

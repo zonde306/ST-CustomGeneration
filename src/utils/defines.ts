@@ -523,6 +523,8 @@ export interface ExportPayload {
         includeHeaders: Record<string, unknown>;
         includeBody: Record<string, unknown>;
         excludeBody: Record<string, unknown>;
+        maxConcurrency: number;
+        stream: boolean;
     };
 }
 
@@ -565,6 +567,8 @@ export interface ImportPayload {
         includeBody?: unknown;
         excludeBody?: unknown;
         apiKey?: unknown;
+        maxConcurrency?: number;
+        stream?: boolean;
     };
 }
 
