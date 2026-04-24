@@ -286,6 +286,7 @@ export interface WorldInfoLoaded {
     characterLore: WorldInfoEntry[];
     chatLore: WorldInfoEntry[];
     personaLore: WorldInfoEntry[];
+    type?: string;
 }
 
 export interface PartialToolCall {

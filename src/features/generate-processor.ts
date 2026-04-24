@@ -61,7 +61,6 @@ export const NOT_ALLOWED_DECORATORS = [
     '@@append_output_ejs_before',
 ];
 
-let isPostGenerating = false;
 let abortController: AbortController | null = null;
 let delayGenerationTimer : number | null = null;
 
@@ -140,8 +139,6 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     const groups = await getSortedEntries(
         messages.map(msg => msg.mes ?? ''),
         before,
-        before ? 'cg-before' : 'cg-after',
-        false
     );
 
     if(groups.length < 1)
@@ -357,7 +354,7 @@ async function onAppReady() {
 }
 
 async function onWorldInfoLoaded(data: WorldInfoLoaded) {
-    if(isPostGenerating) {
+    if(data.type === 'cg-before' || data.type === 'cg-after') {
         console.debug('Skip WI entry filtering when performing custom WI processing');
         return;
     }
@@ -488,14 +485,8 @@ interface WorldInfoEntryWithDecorator {
 async function getSortedEntries(
     triggerWords: string[],
     before: boolean = false,
-    type?: string,
-    dryRun?: boolean,
 ): Promise<WorldInfoEntryWithDecorator[][]> {
-    // To avoid WI entries being filtered by the WI filter, we need to disable the WI filter.
-    isPostGenerating = true;
-    const entries = await getActivatedEntries(triggerWords, type, dryRun);
-    isPostGenerating = false;
-
+    const entries = await getActivatedEntries(triggerWords, before ? 'cg-before' : 'cg-after', true);
     const grouped = new Map<number, WorldInfoEntryWithDecorator[]>();
 
     for(const entry of entries) {

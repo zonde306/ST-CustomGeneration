@@ -71,7 +71,7 @@ export class TemplateHandler {
         try {
             regexp = parseRegexString(this.template.findRegex);
         } catch (e) {
-            toastr.error(`Invalid findRegex for ${this.template.decorator}:${this.template.tag}`);
+            toastr.error(`Invalid findRegex for ${this.template.decorator}:${this.template.tag}`, e as any);
             return { success: false };
         }
 
@@ -100,7 +100,7 @@ export class TemplateHandler {
         try {
             regexp = parseRegexString(this.template.regex);
         } catch (e) {
-            toastr.error(`Invalid regex for ${this.template.decorator}:${this.template.tag}`);
+            toastr.error(`Invalid regex for ${this.template.decorator}:${this.template.tag}`, e as any);
             return { success: false };
         }
 

@@ -1,5 +1,5 @@
 import { loadWorldInfo, METADATA_KEY, selected_world_info, world_info, DEFAULT_DEPTH, world_info_position, world_names, getWorldInfoPrompt, worldInfoCache, scan_state } from '@st/scripts/world-info.js';
-import { chat_metadata, this_chid, characters, getCharacterCardFieldsLazy, getMaxContextSize } from '@st/script.js';
+import { chat_metadata, this_chid, characters, getCharacterCardFieldsLazy } from '@st/script.js';
 import { power_user } from '@st/scripts/power-user.js';
 import { getCharaFilename } from '@st/scripts/utils.js';
 import { getGroupMembers } from '@st/scripts/group-chats.js';
@@ -7,7 +7,6 @@ import { WorldInfoEntry, LoreBook } from '@/utils/defines';
 import { eventSource, event_types } from '@st/scripts/events.js';
 import { GENERATION_TYPE_TRIGGERS } from '@st/scripts/constants.js';
 import { splitWithQuotes } from '@/utils/stringutl';
-
 
 export const KNOWN_DECORATORS = [
     '@@replace',             // Full-Text Replacement Update
@@ -417,21 +416,31 @@ export async function getActivatedEntries(triggerWords: string[], type: string =
 
     // The return value needs to be obtained through the event handler.
     return new Promise((resolve, reject) => {
-        const handler = (data: WorldInfoScanResult) => {
+        const resultHandler = (data: WorldInfoScanResult) => {
             if(data.state.next === scan_state.NONE) {
                 // Until the scan is complete
                 resolve(Array.from(data.activated.entries.values().map(normalizeWorldInfoEntry)));
-                eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler);
+                eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, resultHandler);
             }
         };
 
+        const loadingHandler = (data: any) => {
+            data.type = type;
+            eventSource.removeListener(event_types.WORLDINFO_ENTRIES_LOADED, loadingHandler);
+            console.debug(`type set to ${type} on ${event_types.WORLDINFO_ENTRIES_LOADED}`);
+        };
+
         // compatibility with other extensions
-        eventSource.makeLast(event_types.WORLDINFO_SCAN_DONE, handler);
+        eventSource.makeLast(event_types.WORLDINFO_SCAN_DONE, resultHandler);
+        eventSource.makeFirst(event_types.WORLDINFO_ENTRIES_LOADED, loadingHandler);
         
-        getWorldInfoPrompt(triggerWords, getMaxContextSize(), dryRun, globalScanData)
+        getWorldInfoPrompt(triggerWords, Number.MAX_SAFE_INTEGER, dryRun, globalScanData)
             .then(() => resolve([]))
             .catch(reject)
-            .finally(() => eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler));
+            .finally(() => {
+                eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, resultHandler);
+                eventSource.removeListener(event_types.WORLDINFO_ENTRIES_LOADED, loadingHandler);
+            });
     });
 }
 

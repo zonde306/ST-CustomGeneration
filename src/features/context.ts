@@ -393,11 +393,11 @@ export class Context {
             });
         }
 
-        await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun, context: this });
+        await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun, context: this, type });
 
-        await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat: messages, dryRun, context: this });
+        await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat: messages, dryRun, context: this, type });
 
-        await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: messages, context: this }, dryRun);
+        await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: messages, context: this, type }, dryRun);
 
         if(dryRun)
             return '';
@@ -423,7 +423,7 @@ export class Context {
                 signal: abortController.signal,
                 taskId,
                 api: apiConfig as ApiConfig,
-                hiddenOptions: { context: this },
+                hiddenOptions: { context: this, type },
                 streaming: options.streaming,
                 tools,
                 tool_choice: options.toolChoice,
