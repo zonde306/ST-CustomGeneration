@@ -55,9 +55,14 @@ export interface PromptFilter extends Record<string, any> {
 
 // Replace or Customize Macros
 export interface MacroOverride {
+    // user name, default to name1
     user?: string;
+    // character name, default to name2
     char?: string;
+    // original message, default to empty string
     original?: string;
+
+    // character group, default to empty string
     group?: string;
 
     // Keys use the `macro` format, rather than `{{macro}}` or `<macro>`.
@@ -78,7 +83,7 @@ export class MessageBuilder {
     private presetDepth: string[];
     private charDepth: string;
     private postProcessing: string;
-    public toolMessages: any[];
+    public toolMessages: any[]; // only for tool messages
 
     constructor(chat: ChatMessage[], preset?: Preset, postProcessing: string = 'none') {
         this.chat = chat;

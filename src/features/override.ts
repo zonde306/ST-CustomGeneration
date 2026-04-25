@@ -239,6 +239,9 @@ export class DataOverride {
         return new DataOverride(chat, chat_metadata);
     }
 
+    /**
+     * Dont use this.
+     */
     async onWorldInfoLoaded(data: WorldInfoLoaded) {
         for(let i = 0; i < data.globalLore.length; ++i) {
             const entry = data.globalLore[i];

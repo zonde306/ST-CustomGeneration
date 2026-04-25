@@ -477,7 +477,7 @@ export class Context {
                     if(toolMessages.length) {
                         if(!options.toolMessages)
                             options.toolMessages = [];
-                        options.toolMessages.push({ role: 'function', content: JSON.stringify(toolCalls[0]) });
+                        options.toolMessages.push({ role: 'assistant', tool_calls: toolCalls[0] });
                         options.toolMessages.push(...toolMessages);
                         const nextResponse = await this.generate(type, options, dryRun);
                         for await (const chunk of nextResponse as AsyncGenerator<GenStreamResponse | string>) {
@@ -516,10 +516,10 @@ export class Context {
         
         if(toolCalls?.length) {
             const toolMessages = await this.handleToolCalls(toolCalls);
-            if(toolMessages) {
+            if(toolMessages.length) {
                 if(!options.toolMessages)
                     options.toolMessages = [];
-                options.toolMessages.push({ role: 'function', content: JSON.stringify(toolCalls[0]) });
+                options.toolMessages.push({ role: 'assistant', tool_calls: toolCalls[0] });
                 options.toolMessages.push(...toolMessages);
                 return await this.generate(type, options, dryRun);
             }

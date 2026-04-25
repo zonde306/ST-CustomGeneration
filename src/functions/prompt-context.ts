@@ -8,11 +8,22 @@ export class PromptContext {
     private mesExamplesArray: string[] = [];
     public ready: boolean;
 
+    /**
+     * Do not use this directly, use `create` instead.
+     */
     constructor() {
         this.fields = getCharacterCardFieldsLazy();
         this.ready = false;
     }
 
+    /**
+     * Create and initialize a new PromptContext.
+     * @param content Activate WI text list
+     * @param type Generation type, used for WI activation
+     * @param dryRun Setting it to false will update the stickiness, delay, and cooling states.
+     * @param contextSize Context budget size
+     * @returns PromptContext instance
+     */
     static async create(content: string[], type: string = 'normal', dryRun: boolean = false, contextSize: number = getMaxContextSize()) {
         const getter = new PromptContext();
         await getter.scan(content, type, dryRun, contextSize);

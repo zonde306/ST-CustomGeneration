@@ -306,7 +306,10 @@ export interface PartialToolCall {
     [key: string]: any;              // 其他供应商扩展字段
 }
 
-// toolCalls 是一个二维数组：外层索引是 choiceIndex，内层是工具调用列表
+/**
+ * The first index represents multiple choices, which we cannot handle.
+ * The second index is used for a list of tools that can be invoked concurrently.
+ */
 export type ToolCalls = PartialToolCall[][];
 
 // 可选的 thought signature 映射，键为 tool call id
