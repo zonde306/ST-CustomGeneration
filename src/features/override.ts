@@ -408,8 +408,10 @@ export class DataOverride {
 }
 
 async function onWorldInfoLoaded(data: WorldInfoLoaded) {
-    // @ts-expect-error: 2339
-    const override: DataOverride = data.context ? new DataOverride(data.context.chat, data.context.chat_metadata) : DataOverride.global();
+    const override: DataOverride = data.context ?
+        new DataOverride(data.context.chat, data.context.chat_metadata) :
+        DataOverride.global();
+    
     await override.onWorldInfoLoaded(data);
 }
 

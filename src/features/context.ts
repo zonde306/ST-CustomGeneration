@@ -356,14 +356,16 @@ export class Context {
         // To avoid conflicts caused by concurrent read and write operations of chat_metadata in worldinfo.
         const messages = await locker.invoke(async() => {
             const handler = (data: any) => {
-                data.context = this; // Inject context information to provide it for use by other extensions.
+                // Inject context information to provide it for use by other extensions.
+                data.context = this;
+                data.type = type;
                 console.debug('inject context to ', data);
                 // Because the handler is used by multiple events, it cannot be uninstalled here.
             };
 
-            // TODO: event_types.WORLD_INFO_ACTIVATED
-            eventSource.makeFirst(event_types.WORLDINFO_ENTRIES_LOADED, handler);
-            eventSource.makeFirst(event_types.WORLDINFO_SCAN_DONE, handler);
+            eventSource.makeFirst(event_types.WORLDINFO_ENTRIES_LOADED, handler);   // data is a object
+            eventSource.makeFirst(event_types.WORLDINFO_SCAN_DONE, handler);   // data is a object
+            eventSource.makeFirst(event_types.WORLD_INFO_ACTIVATED, handler);   // data is a array
 
             // backup timedWorldInfo
             const timedWorldInfo = chat_metadata.timedWorldInfo;
@@ -374,6 +376,7 @@ export class Context {
             } finally {
                 eventSource.removeListener(event_types.WORLDINFO_ENTRIES_LOADED, handler);
                 eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler);
+                eventSource.removeListener(event_types.WORLD_INFO_ACTIVATED, handler);
                 this.chat_metadata.timedWorldInfo = chat_metadata.timedWorldInfo;
                 chat_metadata.timedWorldInfo = timedWorldInfo; // restore timedWorldInfo
             }

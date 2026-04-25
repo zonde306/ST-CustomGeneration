@@ -1,7 +1,8 @@
 import { ReasoningType } from "@st/scripts/reasoning.js";
 import { PromptFilter } from '@/functions/message-builder';
-import { KNOWN_DECORATORS } from "@/functions/worldinfo"
-import { TEMPLATE_FILTER_OPTIONS } from "@/settings"
+import { KNOWN_DECORATORS } from "@/functions/worldinfo";
+import { TEMPLATE_FILTER_OPTIONS } from "@/settings";
+import { Context } from "@/features/context";
 
 type TextContent = {
     type: "text";
@@ -287,6 +288,7 @@ export interface WorldInfoLoaded {
     chatLore: WorldInfoEntry[];
     personaLore: WorldInfoEntry[];
     type?: string;
+    context?: Context;
 }
 
 export interface PartialToolCall {
