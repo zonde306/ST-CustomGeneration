@@ -63,6 +63,7 @@ export const NOT_ALLOWED_DECORATORS = [
 
 let abortController: AbortController | null = null;
 let delayGenerationTimer : number | null = null;
+let dontFilterWI = false;
 
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
@@ -141,8 +142,10 @@ async function processMessage(env: Context, override: DataOverride, before: bool
         before,
     );
 
-    if(groups.length < 1)
+    if(groups.length < 1) {
+        console.log(`Skipping ${before ? 'before' : 'after'}-generate for no available entries`);
         return;
+    }
 
     abortController = new AbortController();
 
@@ -354,7 +357,7 @@ async function onAppReady() {
 }
 
 async function onWorldInfoLoaded(data: WorldInfoLoaded) {
-    if(data.type === 'cg-before' || data.type === 'cg-after') {
+    if(dontFilterWI || data.type === 'cg-before' || data.type === 'cg-after') {
         console.debug('Skip WI entry filtering when performing custom WI processing');
         return;
     }
@@ -486,7 +489,9 @@ async function getSortedEntries(
     triggerWords: string[],
     before: boolean = false,
 ): Promise<WorldInfoEntryWithDecorator[][]> {
-    const entries = await getActivatedEntries(triggerWords, before ? 'cg-before' : 'cg-after', false);
+    dontFilterWI = true;
+    const entries = await getActivatedEntries(triggerWords, before ? 'cg-before' : 'cg-after', false).finally(() => dontFilterWI = false);
+    dontFilterWI = false;
     const grouped = new Map<number, WorldInfoEntryWithDecorator[]>();
 
     for(const entry of entries) {
