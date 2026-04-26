@@ -486,7 +486,7 @@ async function getSortedEntries(
     triggerWords: string[],
     before: boolean = false,
 ): Promise<WorldInfoEntryWithDecorator[][]> {
-    const entries = await getActivatedEntries(triggerWords, before ? 'cg-before' : 'cg-after', true);
+    const entries = await getActivatedEntries(triggerWords, before ? 'cg-before' : 'cg-after', false);
     const grouped = new Map<number, WorldInfoEntryWithDecorator[]>();
 
     for(const entry of entries) {

@@ -413,7 +413,7 @@ export async function getActivatedEntries(triggerWords: string[], type: string =
         characterDepthPrompt: fields.charDepthPrompt,
         scenario: fields.scenario,
         creatorNotes: fields.creatorNotes,
-        trigger: GENERATION_TYPE_TRIGGERS.includes(type) ? type : 'normal',
+        trigger: GENERATION_TYPE_TRIGGERS.includes(type) ? type : 'quiet',
     };
 
     // The return value needs to be obtained through the event handler.
@@ -436,7 +436,7 @@ export async function getActivatedEntries(triggerWords: string[], type: string =
         eventSource.makeLast(event_types.WORLDINFO_SCAN_DONE, resultHandler);
         eventSource.makeFirst(event_types.WORLDINFO_ENTRIES_LOADED, loadingHandler);
         
-        getWorldInfoPrompt(triggerWords, Number.MAX_SAFE_INTEGER, dryRun, globalScanData)
+        getWorldInfoPrompt(triggerWords, 1000000, dryRun, globalScanData)
             .then(() => resolve([]))
             .catch(reject)
             .finally(() => {

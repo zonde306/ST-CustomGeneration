@@ -418,11 +418,11 @@ export class Context {
 
         await eventSource.emit(eventTypes.GENERATE_BEFORE, { type, options, messages, abortController, taskId, context: this, streaming: !!options.streaming, apiConfig });
 
-        let response : GenResponse | AsyncGenerator<GenStreamResponse>;
+        let genResult : GenResponse | AsyncGenerator<GenStreamResponse>;
         const tools = this.createToolDefinitions(type, preset);
 
         try {
-            response = await runGenerate(messages, {
+            genResult = await runGenerate(messages, {
                 signal: abortController.signal,
                 taskId,
                 api: apiConfig as ApiConfig,
@@ -441,14 +441,15 @@ export class Context {
             this.chat.length = this.chat.length - 1;
         }
 
-        if(Object.prototype.toString.call(response) === '[object AsyncGenerator]') {
-            const stream = async function *(this: Context) {
+        // True streaming processing
+        if(Object.prototype.toString.call(genResult) === '[object AsyncGenerator]') {
+            const stream = async function *(this: Context, response: AsyncGenerator<GenStreamResponse>) {
                 let swipes : string[] = [];
                 let reasoning = '';
                 const toolCalls: ToolCalls = [];
                 let error = null;
                 try {
-                    for await (const chunk of response as AsyncGenerator<GenStreamResponse>) {
+                    for await (const chunk of response) {
                         if(options.allResponses) {
                             yield chunk;
                         } else if(chunk.swipe === 0) {
@@ -465,6 +466,7 @@ export class Context {
                             reasoning += chunk.reasoning;
                         }
                         if(chunk.toolCalls) {
+                            // The tool call of the last chunk is always complete.
                             toolCalls[chunk.swipe] = chunk.toolCalls;
                         }
                     }
@@ -477,9 +479,11 @@ export class Context {
                     if(toolMessages.length) {
                         if(!options.toolMessages)
                             options.toolMessages = [];
-                        options.toolMessages.push({ role: 'assistant', tool_calls: toolCalls[0] });
+                        options.toolMessages.push({ role: 'assistant', reasoning_content: reasoning ?? undefined, tool_calls: toolCalls[0] });
                         options.toolMessages.push(...toolMessages);
                         const nextResponse = await this.generate(type, options, dryRun);
+
+                        // Since `yield from` is not supported, this is the only option.
                         for await (const chunk of nextResponse as AsyncGenerator<GenStreamResponse | string>) {
                             yield chunk;
                         }
@@ -508,10 +512,11 @@ export class Context {
                 }
             }
 
-            return stream.call(this);
+            return stream.call(this, genResult as AsyncGenerator<GenStreamResponse>);
         }
 
-        // @ts-expect-error: 2339
+        // Non-streaming and half streaming processing
+        const response: GenResponse = genResult as GenResponse;
         const toolCalls = response.toolCalls as ToolCalls;
         
         if(toolCalls?.length) {
@@ -519,13 +524,12 @@ export class Context {
             if(toolMessages.length) {
                 if(!options.toolMessages)
                     options.toolMessages = [];
-                options.toolMessages.push({ role: 'assistant', tool_calls: toolCalls[0] });
+                options.toolMessages.push({ role: 'assistant', reasoning_content: response.reasoning ?? undefined, tool_calls: toolCalls[0] });
                 options.toolMessages.push(...toolMessages);
                 return await this.generate(type, options, dryRun);
             }
         }
 
-        // @ts-expect-error: 2339
         let swipes : string[] = response.swipes ?? [];
 
         if(swipes.length > 0) {
@@ -548,7 +552,6 @@ export class Context {
             console.error('Generate failed, empty responses');
         }
 
-        // @ts-expect-error: 2339
         response.swipes = swipes;
         const data = { type, options, taskId, error: null, response, context: this, streaming: false, apiConfig };
         await eventSource.emit(eventTypes.GENERATE_AFTER, data);
@@ -562,7 +565,6 @@ export class Context {
             return data.response;
         }
 
-        // @ts-expect-error: 2339
         return data.response.swipes.find(mes => !!mes.trim()) ?? '';
     }
 
