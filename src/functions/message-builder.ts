@@ -771,7 +771,7 @@ export class MessageBuilder {
 
             for (const item of input) {
                 // @ts-expect-error: 18046
-                if(item.tool_calls?.length) {
+                if(item.tool_calls?.length || item.role === 'tool') {
                     merged.push(item);
                     continue;
                 }

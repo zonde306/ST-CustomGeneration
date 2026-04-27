@@ -92,7 +92,7 @@ async function call(params: any): Promise<string> {
     }
 
     return JSON.stringify({
-        ok: result === POPUP_RESULT.AFFIRMATIVE,
+        ok: selected != null,
         selected
     });
 }
