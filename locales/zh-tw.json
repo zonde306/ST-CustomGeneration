@@ -154,5 +154,17 @@
 	"Description": "描述",
 	"cg_tool_description_help": "這個工具的介紹，會影響到LLM如何去使用它",
 	"Parameters": "參數描述",
-	"cg_tool_parameters_help": "工具參數的描述，會影響到LLM如何去使用它"
+	"cg_tool_parameters_help": "工具參數的描述，會影響到LLM如何去使用它",
+
+	"cg_tool_worldinfo_activate": "啟動世界書",
+	"cg_tool_worldinfo_get": "讀取世界書",
+	"cg_tool_worldinfo_search": "搜尋世界書",
+	"Create connection": "建立API連線",
+	"Duplicate connection": "複製API連線",
+	"Rename current connection": "重新命名API連線",
+	"Delete the connection": "刪除API連線",
+	"Import connections": "匯入API連線",
+	"Export connections": "匯出API連線",
+	"Link/Unlink preset to current API connection": "連結/取消連結預設至目前的API連線",
+	"Add regex": "新增正則規則"
 }
