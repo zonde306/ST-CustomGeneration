@@ -204,7 +204,8 @@ class StreamHandler {
                 if(this.singal.aborted)
                     break;
 
-                this.toolCalls = chunk.toolCalls ?? [];
+                if(chunk.toolCalls?.length)
+                    this.toolCalls = chunk.toolCalls;
 
                 const { swipe, text } = this.parseChunk(chunk);
                 if(!text)
@@ -248,7 +249,7 @@ class StreamHandler {
                     buffer: this.buffer,
                 });
 
-                yield { swipe, text, reasoning, toolCalls: chunk.toolCalls[swipe] ?? [] };
+                yield { swipe, text, reasoning, toolCalls: chunk.toolCalls?.[swipe] ?? [] };
             }
         } catch (err) {
             lastError = err;
