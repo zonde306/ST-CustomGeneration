@@ -1098,7 +1098,40 @@ function setAdvancedParametersExpanded(expanded: boolean): void {
     const body = $('#custom_generation_advanced_params_body');
     const icon = $('#custom_generation_advanced_params_icon');
     body.toggle(expanded);
-    icon.toggleClass('down', expanded);
+    icon.toggleClass('fa-circle-chevron-down', !expanded);
+    icon.toggleClass('fa-circle-chevron-up', expanded);
+}
+
+function setPromptListExpanded(expanded: boolean): void {
+    const body = $('#custom_generation_prompt_body');
+    const icon = $('#custom_generation_prompt_icon');
+    body.toggle(expanded);
+    icon.toggleClass('fa-circle-chevron-down', !expanded);
+    icon.toggleClass('fa-circle-chevron-up', expanded);
+}
+
+function setRegexListExpanded(expanded: boolean): void {
+    const body = $('#custom_generation_regex_body');
+    const icon = $('#custom_generation_regex_icon');
+    body.toggle(expanded);
+    icon.toggleClass('fa-circle-chevron-down', !expanded);
+    icon.toggleClass('fa-circle-chevron-up', expanded);
+}
+
+function setTemplateListExpanded(expanded: boolean): void {
+    const body = $('#custom_generation_template_body');
+    const icon = $('#custom_generation_template_icon');
+    body.toggle(expanded);
+    icon.toggleClass('fa-circle-chevron-down', !expanded);
+    icon.toggleClass('fa-circle-chevron-up', expanded);
+}
+
+function setToolListExpanded(expanded: boolean): void {
+    const body = $('#custom_generation_tool_body');
+    const icon = $('#custom_generation_tool_icon');
+    body.toggle(expanded);
+    icon.toggleClass('fa-circle-chevron-down', !expanded);
+    icon.toggleClass('fa-circle-chevron-up', expanded);
 }
 
 function updateModelSelectOptions(): void {
@@ -3568,6 +3601,39 @@ function bindEvents() {
         setAdvancedParametersExpanded(expanded);
     });
 
+    $('#custom_generation_prompt_toggle').on('click', (event: JQuery.TriggeredEvent) => {
+        // Don't toggle if clicking on buttons
+        if ($(event.target).closest('.custom_generation_button').length) {
+            return;
+        }
+        const expanded = !$('#custom_generation_prompt_body').is(':visible');
+        setPromptListExpanded(expanded);
+    });
+
+    $('#custom_generation_regex_toggle').on('click', (event: JQuery.TriggeredEvent) => {
+        if ($(event.target).closest('.custom_generation_button').length) {
+            return;
+        }
+        const expanded = !$('#custom_generation_regex_body').is(':visible');
+        setRegexListExpanded(expanded);
+    });
+
+    $('#custom_generation_template_toggle').on('click', (event: JQuery.TriggeredEvent) => {
+        if ($(event.target).closest('.custom_generation_button').length) {
+            return;
+        }
+        const expanded = !$('#custom_generation_template_body').is(':visible');
+        setTemplateListExpanded(expanded);
+    });
+
+    $('#custom_generation_tool_toggle').on('click', (event: JQuery.TriggeredEvent) => {
+        if ($(event.target).closest('.custom_generation_button').length) {
+            return;
+        }
+        const expanded = !$('#custom_generation_tool_body').is(':visible');
+        setToolListExpanded(expanded);
+    });
+
     $('#custom_generation_prompt_post_processing').on('change', () => {
         const api = getCurrentApi();
         api.promptPostProcessing = parsePromptPostProcessing($('#custom_generation_prompt_post_processing').val());
@@ -4132,6 +4198,10 @@ export async function setupSettings() {
 
     await ensureModalTemplatesInjected();
     setAdvancedParametersExpanded(false);
+    setPromptListExpanded(true);
+    setRegexListExpanded(true);
+    setTemplateListExpanded(true);
+    setToolListExpanded(true);
 
     bindEvents();
 
