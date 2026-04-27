@@ -253,14 +253,16 @@ export class MessageBuilder {
 
         for (const item of content as ChatCompletionMessage[]) {
             const role = this.normalizeRole(item.role);
-            const value = String(item.content ?? '').trim();
-            if (!value) {
+
+            // @ts-expect-error: 2339
+            if(!item.content?.trim() && !item.tool_calls?.length)
                 continue;
-            }
 
             messages.push({
                 role,
-                content: value,
+                content: item.content,
+                // @ts-expect-error: 2339
+                tool_calls: item.tool_calls,
             });
         }
     }
@@ -417,7 +419,7 @@ export class MessageBuilder {
         this.injectCharacterDepthPrompt(prompts.charDepthPrompt);
         this.injectWorldInfoDepth(prompts.worldInfoDepth);
         this.injectOutletEntries(prompts.worldInfoOutletEntries);
-        this.injectAuthorsNoteDepthPrompt();
+        this.injectAuthorsNoteDepthPrompt(prompts);
     }
 
     private injectPresetDepthPrompts(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal') {
@@ -608,7 +610,7 @@ export class MessageBuilder {
         }
     }
 
-    private injectAuthorsNoteDepthPrompt() {
+    private injectAuthorsNoteDepthPrompt(prompts: PromptContext) {
         const prompt = String(chat_metadata[metadata_keys.prompt] ?? '').trim();
         if (!prompt || Number(chat_metadata[metadata_keys.position]) !== 1) {
             return;
@@ -617,10 +619,44 @@ export class MessageBuilder {
         const depth = this.normalizeDepth(chat_metadata[metadata_keys.depth], depth_prompt_depth_default);
         const role = this.normalizeExtensionRole(chat_metadata[metadata_keys.role]);
 
+        // 获取 Author's Note 相关的 World Info 条目
+        const beforeEntries = prompts.worldInfoAuthorNoteBefore
+            .map(entry => String(entry ?? '').trim())
+            .filter(Boolean);
+        const afterEntries = prompts.worldInfoAuthorNoteAfter
+            .map(entry => String(entry ?? '').trim())
+            .filter(Boolean);
+
+        // 构建 before 消息
+        const beforeMessages = beforeEntries.map(content => 
+            this.evaluateMacros(this.applyRegex(content, { world: true }))
+        ).filter(Boolean);
+
+        // 构建 after 消息
+        const afterMessages = afterEntries.map(content => 
+            this.evaluateMacros(this.applyRegex(content, { world: true }))
+        ).filter(Boolean);
+
+        // 将 before、author's note、after 按顺序合并
+        const allMessages: string[] = [];
+        
+        if (beforeMessages.length) {
+            allMessages.push(...beforeMessages);
+        }
+        
+        allMessages.push(this.evaluateMacros(prompt));
+        
+        if (afterMessages.length) {
+            allMessages.push(...afterMessages);
+        }
+
+        // 将合并后的内容作为一个整体注入
+        const combinedContent = allMessages.join('\n');
+
         if(this.filters.authorsNoteDepth !== false) {
             this.setExtensionPrompt(
                 `${inject_ids.DEPTH_PROMPT}_AUTHOR_NOTE`,
-                prompt,
+                combinedContent,
                 extension_prompt_types.IN_CHAT,
                 depth,
                 false,
