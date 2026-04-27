@@ -9,7 +9,7 @@ import { DOMPurify } from '@st/lib.js';
 const TOOL_NAME = 'buttons';
 const SCHEMA = z.object({
     message: z.string().describe('Dialog messages allow the use of HTML and inline CSS code.'),
-    buttons: z.array(z.string()).describe('The choices to be presented to the user.'),
+    options: z.array(z.string()).describe('A list of options will be displayed to the user.'),
     multiple: z.boolean().describe('Whether multiple choices can be selected.').default(false).optional(),
     ok: z.string().describe('If multiple is enabled, close the dialog box button text.').default('OK').optional(),
     cancel: z.string().describe('If multiple is not enabled, close the dialog box button text.').default('Cancel').optional(),
@@ -27,7 +27,7 @@ export async function setup() {
 async function call(params: any): Promise<string> {
     const args = params as z.infer<typeof SCHEMA>;
 
-    const buttons = args.buttons.map(btn => typeof btn === 'string' ? { text: btn } : btn);
+    const buttons = args.options.map(btn => typeof btn === 'string' ? { text: btn } : btn);
     const resultToButtonMap = new Map(buttons.map((button, index) => [index + 2, button]));
     const multipleToggledState = new Set<number>();
 
