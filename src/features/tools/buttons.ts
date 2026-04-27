@@ -5,8 +5,6 @@ import { DOMPurify } from '@st/lib.js';
 
 const STRING_ARRAY = z.preprocess(
     v => {
-        if(typeof v === 'string')
-            return [ v ];
         if(v && typeof v === 'object')
             return Object.values(v);
         return v;
