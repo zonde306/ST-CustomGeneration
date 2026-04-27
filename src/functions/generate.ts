@@ -133,11 +133,7 @@ export async function generate(
 
             // @ts-expect-error: 2345
             eventSource.removeListener(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
-
-            for(const [key, val] of Object.entries(originalSettings)) {
-                // @ts-expect-error: 7053
-                oai_settings[key] = val;
-            }
+            // Object.assign(oai_settings, originalSettings);
         };
 
         // compatibility with other extensions and API parameter passing
@@ -150,7 +146,7 @@ export async function generate(
         oai_settings.custom_prompt_post_processing = custom_prompt_post_processing_types.NONE;
     }
 
-    let result = null;
+    let result: AsyncGenerator<StreamResponse> | Response | null = null;
     signal = signal ?? new AbortController().signal;
     taskId = taskId || uuidv4();
 
@@ -181,10 +177,9 @@ export async function generate(
     } finally {
         if(eventHandler)
             eventSource.removeListener(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
-        for(const [key, val] of Object.entries(originalSettings)) {
-            // @ts-expect-error: 7053
-            oai_settings[key] = val;
-        }
+
+        if(Object.prototype.toString.call(result) !== '[object AsyncGenerator]')
+            Object.assign(oai_settings, originalSettings);
     }
 
     return result;
@@ -197,18 +192,22 @@ class StreamHandler {
     private taskId: string;
     public toolCalls: ToolCalls;
     private reasoning: string;
+    private settings: Record<string, any>;
 
-    constructor(taskId: string, singal?: AbortSignal) {
+    constructor(taskId: string, singal?: AbortSignal, restoreSettings?: Record<string, any>) {
         this.taskId = taskId;
         this.singal = singal ?? new AbortController().signal;
         this.buffer = [];
         this.toolCalls = [];
         this.reasoning = '';
+        this.settings = restoreSettings ?? {};
     }
 
     async generate() : Promise<Response> {
-        if(!this.generator)
+        if(!this.generator) {
+            Object.assign(oai_settings, this.settings);
             throw new Error('Generator is not set');
+        }
 
         let lastError = null;
         try {
@@ -232,6 +231,8 @@ class StreamHandler {
             }
         } catch (err) {
             lastError = err;
+        } finally {
+            Object.assign(oai_settings, this.settings);
         }
 
         await eventSource.emit(eventTypes.GENERATION_END, {
@@ -244,8 +245,10 @@ class StreamHandler {
     }
 
     async *streaming(): AsyncGenerator<StreamResponse> {
-        if(!this.generator)
+        if(!this.generator) {
+            Object.assign(oai_settings, this.settings);
             throw new Error('Generator is not set');
+        }
 
         let lastError = null;
         try {
@@ -265,6 +268,8 @@ class StreamHandler {
             }
         } catch (err) {
             lastError = err;
+        } finally {
+            Object.assign(oai_settings, this.settings);
         }
 
         await eventSource.emit(eventTypes.GENERATION_END, {
