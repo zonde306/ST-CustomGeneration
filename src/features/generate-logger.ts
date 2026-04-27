@@ -457,6 +457,8 @@ async function onToolCalling(data: ToolCalling) {
         entry.toolMessages = data.options.toolMessages;
     }
 
+    entry.done = true;
+
     await refreshLoggerListIfVisible();
 }
 
