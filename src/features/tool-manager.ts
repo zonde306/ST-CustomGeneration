@@ -3,6 +3,9 @@ import { settings } from '@/settings';
 import { setup as setupButtons } from '@/features/tools/buttons';
 import { setup as setupInput } from '@/features/tools/input';
 import { setup as setupConfirm } from '@/features/tools/confirmation';
+import { setup as setupWIActivate } from '@/features/tools/worldinfo-activate';
+import { setup as setupWIGet } from '@/features/tools/worldinfo-get';
+import { setup as setupWISearch } from '@/features/tools/worldinfo-search';
 
 export const TOOL_DEFINITION = new Map<string, Tool>();
 
@@ -10,6 +13,9 @@ export async function setup() {
     await setupButtons();
     await setupInput();
     await setupConfirm();
+    await setupWIActivate();
+    await setupWIGet();
+    await setupWISearch();
 }
 
 /**

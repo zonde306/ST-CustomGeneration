@@ -159,12 +159,12 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     // TODO: Since different APIs have different concurrency limits, we should set limits for them separately.
     const maxConcurrency = settings.apis[settings.currentApi].maxConcurrency;
 
-    for(const [ batch, entrites ] of Object.entries(groups)) {
+    for(const [ batch, entries ] of Object.entries(groups)) {
         const tasks: (() => Promise<any>)[] = [];
         let activeTasks = 0;
         
         // It should be wrapped as a separate function, but that seems a bit difficult.
-        for(const ent of entrites) {
+        for(const ent of entries) {
             const { entry, decorator, parsed, processor } = ent;
 
             const tag = parsed.parameters[decorator]?.[0] ?? '';

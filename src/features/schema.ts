@@ -41,15 +41,15 @@ async function onWorldInfoUpdated() {
 }
 
 async function loadSchema(): Promise<z.ZodObject> {
-    let entrites: WorldInfoEntry[] = [];
+    let entries: WorldInfoEntry[] = [];
     const lorebooks = collectEnabledWorldInfos();
     for(const lorebook of lorebooks) {
-        entrites = entrites.concat(await loadWorldInfoEntries(lorebook, false));
+        entries = entries.concat(await loadWorldInfoEntries(lorebook, false));
     }
 
-    entrites = entrites.filter(entry => !entry.disable);
-    entrites = filterWIByDecorator(entrites, ['@@json_schema', '@@zod_schema']);
-    if(entrites.length < 1) {
+    entries = entries.filter(entry => !entry.disable);
+    entries = filterWIByDecorator(entries, ['@@json_schema', '@@zod_schema']);
+    if(entries.length < 1) {
         return z.looseObject({});
     }
 
@@ -67,7 +67,7 @@ async function loadSchema(): Promise<z.ZodObject> {
     };
 
     using sandbox = new FunctionSandbox();
-    for(const entry of entrites.sort(getWorldInfoSorter(entrites))) {
+    for(const entry of entries.sort(getWorldInfoSorter(entries))) {
         registered = false;
         try {
             if(entry.decorators.includes('@@json_schema')) {
