@@ -800,10 +800,15 @@ export class Context {
 
             try {
                 const parameters = call.args ?? JSON.parse(call.function?.arguments ?? '{}') ?? {};
+                const validated = tool.parameters.safeParse(parameters);
+                if(!validated.success) {
+                    throw new Error(`Tool ${name} parameters error: ${JSON.stringify(z.treeifyError(validated.error))}`);
+                }
+
                 return {
                     role: 'tool',
                     tool_call_id: call.id ?? '',
-                    content: await tool.function(await tool.parameters.parseAsync(parameters)),
+                    content: await tool.function(validated.data),
                 }
             } catch (e) {
                 console.error(`Tool ${name} failed`, e);
