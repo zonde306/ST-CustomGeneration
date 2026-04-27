@@ -802,7 +802,11 @@ export class Context {
                 const parameters = call.args ?? JSON.parse(call.function?.arguments ?? '{}') ?? {};
                 const validated = tool.parameters.safeParse(parameters);
                 if(!validated.success) {
-                    throw new Error(`Tool ${name} parameters error: ${JSON.stringify(z.treeifyError(validated.error))}`);
+                    return {
+                        role: 'tool',
+                        tool_call_id: call.id ?? '',
+                        content: `Tool ${name} parameters error: ${JSON.stringify(z.treeifyError(validated.error))}\nSchema: ${JSON.stringify(tool.parameters.toJSONSchema())}`,
+                    };
                 }
 
                 return {
