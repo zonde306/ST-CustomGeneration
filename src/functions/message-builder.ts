@@ -837,7 +837,7 @@ export class MessageBuilder {
 
                 const lastIndex = alternated.length - 1;
                 const adjusted = alternated.map((item, index) => {
-                    if (index === lastIndex) {
+                    if (index === lastIndex && item.role !== 'tool') {
                         return {
                             ...item,
                             role: 'user',
