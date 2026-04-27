@@ -86,8 +86,10 @@ function buildOverrideBlock(title: string, content: string, onEdit?: (newContent
     const titleEl = $('<div class="custom_generation_overrides_block_title"></div>').text(title);
     const copyButton = createCopyButton(content);
     const pre = $('<pre class="custom_generation_overrides_pre"></pre>').text(content);
-    header.append(titleEl, copyButton);
+    const buttonGroup = $('<div class="custom_generation_overrides_buttons"></div>');
+    header.append(titleEl, buttonGroup);
     block.append(header, pre);
+    buttonGroup.append(copyButton);
 
     // 添加编辑按钮（如果提供了编辑回调）
     if (onEdit) {
@@ -96,7 +98,7 @@ function buildOverrideBlock(title: string, content: string, onEdit?: (newContent
         const cancelButton = $('<button class="menu_button fa-solid fa-times custom_generation_cancel_button" type="button" title="Cancel" data-i18n="[title]Cancel" style="display:none;"></button>');
         const textarea = $('<textarea class="custom_generation_overrides_textarea" style="display:none;"></textarea>').val(content);
 
-        header.append(editButton, saveButton, cancelButton);
+        buttonGroup.append(editButton, saveButton, cancelButton);
 
         const toggleEditMode = (editing: boolean) => {
             if (editing) {
