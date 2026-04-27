@@ -316,13 +316,14 @@ export type ToolCalls = PartialToolCall[][];
 export type ToolSignatures = Record<string, string>;
 
 export interface ChatMessage {
-    role: 'system' | 'user' | 'assistant';
+    role: string;
     reasoning_content?: string;
     content?: string;
+    name?: string;
 }
 
 export interface ToolMessage {
-    role: 'assistant' | 'tool';
+    role: string;
     reasoning_content?: string; // for role=assistant
     tool_calls?: PartialToolCall[]; // for role=assistant
     tool_call_id?: string; // for role=tool

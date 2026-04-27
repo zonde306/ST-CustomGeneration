@@ -801,6 +801,10 @@ export class MessageBuilder {
         const toAlternate = (input: ChatCompletionMessage[]): ChatCompletionMessage[] => {
             const merged = mergeConsecutive(input);
             const normalized = merged.map((item, index) => {
+                // @ts-expect-error: 18046
+                if(item.role === 'tool' || item.tool_calls?.length)
+                    return item;
+
                 let role = this.normalizeRole(item.role);
                 if (index > 0 && role === 'system') {
                     role = 'user';
