@@ -12,4 +12,5 @@ export const eventTypes = {
     GENERATE_AFTER: 'cg_generate_after',
     GENERATION_WORLDINFO_START: 'cg_generate_worldinfo_start',
     GENERATION_WORLDINFO_END: 'cg_generate_worldinfo_end',
+    TOOL_CALLING: 'cg_tool_calling',
 }

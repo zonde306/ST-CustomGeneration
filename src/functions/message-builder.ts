@@ -19,7 +19,7 @@ import { metadata_keys } from '@st/scripts/authors-note.js';
 import { world_info_depth } from '@st/scripts/world-info.js';
 import { inject_ids } from '@st/scripts/constants.js';
 import { settings } from '@/settings';
-import { GenerateOptionsLite, ContextRole } from "@/utils/defines";
+import { GenerateOptionsLite, ContextRole, ToolMessage } from "@/utils/defines";
 import { Preset, RegEx, PresetPrompt } from "@/utils/defines";
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
 import { wi_anchor_position } from '@st/scripts/world-info.js';
@@ -83,7 +83,7 @@ export class MessageBuilder {
     private presetDepth: string[];
     private charDepth: string;
     private postProcessing: string;
-    public toolMessages: any[]; // only for tool messages
+    public toolMessages: ToolMessage[]; // only for tool messages
 
     constructor(chat: ChatMessage[], preset?: Preset, postProcessing: string = 'none') {
         this.chat = chat;
@@ -166,6 +166,8 @@ export class MessageBuilder {
             const authorNoteRange = this.insertAuthorsNoteByMetadata(messages, null);
             this.insertWorldInfoAroundAuthorsNote(messages, prompts, authorNoteRange);
             this.assignOutletMacros(messages);
+
+            // @ts-expect-error: 2345
             messages.push(...this.toolMessages);
             return this.postprocessMessages(messages);
         }
@@ -934,6 +936,7 @@ export class MessageBuilder {
             case 'worldInfoAfter':
                 return this.applyRegex(prompts.worldInfoCharAfter, { world: true });
             case 'chatHistory':
+                // @ts-expect-error: 2345
                 return historyMessages.concat(this.toolMessages);
             case 'charNote':
                 return this.charDepth;

@@ -6,6 +6,8 @@ import { ApiConfig } from "@/functions/generate";
 import { getTokenCountAsync } from '@st/scripts/tokenizers.js';
 import { copyText } from '@st/scripts/utils.js';
 import { Response } from '@/functions/generate';
+import { ToolCalls, ToolMessage } from '@/utils/defines';
+import { t } from '@st/scripts/i18n.js'
 
 interface GenerateBefore {
     type: string;
@@ -25,6 +27,14 @@ interface GenerateAfter {
     error: Error | null;
 }
 
+interface ToolCalling {
+    taskId: string;
+    options: GenerateOptionsLite;
+    context: Context;
+    type: string;
+    toolCalls: ToolCalls;
+}
+
 interface GenerateLogEntry {
     taskId: string;
     messages: ChatCompletionMessage[];
@@ -35,6 +45,7 @@ interface GenerateLogEntry {
     error: Error | null;
     done: boolean;
     type: string;
+    toolMessages: ToolMessage[];
 }
 
 const MAX_LOG_COUNT = 100;
@@ -46,6 +57,7 @@ export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
     eventSource.makeLast(eventTypes.GENERATE_BEFORE, onGenerateBefore);
     eventSource.makeLast(eventTypes.GENERATE_AFTER, onGenerateAfter);
+    eventSource.makeLast(eventTypes.TOOL_CALLING, onToolCalling);
 }
 
 function getDialog(selector: string): HTMLDialogElement | null {
@@ -116,7 +128,7 @@ function buildLoggerSection(title: string, blocks: JQuery<HTMLElement>[]): JQuer
     section.append(titleEl, body);
 
     if (!blocks.length) {
-        const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text('(empty)');
+        const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text(t`(empty)`);
         body.append(empty);
         return section;
     }
@@ -168,6 +180,54 @@ async function buildLoggerResponseBlocks(responses: string[]): Promise<JQuery<HT
         const title = await buildLoggerResponseTitle(response, index);
         const content = String(response ?? '');
         blocks.push(...buildLoggerAccordionBlock(title, content, 'custom_generation_logger_response'));
+    }
+    return blocks;
+}
+
+async function buildLoggerToolMessageTitle(message: ToolMessage, index: number): Promise<string> {
+    const role = String(message.role ?? 'unknown');
+    const markup = message.role === 'assistant' ? '🤖' : '🔧';
+    const id = message.tool_call_id ? ` (id: ${message.tool_call_id})` : '';
+    const tokens = await getTokenCountAsync(message.content ?? '');
+    const base = `Tool Message #${index + 1} · ${markup}${role}${id} · 🧠${tokens} tokens`;
+    return base;
+}
+
+function formatToolMessageContent(message: ToolMessage): string {
+    const parts: string[] = [];
+    
+    if (message.reasoning_content) {
+        // Reasoning for tool calls
+        parts.push(`<think>\n${message.reasoning_content}\n</think>\n`);
+    }
+    
+    if (message.content) {
+        // Tool call response
+        parts.push(`${message.content}`);
+    }
+    
+    if (message.tool_calls && message.tool_calls.length > 0) {
+        // Tool calls parameters
+        parts.push(`${safeStringify(message.tool_calls)}`);
+    }
+    
+    if (parts.length === 0) {
+        return t`(empty)`;
+    }
+    
+    return parts.join('\n');
+}
+
+async function buildLoggerToolMessageBlocks(toolMessages: GenerateLogEntry['toolMessages']): Promise<JQuery<HTMLElement>[]> {
+    if (!toolMessages?.length) {
+        return [];
+    }
+
+    const blocks: JQuery<HTMLElement>[] = [];
+    for (const [index, message] of toolMessages.entries()) {
+        const title = await buildLoggerToolMessageTitle(message, index);
+        const content = formatToolMessageContent(message);
+        blocks.push(...buildLoggerAccordionBlock(title, content, 'custom_generation_logger_tool_message'));
     }
     return blocks;
 }
@@ -256,8 +316,10 @@ async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise
     body.append(info);
 
     const messageBlocks = await buildLoggerMessageBlocks(entry.messages);
+    const toolMessageBlocks = await buildLoggerToolMessageBlocks(entry.toolMessages);
     const responseBlocks = await buildLoggerResponseBlocks(entry.responses);
     body.append(buildLoggerSection('Messages', messageBlocks));
+    body.append(buildLoggerSection('Tool Messages', toolMessageBlocks));
     body.append(buildLoggerSection('Responses', responseBlocks));
 
     if (entry.error) {
@@ -298,7 +360,7 @@ async function updateLoggerList(): Promise<void> {
     const nodes : JQuery<HTMLElement>[] = [];
 
     if (loggers.length === 0) {
-        const emptyText = String(list.attr('no-items-text') ?? 'No logs');
+        const emptyText = String(list.attr('no-items-text') ?? t`No logs`);
         const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text(emptyText);
         nodes.push(empty);
         return;
@@ -348,6 +410,7 @@ async function onGenerateBefore(data: GenerateBefore) {
         error: null,
         done: false,
         type: data.type,
+        toolMessages: [],
     });
 
     while (loggers.length > MAX_LOG_COUNT) {
@@ -379,6 +442,20 @@ async function onGenerateAfter(data: GenerateAfter) {
 
     entry.error = data.error ?? null;
     entry.done = true;
+
+    await refreshLoggerListIfVisible();
+}
+
+async function onToolCalling(data: ToolCalling) {
+    const entry = loggers.find(e => e.taskId === data.taskId);
+    if (!entry) {
+        console.error(`Failed to find log entry for task ${data.taskId}`);
+        return;
+    }
+
+    if(data.options.toolMessages?.length) {
+        entry.toolMessages = data.options.toolMessages;
+    }
 
     await refreshLoggerListIfVisible();
 }

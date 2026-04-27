@@ -315,6 +315,20 @@ export type ToolCalls = PartialToolCall[][];
 // 可选的 thought signature 映射，键为 tool call id
 export type ToolSignatures = Record<string, string>;
 
+export interface ChatMessage {
+    role: 'system' | 'user' | 'assistant';
+    reasoning_content?: string;
+    content?: string;
+}
+
+export interface ToolMessage {
+    role: 'assistant' | 'tool';
+    reasoning_content?: string; // for role=assistant
+    tool_calls?: PartialToolCall[]; // for role=assistant
+    tool_call_id?: string; // for role=tool
+    content?: string; // for role=tool
+}
+
 export interface PresetPrompt {
     // A name for this prompt. (displayed in the UI)
     name: string;
@@ -600,10 +614,4 @@ export interface ToolDefinition {
         parameters?: Record<string, any>;
         strict?: boolean;
     }
-}
-
-export interface ToolMessage {
-    role: "tool";
-    tool_call_id: string; // for PartialToolCall.id
-    content: string;
 }

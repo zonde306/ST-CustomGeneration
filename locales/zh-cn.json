@@ -170,5 +170,6 @@
 	"Import connections": "导入API连接",
 	"Export connections": "导出API连接",
 	"Link/Unlink preset to current API connection": "将预设与API连接关联",
-	"Add regex": "创建正则规则"
+	"Add regex": "创建正则规则",
+	"(empty)": "(空白)"
 }

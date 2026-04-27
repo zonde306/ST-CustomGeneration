@@ -16,7 +16,7 @@ import { MessageBuilder, PromptFilter, MacroOverride } from '@/functions/message
 import { ContextRole, ToolCalls, ToolDefinition } from '@/utils/defines'
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
 import { eventTypes } from '@/utils/events';
-import { Preset } from '@/utils/defines';
+import { Preset, ToolMessage } from '@/utils/defines';
 import { defaultPreset } from '@/utils/default-settings';
 import { AsyncMutex } from '@/utils/mutex';
 import { getAvailableTools, getTool } from '@/features/tool-manager';
@@ -77,7 +77,9 @@ export interface GenerateOptionsLite {
     /**
      * Tool messages
      */
-    toolMessages?: any[];
+    toolMessages?: ToolMessage[];
+
+    taskId?: number | string;
 }
 
 export interface Tool {
@@ -406,7 +408,7 @@ export class Context {
             return '';
 
         const abortController = options.abortController ?? this.createAbortController(options.signal);
-        const taskId = String(this.variables?.taskId || ++taskIdCounter);
+        const taskId = String(options.taskId || this.variables?.taskId || ++taskIdCounter);
         let apiConfig: Partial<ApiConfig> | undefined = this.buildApiConfig(type, preset.name);
 
         if(options.apiConfig) {
@@ -479,14 +481,21 @@ export class Context {
                     if(toolMessages.length) {
                         if(!options.toolMessages)
                             options.toolMessages = [];
+
                         options.toolMessages.push({ role: 'assistant', reasoning_content: reasoning ?? undefined, tool_calls: toolCalls[0] });
                         options.toolMessages.push(...toolMessages);
+                        options.taskId = taskId;
+
+                        await eventSource.emit(eventTypes.TOOL_CALLING, { taskId, type, options, toolCalls, context: this, apiConfig });
                         const nextResponse = await this.generate(type, options, dryRun);
 
                         // Since `yield from` is not supported, this is the only option.
                         for await (const chunk of nextResponse as AsyncGenerator<GenStreamResponse | string>) {
                             yield chunk;
                         }
+
+                        // Continuous requests are not considered complete, therefore no subsequent events need to be triggered.
+                        return;
                     }
                 }
 
@@ -524,8 +533,12 @@ export class Context {
             if(toolMessages.length) {
                 if(!options.toolMessages)
                     options.toolMessages = [];
-                options.toolMessages.push({ role: 'assistant', reasoning_content: response.reasoning ?? undefined, tool_calls: toolCalls[0] });
+                
+                options.taskId = taskId;
+                options.toolMessages.push({ role: 'assistant', reasoning_content: response.reasoning[0] ?? undefined, tool_calls: toolCalls[0] });
                 options.toolMessages.push(...toolMessages);
+
+                await eventSource.emit(eventTypes.TOOL_CALLING, { taskId, type, options, toolCalls, context: this, apiConfig });
                 return await this.generate(type, options, dryRun);
             }
         }
@@ -764,7 +777,7 @@ export class Context {
         return tools;
     }
 
-    private async handleToolCalls(calls: ToolCalls) {
+    private async handleToolCalls(calls: ToolCalls): Promise<ToolMessage[]> {
         if(!calls?.length)
             return [];
 
