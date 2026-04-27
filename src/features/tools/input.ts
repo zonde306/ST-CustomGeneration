@@ -10,12 +10,12 @@ const TOOL_NAME = 'input';
 const SCHEMA = z.object({
     message: z.string().describe('Dialog messages allow the use of HTML and inline CSS code.'),
     default: z.string().describe('The default value to be displayed in the input box.').optional(),
-    large: z.boolean().describe('Whether to use a large input box.').default(false).optional(),
-    wide: z.boolean().describe('Whether to use a wide input box.').default(false).optional(),
-    rows: z.number().describe('The number of rows to display in the input box.').default(4).optional(),
+    large: z.coerce.boolean().describe('Whether to use a large input box.').default(false).optional(),
+    wide: z.coerce.boolean().describe('Whether to use a wide input box.').default(false).optional(),
+    rows: z.coerce.number().int().describe('The number of rows to display in the input box.').default(4).optional(),
     placeholder: z.string().describe('The placeholder text to display in the input box.').optional(),
     tooltip: z.string().describe('The tooltip text to display in the input box.').optional(),
-    ok: z.any().describe('The text of the "OK" button.').default('OK').optional(),
+    ok: z.string().describe('The text of the "OK" button.').default('OK').optional(),
 });
 
 export async function setup() {

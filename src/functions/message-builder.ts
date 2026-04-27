@@ -252,15 +252,16 @@ export class MessageBuilder {
         }
 
         for (const item of content as ChatCompletionMessage[]) {
-            const role = this.normalizeRole(item.role);
-            const value = String(item.content ?? '').trim();
-            if (!value) {
+            // @ts-expect-error: 2339
+            if(!item.content?.trim() && !item.tool_calls?.length)
                 continue;
-            }
 
+            const role = this.normalizeRole(item.role);
             messages.push({
                 role,
-                content: value,
+                content: item.content,
+                // @ts-expect-error: 2339
+                tool_calls: item.tool_calls,
             });
         }
     }
@@ -417,7 +418,7 @@ export class MessageBuilder {
         this.injectCharacterDepthPrompt(prompts.charDepthPrompt);
         this.injectWorldInfoDepth(prompts.worldInfoDepth);
         this.injectOutletEntries(prompts.worldInfoOutletEntries);
-        this.injectAuthorsNoteDepthPrompt();
+        this.injectAuthorsNoteDepthPrompt(prompts);
     }
 
     private injectPresetDepthPrompts(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal') {
@@ -608,7 +609,7 @@ export class MessageBuilder {
         }
     }
 
-    private injectAuthorsNoteDepthPrompt() {
+    private injectAuthorsNoteDepthPrompt(prompts: PromptContext) {
         const prompt = String(chat_metadata[metadata_keys.prompt] ?? '').trim();
         if (!prompt || Number(chat_metadata[metadata_keys.position]) !== 1) {
             return;
@@ -617,10 +618,44 @@ export class MessageBuilder {
         const depth = this.normalizeDepth(chat_metadata[metadata_keys.depth], depth_prompt_depth_default);
         const role = this.normalizeExtensionRole(chat_metadata[metadata_keys.role]);
 
+        // 获取 Author's Note 相关的 World Info 条目
+        const beforeEntries = prompts.worldInfoAuthorNoteBefore
+            .map(entry => String(entry ?? '').trim())
+            .filter(Boolean);
+        const afterEntries = prompts.worldInfoAuthorNoteAfter
+            .map(entry => String(entry ?? '').trim())
+            .filter(Boolean);
+
+        // 构建 before 消息
+        const beforeMessages = beforeEntries.map(content => 
+            this.evaluateMacros(this.applyRegex(content, { world: true }))
+        ).filter(Boolean);
+
+        // 构建 after 消息
+        const afterMessages = afterEntries.map(content => 
+            this.evaluateMacros(this.applyRegex(content, { world: true }))
+        ).filter(Boolean);
+
+        // 将 before、author's note、after 按顺序合并
+        const allMessages: string[] = [];
+        
+        if (beforeMessages.length) {
+            allMessages.push(...beforeMessages);
+        }
+        
+        allMessages.push(this.evaluateMacros(prompt));
+        
+        if (afterMessages.length) {
+            allMessages.push(...afterMessages);
+        }
+
+        // 将合并后的内容作为一个整体注入
+        const combinedContent = allMessages.join('\n');
+
         if(this.filters.authorsNoteDepth !== false) {
             this.setExtensionPrompt(
                 `${inject_ids.DEPTH_PROMPT}_AUTHOR_NOTE`,
-                prompt,
+                combinedContent,
                 extension_prompt_types.IN_CHAT,
                 depth,
                 false,
@@ -661,6 +696,8 @@ export class MessageBuilder {
                 return 'user';
             case 'assistant':
                 return 'assistant';
+            case 'tool':
+                return 'tool';
             default:
                 return 'system';
         }
@@ -734,14 +771,21 @@ export class MessageBuilder {
             const merged: ChatCompletionMessage[] = [];
 
             for (const item of input) {
-                const role = this.normalizeRole(item.role);
+                // @ts-expect-error: 18046
+                if(item.tool_calls?.length || item.role === 'tool') {
+                    merged.push(item);
+                    continue;
+                }
+
                 const content = String(item.content ?? '').trim();
-                if (!content) {
+                if (!item.content?.trim()) {
                     continue;
                 }
 
                 const prev = merged[merged.length - 1];
-                if (prev && prev.role === role) {
+                const role = this.normalizeRole(item.role);
+                // @ts-expect-error: 2339
+                if (prev && prev.role === role && !prev.tool_calls?.length) {
                     prev.content = [String(prev.content ?? ''), content].filter(Boolean).join('\n\n');
                 } else {
                     merged.push({
@@ -758,6 +802,10 @@ export class MessageBuilder {
         const toAlternate = (input: ChatCompletionMessage[]): ChatCompletionMessage[] => {
             const merged = mergeConsecutive(input);
             const normalized = merged.map((item, index) => {
+                // @ts-expect-error: 18046
+                if(item.role === 'tool' || item.tool_calls?.length)
+                    return item;
+
                 let role = this.normalizeRole(item.role);
                 if (index > 0 && role === 'system') {
                     role = 'user';
@@ -784,13 +832,13 @@ export class MessageBuilder {
             case 'strict': {
                 // 在 alternate 的基础上要求最后一个 role 必须是 user
                 const alternated = toAlternate(messages);
-                if (!alternated.length || alternated[alternated.length - 1].role === 'user') {
+                if (!alternated.length || alternated[alternated.length - 1].role === 'user' || alternated[alternated.length - 1].role === 'tool') {
                     return alternated;
                 }
 
                 const lastIndex = alternated.length - 1;
                 const adjusted = alternated.map((item, index) => {
-                    if (index === lastIndex) {
+                    if (index === lastIndex && item.role !== 'tool') {
                         return {
                             ...item,
                             role: 'user',
@@ -886,7 +934,7 @@ export class MessageBuilder {
 
     private assignOutletMacros(history: ChatCompletionMessage[]) {
         for(const message of history) {
-            if(message.content.includes('{{outlet::')) {
+            if(message.content?.includes('{{outlet::')) {
                 message.content = message.content.replace(/\{\{outlet::(.+?)\}\}/gi, (_, key: string) => this.getOutletPrompt(key));
             }
         }

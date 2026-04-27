@@ -467,7 +467,7 @@ export class Context {
                         if(chunk.reasoning) {
                             reasoning += chunk.reasoning;
                         }
-                        if(chunk.toolCalls) {
+                        if(chunk.toolCalls?.length) {
                             // The tool call of the last chunk is always complete.
                             toolCalls[chunk.swipe] = chunk.toolCalls;
                         }
