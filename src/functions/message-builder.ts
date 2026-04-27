@@ -252,12 +252,11 @@ export class MessageBuilder {
         }
 
         for (const item of content as ChatCompletionMessage[]) {
-            const role = this.normalizeRole(item.role);
-
             // @ts-expect-error: 2339
             if(!item.content?.trim() && !item.tool_calls?.length)
                 continue;
 
+            const role = this.normalizeRole(item.role);
             messages.push({
                 role,
                 content: item.content,
@@ -697,6 +696,8 @@ export class MessageBuilder {
                 return 'user';
             case 'assistant':
                 return 'assistant';
+            case 'tool':
+                return 'tool';
             default:
                 return 'system';
         }
@@ -831,7 +832,7 @@ export class MessageBuilder {
             case 'strict': {
                 // 在 alternate 的基础上要求最后一个 role 必须是 user
                 const alternated = toAlternate(messages);
-                if (!alternated.length || alternated[alternated.length - 1].role === 'user') {
+                if (!alternated.length || alternated[alternated.length - 1].role === 'user' || alternated[alternated.length - 1].role === 'tool') {
                     return alternated;
                 }
 

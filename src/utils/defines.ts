@@ -280,7 +280,7 @@ export type GenerateOptionsLite = {
     quietName?: string,
 };
 
-export type ContextRole = 'user' | 'system' | 'assistant';
+export type ContextRole = 'user' | 'system' | 'assistant' | 'tool';
 
 export interface WorldInfoLoaded {
     globalLore: WorldInfoEntry[];
