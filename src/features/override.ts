@@ -80,7 +80,7 @@ function createCopyButton(content: string): JQuery<HTMLElement> {
     return button;
 }
 
-function buildOverrideBlock(title: string, content: string): JQuery<HTMLElement> {
+function buildOverrideBlock(title: string, content: string, onEdit?: (newContent: string) => void): JQuery<HTMLElement> {
     const block = $('<div class="custom_generation_overrides_block"></div>');
     const header = $('<div class="custom_generation_overrides_block_header"></div>');
     const titleEl = $('<div class="custom_generation_overrides_block_title"></div>').text(title);
@@ -88,6 +88,60 @@ function buildOverrideBlock(title: string, content: string): JQuery<HTMLElement>
     const pre = $('<pre class="custom_generation_overrides_pre"></pre>').text(content);
     header.append(titleEl, copyButton);
     block.append(header, pre);
+
+    // 添加编辑按钮（如果提供了编辑回调）
+    if (onEdit) {
+        const editButton = $('<button class="menu_button fa-solid fa-edit custom_generation_edit_button" type="button" title="Edit" data-i18n="[title]Edit"></button>');
+        const saveButton = $('<button class="menu_button fa-solid fa-check custom_generation_save_button" type="button" title="Save" data-i18n="[title]Save" style="display:none;"></button>');
+        const cancelButton = $('<button class="menu_button fa-solid fa-times custom_generation_cancel_button" type="button" title="Cancel" data-i18n="[title]Cancel" style="display:none;"></button>');
+        const textarea = $('<textarea class="custom_generation_overrides_textarea" style="display:none;"></textarea>').val(content);
+
+        header.append(editButton, saveButton, cancelButton);
+
+        const toggleEditMode = (editing: boolean) => {
+            if (editing) {
+                pre.hide();
+                textarea.show();
+                copyButton.hide();
+                editButton.hide();
+                saveButton.show();
+                cancelButton.show();
+            } else {
+                pre.show();
+                textarea.hide();
+                copyButton.show();
+                editButton.show();
+                saveButton.hide();
+                cancelButton.hide();
+            }
+        };
+
+        editButton.on('click', (event: JQuery.ClickEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            textarea.val(pre.text());
+            toggleEditMode(true);
+        });
+
+        cancelButton.on('click', (event: JQuery.ClickEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            textarea.val(pre.text());
+            toggleEditMode(false);
+        });
+
+        saveButton.on('click', (event: JQuery.ClickEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const newContent = String(textarea.val() ?? '');
+            pre.text(newContent);
+            toggleEditMode(false);
+            onEdit(newContent);
+        });
+
+        block.append(textarea);
+    }
+
     return block;
 }
 
@@ -96,7 +150,7 @@ function buildOverrideTitle(base: string, content: string): string {
     return preview ? `${base}: ${preview}` : base;
 }
 
-function buildWorldInfoEntry(entry: WorldInfoOverrideEntry): JQuery<HTMLElement> {
+function buildWorldInfoEntry(entry: WorldInfoOverrideEntry, onEdit?: (newContent: string) => void): JQuery<HTMLElement> {
     const details = $('<details class="custom_generation_overrides_entry"></details>');
     const summary = $('<summary class="custom_generation_overrides_summary"></summary>');
     const caret = $('<i class="fa-solid fa-chevron-right custom_generation_overrides_caret"></i>');
@@ -128,13 +182,13 @@ function buildWorldInfoEntry(entry: WorldInfoOverrideEntry): JQuery<HTMLElement>
     );
 
     body.append(info);
-    body.append(buildOverrideBlock('Content', entry.content));
+    body.append(buildOverrideBlock('Content', entry.content, onEdit));
 
     details.append(summary, body);
     return details;
 }
 
-function buildChatOverrideEntry(entry: ChatMessageOverrideEntry): JQuery<HTMLElement> {
+function buildChatOverrideEntry(entry: ChatMessageOverrideEntry, onEdit?: (newContent: string) => void): JQuery<HTMLElement> {
     const details = $('<details class="custom_generation_overrides_entry"></details>');
     const summary = $('<summary class="custom_generation_overrides_summary"></summary>');
     const caret = $('<i class="fa-solid fa-chevron-right custom_generation_overrides_caret"></i>');
@@ -163,7 +217,7 @@ function buildChatOverrideEntry(entry: ChatMessageOverrideEntry): JQuery<HTMLEle
     );
 
     body.append(info);
-    body.append(buildOverrideBlock('Content', entry.content));
+    body.append(buildOverrideBlock('Content', entry.content, onEdit));
 
     details.append(summary, body);
     return details;
@@ -201,12 +255,18 @@ function updateOverridesList(): void {
     }
 
     if (worldInfoOverrides.length) {
-        const entries = worldInfoOverrides.map(buildWorldInfoEntry);
+        const entries = worldInfoOverrides.map(entry => buildWorldInfoEntry(entry, (newContent) => {
+            override.setOverride(entry.world, entry.uid, entry.type, newContent, entry.messageId, entry.swipeId);
+            toastr.success('Override updated', 'Edit');
+        }));
         list.append(buildOverridesSection('World Info Overrides', entries, 'World Info Overrides'));
     }
 
     if (chatOverrides.length) {
-        const entries = chatOverrides.map(buildChatOverrideEntry);
+        const entries = chatOverrides.map(entry => buildChatOverrideEntry(entry, (newContent) => {
+            override.setChatOverride(entry.messageId, newContent);
+            toastr.success('Chat override updated', 'Edit');
+        }));
         list.append(buildOverridesSection('Chat Message Overrides', entries, 'Chat Message Overrides'));
     }
 }

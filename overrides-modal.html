@@ -256,5 +256,33 @@
             max-width: 100%;
             box-sizing: border-box;
         }
+
+        .custom_generation_edit_button,
+        .custom_generation_save_button,
+        .custom_generation_cancel_button {
+            flex: 0 0 auto;
+            cursor: pointer;
+        }
+
+        .custom_generation_edit_button:hover,
+        .custom_generation_save_button:hover,
+        .custom_generation_cancel_button:hover {
+            opacity: 0.85;
+        }
+
+        .custom_generation_overrides_textarea {
+            width: 100%;
+            min-height: 120px;
+            max-height: min(32vh, 320px);
+            background-color: var(--SmartThemeBlurTintColor);
+            border: 1px solid var(--SmartThemeBorderColor);
+            border-radius: 5px;
+            padding: 6px 8px;
+            font-family: var(--mono-font, monospace);
+            font-size: 0.85em;
+            resize: vertical;
+            box-sizing: border-box;
+            color: inherit;
+        }
     </style>
 </dialog>
