@@ -770,14 +770,21 @@ export class MessageBuilder {
             const merged: ChatCompletionMessage[] = [];
 
             for (const item of input) {
-                const role = this.normalizeRole(item.role);
+                // @ts-expect-error: 18046
+                if(item.tool_calls?.length) {
+                    merged.push(item);
+                    continue;
+                }
+
                 const content = String(item.content ?? '').trim();
-                if (!content) {
+                if (!item.content?.trim()) {
                     continue;
                 }
 
                 const prev = merged[merged.length - 1];
-                if (prev && prev.role === role) {
+                const role = this.normalizeRole(item.role);
+                // @ts-expect-error: 2339
+                if (prev && prev.role === role && !prev.tool_calls?.length) {
                     prev.content = [String(prev.content ?? ''), content].filter(Boolean).join('\n\n');
                 } else {
                     merged.push({
@@ -922,7 +929,7 @@ export class MessageBuilder {
 
     private assignOutletMacros(history: ChatCompletionMessage[]) {
         for(const message of history) {
-            if(message.content.includes('{{outlet::')) {
+            if(message.content?.includes('{{outlet::')) {
                 message.content = message.content.replace(/\{\{outlet::(.+?)\}\}/gi, (_, key: string) => this.getOutletPrompt(key));
             }
         }
