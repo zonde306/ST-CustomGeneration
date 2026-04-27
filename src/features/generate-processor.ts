@@ -1,5 +1,5 @@
 import { TemplateHandler } from "@/functions/template";
-import { substituteParams, messageFormatting, appendMediaToMessage, addCopyToCodeBlocks, name2, saveChatDebounced, activateSendButtons, deactivateSendButtons } from "@st/script.js";
+import { substituteParams, messageFormatting, appendMediaToMessage, addCopyToCodeBlocks, name2, saveChatDebounced, activateSendButtons, deactivateSendButtons, isGenerating as isMainGenerating } from "@st/script.js";
 import { eventSource, event_types } from "@st/scripts/events.js";
 import { world_info_depth } from "@st/scripts/world-info.js";
 import { getActivatedEntries, DecoratorParser } from "@/functions/worldinfo";
@@ -70,6 +70,7 @@ export async function setup() {
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
     eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded);
     eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onGenerateStarting);
+    eventSource.on(event_types.USER_MESSAGE_RENDERED, onUserMessageSent);
     eventSource.on(event_types.CHAT_CHANGED, stopActiveTasks);
     eventSource.on(event_types.MESSAGE_SWIPED, stopActiveTasks.bind(null, true));
     eventSource.on(event_types.MESSAGE_SWIPE_DELETED, stopActiveTasks);
@@ -115,6 +116,12 @@ async function processMessage(env: Context, override: DataOverride, before: bool
         abortController?.abort();
         toastr.warning(`Aborting previous ${before ? 'before' : 'after'}-generate`);
         await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'regenerate' });
+        abortController = null;
+    }
+
+    if(before && !env.lastUserMessage?.is_user) {
+        console.error(`The user message hasn't been sent yet; we should wait a while.`);
+        return;
     }
 
     const messageId = before ? env.lastUserMessage?.id : env.lastCharMessage?.id;
@@ -401,10 +408,26 @@ async function onGenerateStarting(type: string, options: any, dryRun: boolean) {
         await stopActiveTasks(type != 'regenerate');
         abortController = null; // Abandon managing interrupt handlers
         
-        const env = options.context ?? Context.global();
-        const override = new DataOverride(env.chat, env.chat_metadata);
-        await processMessage(env, override, true, false);
+        const env : Context = options.context ?? Context.global();
+        if(env.lastMessage?.is_user) {
+            const override = new DataOverride(env.chat, env.chat_metadata);
+            await processMessage(env, override, true, false);
+        }
     }
+}
+
+async function onUserMessageSent(messageId: number) {
+    if(!isMainGenerating())
+        return;
+
+    const env = Context.global();
+    if(messageId !== env.chat.length - 1) {
+        console.log(`Skip processing user message ${messageId} because it's not the last message`);
+        return;
+    }
+
+    const override = new DataOverride(env.chat, env.chat_metadata);
+    await processMessage(env, override, true, false);
 }
 
 async function stopActiveTasks(ask: boolean = false) {
