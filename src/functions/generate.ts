@@ -1,5 +1,5 @@
 import { eventSource, event_types } from '@st/scripts/events.js';
-import { oai_settings, sendOpenAIRequest, chat_completion_sources } from '@st/scripts/openai.js';
+import { oai_settings, sendOpenAIRequest, chat_completion_sources, custom_prompt_post_processing_types } from '@st/scripts/openai.js';
 import { TokenLogprobs } from '@st/scripts/logprobs.js';
 import { uuidv4 } from '@st/scripts/utils.js';
 import { eventTypes } from '@/utils/events'
@@ -79,8 +79,11 @@ export async function generate(
         taskId = uuidv4();
 
     let eventHandler: ((data: any) => void) | null = null;
-    const originalStream = oai_settings.stream_openai;
-    const originalFunctionCalling = oai_settings.function_calling;
+    const originalSettings = {
+        stream_openai: oai_settings.stream_openai,
+        function_calling: oai_settings.function_calling,
+        custom_prompt_post_processing: oai_settings.custom_prompt_post_processing,
+    };
 
     await eventSource.emit(eventTypes.GENERATION_START, {
         messages,
@@ -115,10 +118,9 @@ export async function generate(
             assign('custom_include_body');
             assign('custom_include_headers');
 
-            if(tools?.length)
-                data.tools = tools;
-            if(tools?.length && tool_choice?.length)
-                data.tool_choice = tool_choice;
+            // Override exists tools and tool_choice
+            data.tools = tools ?? [];
+            data.tool_choice = tool_choice ?? (tools?.length ? 'auto' : 'none');
 
             for(const [key, val] of Object.entries(customOptions ?? {})) {
                 Object.defineProperty(data, key, {
@@ -131,20 +133,28 @@ export async function generate(
 
             // @ts-expect-error: 2345
             eventSource.removeListener(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
-            oai_settings.stream_openai = originalStream;
-            oai_settings.function_calling = originalFunctionCalling;
+
+            for(const [key, val] of Object.entries(originalSettings)) {
+                // @ts-expect-error: 7053
+                oai_settings[key] = val;
+            }
         };
 
         // compatibility with other extensions and API parameter passing
         eventSource.makeFirst(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
     }
 
+    // Enable function calling for openai
+    if(tools?.length) {
+        oai_settings.function_calling = true;
+        oai_settings.custom_prompt_post_processing = custom_prompt_post_processing_types.NONE;
+    }
+
     let result = null;
     signal = signal ?? new AbortController().signal;
     taskId = taskId || uuidv4();
+
     try {
-        // Disabling injection of built-in tools
-        oai_settings.function_calling = false;
         if(api?.stream) {
             oai_settings.stream_openai = true;
             const handler = new StreamHandler(taskId, signal);
@@ -171,8 +181,10 @@ export async function generate(
     } finally {
         if(eventHandler)
             eventSource.removeListener(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
-        oai_settings.stream_openai = originalStream;
-        oai_settings.function_calling = originalFunctionCalling;
+        for(const [key, val] of Object.entries(originalSettings)) {
+            // @ts-expect-error: 7053
+            oai_settings[key] = val;
+        }
     }
 
     return result;
