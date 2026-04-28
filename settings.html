@@ -194,96 +194,124 @@
 
             <hr />
 
-            <div class="flex-container alignItemsBaseline">
-                <h3 class="margin0 flex1">
-                    <span data-i18n="Prompts">Prompt List</span>
-                </h3>
-                <div class="flex-container alignItemsCenter">
-                    <div id="custom_generation_add_prompt" class="custom_generation_button custom_generation_button_icon" title="Add prompt" data-i18n="[title]New prompt">
-                        <i class="fa-solid fa-plus"></i>
-                        <small data-i18n="Add">Add</small>
+            <div class="inline-drawer" id="custom_generation_prompt_drawer">
+                <div id="custom_generation_prompt_toggle" class="inline-drawer-header">
+                    <div class="flex-container alignItemsBaseline flex1">
+                        <h3 class="margin0">
+                            <span data-i18n="Prompts">Prompt List</span>
+                        </h3>
                     </div>
-                    <div id="custom_generation_import_prompt" class="custom_generation_button custom_generation_button_icon" title="Import" data-i18n="[title]Import">
-                        <i class="fa-solid fa-file-import"></i>
-                        <small data-i18n="Import">Import</small>
-                    </div>
-                    <div id="custom_generation_export_prompt" class="custom_generation_button custom_generation_button_icon" title="Export" data-i18n="[title]Export">
-                        <i class="fa-solid fa-file-export"></i>
-                        <small data-i18n="Export">Export</small>
+                    <div class="flex-container alignItemsCenter">
+                        <div id="custom_generation_add_prompt" class="custom_generation_button custom_generation_button_icon" title="Add prompt" data-i18n="[title]New prompt">
+                            <i class="fa-solid fa-plus"></i>
+                            <small data-i18n="Add">Add</small>
+                        </div>
+                        <div id="custom_generation_import_prompt" class="custom_generation_button custom_generation_button_icon" title="Import" data-i18n="[title]Import">
+                            <i class="fa-solid fa-file-import"></i>
+                            <small data-i18n="Import">Import</small>
+                        </div>
+                        <div id="custom_generation_export_prompt" class="custom_generation_button custom_generation_button_icon" title="Export" data-i18n="[title]Export">
+                            <i class="fa-solid fa-file-export"></i>
+                            <small data-i18n="Export">Export</small>
+                        </div>
+                        <div id="custom_generation_prompt_icon" class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                     </div>
                 </div>
+                <div id="custom_generation_prompt_body" class="inline-drawer-content">
+                    <div id="custom_generation_prompt_list" class="flex-container flexFlowColumn" no-items-text="No prompts" data-i18n="[no-items-text]No prompts"></div>
+                    <input id="custom_generation_prompt_import_input" type="file" accept=".json,application/json" style="display: none;" />
+                </div>
             </div>
-            <div id="custom_generation_prompt_list" class="flex-container flexFlowColumn" no-items-text="No prompts" data-i18n="[no-items-text]No prompts"></div>
-            <input id="custom_generation_prompt_import_input" type="file" accept=".json,application/json" style="display: none;" />
 
             <hr />
 
-            <div class="flex-container alignItemsBaseline">
-                <h3 class="margin0 flex1">
-                    <span data-i18n="ext_regex_preset_scripts">Regex Scripts</span>
-                </h3>
-                <div class="flex-container alignItemsCenter">
-                    <div id="custom_generation_add_regex" class="custom_generation_button custom_generation_button_icon" title="Add regex" data-i18n="[title]Add regex">
-                        <i class="fa-solid fa-plus"></i>
-                        <small data-i18n="Add">Add</small>
+            <div class="inline-drawer" id="custom_generation_regex_drawer">
+                <div id="custom_generation_regex_toggle" class="inline-drawer-header">
+                    <div class="flex-container alignItemsBaseline flex1">
+                        <h3 class="margin0">
+                            <span data-i18n="ext_regex_preset_scripts">Regex Scripts</span>
+                        </h3>
                     </div>
-                    <div id="custom_generation_import_regex" class="custom_generation_button custom_generation_button_icon" title="Import" data-i18n="[title]Import">
-                        <i class="fa-solid fa-file-import"></i>
-                        <small data-i18n="Import">Import</small>
-                    </div>
-                    <div id="custom_generation_export_regex" class="custom_generation_button custom_generation_button_icon" title="Export" data-i18n="[title]Export">
-                        <i class="fa-solid fa-file-export"></i>
-                        <small data-i18n="Export">Export</small>
+                    <div class="flex-container alignItemsCenter">
+                        <div id="custom_generation_add_regex" class="custom_generation_button custom_generation_button_icon" title="Add regex" data-i18n="[title]Add regex">
+                            <i class="fa-solid fa-plus"></i>
+                            <small data-i18n="Add">Add</small>
+                        </div>
+                        <div id="custom_generation_import_regex" class="custom_generation_button custom_generation_button_icon" title="Import" data-i18n="[title]Import">
+                            <i class="fa-solid fa-file-import"></i>
+                            <small data-i18n="Import">Import</small>
+                        </div>
+                        <div id="custom_generation_export_regex" class="custom_generation_button custom_generation_button_icon" title="Export" data-i18n="[title]Export">
+                            <i class="fa-solid fa-file-export"></i>
+                            <small data-i18n="Export">Export</small>
+                        </div>
+                        <div id="custom_generation_regex_icon" class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                     </div>
                 </div>
+                <div id="custom_generation_regex_body" class="inline-drawer-content">
+                    <div id="custom_generation_regex_list" class="flex-container flexFlowColumn" no-items-text="No scripts" data-i18n="[no-items-text]No scripts"></div>
+                    <input id="custom_generation_regex_import_input" type="file" accept=".json,application/json" style="display: none;" />
+                </div>
             </div>
-            <div id="custom_generation_regex_list" class="flex-container flexFlowColumn" no-items-text="No scripts" data-i18n="[no-items-text]No scripts"></div>
-            <input id="custom_generation_regex_import_input" type="file" accept=".json,application/json" style="display: none;" />
 
             <hr />
 
-            <div class="flex-container alignItemsBaseline">
-                <h3 class="margin0 flex1">
-                    <span data-i18n="Template List">Template List</span>
-                </h3>
-                <div class="flex-container alignItemsCenter">
-                    <div id="custom_generation_add_template" class="custom_generation_button custom_generation_button_icon" title="Add template" data-i18n="[title]Add template">
-                        <i class="fa-solid fa-plus"></i>
-                        <small data-i18n="Add">Add</small>
+            <div class="inline-drawer" id="custom_generation_template_drawer">
+                <div id="custom_generation_template_toggle" class="inline-drawer-header">
+                    <div class="flex-container alignItemsBaseline flex1">
+                        <h3 class="margin0">
+                            <span data-i18n="Template List">Template List</span>
+                        </h3>
                     </div>
-                    <div id="custom_generation_import_template" class="custom_generation_button custom_generation_button_icon" title="Import" data-i18n="[title]Import">
-                        <i class="fa-solid fa-file-import"></i>
-                        <small data-i18n="Import">Import</small>
-                    </div>
-                    <div id="custom_generation_export_template" class="custom_generation_button custom_generation_button_icon" title="Export" data-i18n="[title]Export">
-                        <i class="fa-solid fa-file-export"></i>
-                        <small data-i18n="Export">Export</small>
+                    <div class="flex-container alignItemsCenter">
+                        <div id="custom_generation_add_template" class="custom_generation_button custom_generation_button_icon" title="Add template" data-i18n="[title]Add template">
+                            <i class="fa-solid fa-plus"></i>
+                            <small data-i18n="Add">Add</small>
+                        </div>
+                        <div id="custom_generation_import_template" class="custom_generation_button custom_generation_button_icon" title="Import" data-i18n="[title]Import">
+                            <i class="fa-solid fa-file-import"></i>
+                            <small data-i18n="Import">Import</small>
+                        </div>
+                        <div id="custom_generation_export_template" class="custom_generation_button custom_generation_button_icon" title="Export" data-i18n="[title]Export">
+                            <i class="fa-solid fa-file-export"></i>
+                            <small data-i18n="Export">Export</small>
+                        </div>
+                        <div id="custom_generation_template_icon" class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                     </div>
                 </div>
+                <div id="custom_generation_template_body" class="inline-drawer-content">
+                    <div id="custom_generation_template_list" class="flex-container flexFlowColumn" no-items-text="No templates" data-i18n="[no-items-text]No templates"></div>
+                    <input id="custom_generation_template_import_input" type="file" accept=".json,application/json" style="display: none;" />
+                </div>
             </div>
-            <div id="custom_generation_template_list" class="flex-container flexFlowColumn" no-items-text="No templates" data-i18n="[no-items-text]No templates"></div>
-            <input id="custom_generation_template_import_input" type="file" accept=".json,application/json" style="display: none;" />
 
             <hr />
 
-            <div class="flex-container alignItemsBaseline">
-                <h3 class="margin0 flex1">
-                    <span data-i18n="Tools">Tools</span>
-                </h3>
-                <div class="flex-container alignItemsCenter">
-                    <div id="custom_generation_import_tool" class="custom_generation_button custom_generation_button_icon" title="Import" data-i18n="[title]Import">
-                        <i class="fa-solid fa-file-import"></i>
-                        <small data-i18n="Import">Import</small>
+            <div class="inline-drawer" id="custom_generation_tool_drawer">
+                <div id="custom_generation_tool_toggle" class="inline-drawer-header">
+                    <div class="flex-container alignItemsBaseline flex1">
+                        <h3 class="margin0">
+                            <span data-i18n="Tools">Tools</span>
+                        </h3>
                     </div>
-                    <div id="custom_generation_export_tool" class="custom_generation_button custom_generation_button_icon" title="Export" data-i18n="[title]Export">
-                        <i class="fa-solid fa-file-export"></i>
-                        <small data-i18n="Export">Export</small>
+                    <div class="flex-container alignItemsCenter">
+                        <div id="custom_generation_import_tool" class="custom_generation_button custom_generation_button_icon" title="Import" data-i18n="[title]Import">
+                            <i class="fa-solid fa-file-import"></i>
+                            <small data-i18n="Import">Import</small>
+                        </div>
+                        <div id="custom_generation_export_tool" class="custom_generation_button custom_generation_button_icon" title="Export" data-i18n="[title]Export">
+                            <i class="fa-solid fa-file-export"></i>
+                            <small data-i18n="Export">Export</small>
+                        </div>
+                        <div id="custom_generation_tool_icon" class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                     </div>
                 </div>
+                <div id="custom_generation_tool_body" class="inline-drawer-content">
+                    <small class="text_muted" data-i18n="cg_tools_help">Tools are defined in code. Enable/disable and configure triggers here.</small>
+                    <div id="custom_generation_tool_list" class="flex-container flexFlowColumn" no-items-text="No tools" data-i18n="[no-items-text]No tools"></div>
+                    <input id="custom_generation_tool_import_input" type="file" accept=".json,application/json" style="display: none;" />
+                </div>
             </div>
-            <small class="text_muted" data-i18n="cg_tools_help">Tools are defined in code. Enable/disable and configure triggers here.</small>
-            <div id="custom_generation_tool_list" class="flex-container flexFlowColumn" no-items-text="No tools" data-i18n="[no-items-text]No tools"></div>
-            <input id="custom_generation_tool_import_input" type="file" accept=".json,application/json" style="display: none;" />
         </div>
     </div>
 

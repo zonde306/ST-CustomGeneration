@@ -99,10 +99,19 @@ function safeStringify(value: unknown): string {
     }
 }
 
-function formatMessageContent(content: unknown): string {
+function formatMessageContent(content: any): string {
     if (typeof content === 'string') {
         return content;
     }
+
+    // Chat completion message
+    if(typeof content.content === 'string') {
+        if(typeof content.reasoning_content === 'string') {
+            return `<think>\n${content.reasoning_content}\n</think>\n\n${content.content}`;
+        }
+        return content.content;
+    }
+    
     return safeStringify(content);
 }
 
@@ -164,7 +173,7 @@ async function buildLoggerMessageBlocks(messages: ChatCompletionMessage[]): Prom
     const blocks: JQuery<HTMLElement>[] = [];
     for (const [index, message] of messages.entries()) {
         const title = await buildLoggerMessageTitle(message, index);
-        const content = formatMessageContent(message.content ?? '');
+        const content = message.content ? formatMessageContent(message) : formatToolMessageContent(message);
         blocks.push(...buildLoggerAccordionBlock(title, content, 'custom_generation_logger_message'));
     }
     return blocks;
@@ -400,6 +409,15 @@ function bindLoggerEvents(): void {
 }
 
 async function onGenerateBefore(data: GenerateBefore) {
+    const entry = loggers.findLast(e => e.taskId === data.taskId);
+    if(entry) {
+        entry.done = false;
+        entry.messages = data.messages ?? entry.messages ?? [];
+        entry.options = data.options ?? entry.options ?? [];
+        entry.toolMessages = data.options.toolMessages ?? [];
+        return;
+    }
+
     loggers.push({
         taskId: data.taskId ?? 'Unknown',
         messages: data.messages ?? [],
@@ -421,7 +439,7 @@ async function onGenerateBefore(data: GenerateBefore) {
 }
 
 async function onGenerateAfter(data: GenerateAfter) {
-    const entry = loggers.find(e => e.taskId === data.taskId);
+    const entry = loggers.findLast(e => e.taskId === data.taskId);
     if (!entry) {
         console.error(`Failed to find log entry for task ${data.taskId}`);
         return;
@@ -447,7 +465,7 @@ async function onGenerateAfter(data: GenerateAfter) {
 }
 
 async function onToolCalling(data: ToolCalling) {
-    const entry = loggers.find(e => e.taskId === data.taskId);
+    const entry = loggers.findLast(e => e.taskId === data.taskId);
     if (!entry) {
         console.error(`Failed to find log entry for task ${data.taskId}`);
         return;

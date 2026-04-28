@@ -8,7 +8,7 @@ import { WorldInfoEntry } from '@/utils/defines';
 /**
  * Get the complete content of the corresponding World Info
  */
-const TOOL_NAME = 'worldinfo_get';
+const TOOL_NAME = 'get_worldinfo';
 const SCHEMA = z.object({
     entries: z.array(z.object({
         world: z.string().describe('World/Lorebook name'),

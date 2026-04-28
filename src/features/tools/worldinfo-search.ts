@@ -6,9 +6,11 @@ import MiniSearch from 'minisearch';
 /**
  * Search for World info and output brief information.
  */
-const TOOL_NAME = 'worldinfo_search';
+const TOOL_NAME = 'search_worldinfo';
 const SCHEMA = z.object({
-    keyword: z.string().optional().describe('Search only for the specified keyword; leave blank to remove filtering; separate multiple keywords with commas.'),
+    keyword: z.string().optional().describe('Search only for the specified keywords; leave blank to return all results; separate multiple keywords with spaces.'),
+    min_score: z.float32().min(0.01).max(1).optional().default(0.4).describe('Minimum score threshold for search results.'),
+    max_results: z.int().min(1).max(100).optional().default(10).describe('Maximum number of search results to return.'),
 });
 
 export async function setup() {
@@ -47,7 +49,7 @@ async function call(params: any): Promise<string> {
     }
 
     const database = new MiniSearch({
-        fields: ['key', 'keysecondary', 'comment', 'content'],
+        fields: ['key', 'keysecondary', 'comment', 'uid'],
         storeFields: ['key', 'keysecondary', 'comment', 'content'],
     });
 
@@ -57,10 +59,16 @@ async function call(params: any): Promise<string> {
         await database.addAllAsync(entries);
     }));
 
-    const results = database.search(args.keyword, { boost: { 'key': 3, 'keysecondary': 2.5, 'comment': 2 }, filter: r => r.score >= 0.6 });
+    const results = database.search(
+        args.keyword,
+        {
+            boost: { key: 3, keysecondary: 2.5, comment: 2, content: 1 },
+            filter: r => r.score >= args.min_score,
+        }
+    );
 
     return JSON.stringify({
         ok: true,
-        entries: results.map(entryMapping),
+        entries: results.map(entryMapping).slice(0, args.max_results),
     });
 }

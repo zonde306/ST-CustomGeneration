@@ -1,7 +1,8 @@
 import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
-import { jsonPatch } from "@/utils/json-patch";
+import { applyJsonPatch } from "@/utils/json-patch";
 import { SCHEMA } from "@/features/schema";
 import { jsonrepair } from 'jsonrepair';
+import { z } from "zod";
 
 /**
  * The generated result is parsed into a JSON patch to update the current chat message variable.
@@ -28,11 +29,14 @@ async function processor(data: DecoratorProcessData) {
         last.variables[data.swipeId] = {};
 
     const patchs = JSON.parse(jsonrepair(data.content));
-    const patched = jsonPatch(last.variables[data.swipeId], patchs);
-    const validated = SCHEMA.parse(patched);
+    const patched = applyJsonPatch(last.variables[data.swipeId], patchs);
+    const validated = SCHEMA.safeParse(patched);
+    if(!validated.success) {
+        throw new Error(`failed to validate schema: ${JSON.stringify(z.treeifyError(validated.error))}`);
+    }
 
-    console.debug(`update ${data.messageId}#${data.swipeId} variables: `, last.variables[data.swipeId], validated);
+    console.debug(`update ${data.messageId}#${data.swipeId} variables: `, last.variables[data.swipeId], validated.data);
 
-    last.variables[data.swipeId] = validated;
+    last.variables[data.swipeId] = validated.data;
     return true;
 }

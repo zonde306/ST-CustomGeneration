@@ -477,7 +477,7 @@ export class Context {
                 }
 
                 if(toolCalls?.length) {
-                    const toolMessages = await this.handleToolCalls(toolCalls);
+                    const toolMessages = await this.handleToolCalls(toolCalls, { type, taskId, options, apiConfig });
                     if(toolMessages.length) {
                         if(!options.toolMessages)
                             options.toolMessages = [];
@@ -529,7 +529,7 @@ export class Context {
         const toolCalls = response.toolCalls as ToolCalls;
         
         if(toolCalls?.length) {
-            const toolMessages = await this.handleToolCalls(toolCalls);
+            const toolMessages = await this.handleToolCalls(toolCalls, { type, taskId, options, apiConfig });
             if(toolMessages.length) {
                 if(!options.toolMessages)
                     options.toolMessages = [];
@@ -777,7 +777,7 @@ export class Context {
         return tools;
     }
 
-    private async handleToolCalls(calls: ToolCalls): Promise<ToolMessage[]> {
+    private async handleToolCalls(calls: ToolCalls, args: Record<string, any> = {}): Promise<ToolMessage[]> {
         if(!calls?.length)
             return [];
 
@@ -800,10 +800,19 @@ export class Context {
 
             try {
                 const parameters = call.args ?? JSON.parse(call.function?.arguments ?? '{}') ?? {};
+                const validated = tool.parameters.safeParse(parameters);
+                if(!validated.success) {
+                    return {
+                        role: 'tool',
+                        tool_call_id: call.id ?? '',
+                        content: `Tool ${name} parameters error: ${JSON.stringify(z.treeifyError(validated.error))}\nSchema: ${JSON.stringify(tool.parameters.toJSONSchema())}`,
+                    };
+                }
+
                 return {
                     role: 'tool',
                     tool_call_id: call.id ?? '',
-                    content: await tool.function(await tool.parameters.parseAsync(parameters)),
+                    content: await tool.function({ context: this, ...args, ...validated.data }),
                 }
             } catch (e) {
                 console.error(`Tool ${name} failed`, e);

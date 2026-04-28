@@ -3,7 +3,7 @@ import { collectEnabledWorldInfos, loadWorldInfoEntries, getWorldInfoSorter, fil
 import { WorldInfoEntry } from "@/utils/defines";
 import { deepMergeZod } from "@/utils/zodutl";
 import { FunctionSandbox } from "@/utils/vm-browserify";
-import {  WorldInfoLoaded } from "@/utils/defines";
+import { WorldInfoLoaded } from "@/utils/defines";
 import { z } from "zod";
 
 export let SCHEMA: z.ZodObject = z.looseObject({});
@@ -22,7 +22,7 @@ export async function setup() {
 async function onChatChanged(fielname: string) {
     SCHEMA = z.looseObject({});
 
-    if(!fielname)
+    if (!fielname)
         return;
 
     SCHEMA = await loadSchema();
@@ -30,7 +30,7 @@ async function onChatChanged(fielname: string) {
 }
 
 async function onWorldInfoUpdated() {
-    if(delayLoadTimer != null)
+    if (delayLoadTimer != null)
         window.clearTimeout(delayLoadTimer);
 
     delayLoadTimer = window.setTimeout(async () => {
@@ -43,13 +43,13 @@ async function onWorldInfoUpdated() {
 async function loadSchema(): Promise<z.ZodObject> {
     let entries: WorldInfoEntry[] = [];
     const lorebooks = collectEnabledWorldInfos();
-    for(const lorebook of lorebooks) {
+    for (const lorebook of lorebooks) {
         entries = entries.concat(await loadWorldInfoEntries(lorebook, false));
     }
 
     entries = entries.filter(entry => !entry.disable);
     entries = filterWIByDecorator(entries, ['@@json_schema', '@@zod_schema']);
-    if(entries.length < 1) {
+    if (entries.length < 1) {
         return z.looseObject({});
     }
 
@@ -57,9 +57,9 @@ async function loadSchema(): Promise<z.ZodObject> {
     let registered = false;
 
     const registerSchema = (schema: z.ZodType<any>) => {
-        if(schema.type !== 'object')
+        if (schema.type !== 'object')
             throw new Error(`schema is not an object`);
-        
+
         result = deepMergeZod(result, schema) as z.ZodObject;
         console.log(`Variable Schema registered `, (result as z.ZodObject).shape);
         registered = true;
@@ -67,26 +67,26 @@ async function loadSchema(): Promise<z.ZodObject> {
     };
 
     using sandbox = new FunctionSandbox();
-    for(const entry of entries.sort(getWorldInfoSorter(entries))) {
+    for (const entry of entries.sort(getWorldInfoSorter(entries))) {
         registered = false;
         try {
-            if(entry.decorators.includes('@@json_schema')) {
+            if (entry.decorators.includes('@@json_schema')) {
                 const zod = z.fromJSONSchema(JSON.parse(entry.content));
-                if(zod.type !== 'object') {
+                if (zod.type !== 'object') {
                     console.warn(`json schema is not an object: ${entry.world}/${entry.comment} #${entry.uid}`);
                     continue;
                 }
 
                 result = deepMergeZod(result, zod);
-            } else if(entry.decorators.includes('@@zod_schema')) {
+            } else if (entry.decorators.includes('@@zod_schema')) {
                 const zod = (await sandbox.eval(entry.content, { _, z, registerSchema })) as z.ZodType<any>;
 
-                if(!registered && zod?.type !== 'object') {
+                if (!registered && zod?.type !== 'object') {
                     console.warn(`zod schema is not an object: ${entry.world}/${entry.comment} #${entry.uid}`);
                     continue;
                 }
 
-                if(!registered && zod)
+                if (!registered && zod)
                     result = deepMergeZod(result, zod);
             }
         } catch (e) {
@@ -98,36 +98,36 @@ async function loadSchema(): Promise<z.ZodObject> {
 }
 
 async function onWorldInfoLoaded(data: WorldInfoLoaded) {
-    for(let i = data.globalLore.length - 1; i  >= 0; --i) {
-            const entry = data.globalLore[i];
-            const parsed = new DecoratorParser(entry);
-            if(parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
-                data.globalLore.splice(i, 1);
-                console.debug(`remove global lore ${entry.world}/${entry.uid}-${entry.comment} used for schema`);
-            }
+    for (let i = data.globalLore.length - 1; i >= 0; --i) {
+        const entry = data.globalLore[i];
+        const parsed = new DecoratorParser(entry);
+        if (parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
+            data.globalLore.splice(i, 1);
+            console.debug(`remove global lore ${entry.world}/${entry.uid}-${entry.comment} used for schema`);
         }
-        for(let i = 0; i < data.personaLore.length; ++i) {
-            const entry = data.personaLore[i];
-            const parsed = new DecoratorParser(entry);
-            if(parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
-                data.personaLore.splice(i, 1);
-                console.debug(`remove persona lore ${entry.world}/${entry.uid}-${entry.comment} used for schema`);
-            }
+    }
+    for (let i = 0; i < data.personaLore.length; ++i) {
+        const entry = data.personaLore[i];
+        const parsed = new DecoratorParser(entry);
+        if (parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
+            data.personaLore.splice(i, 1);
+            console.debug(`remove persona lore ${entry.world}/${entry.uid}-${entry.comment} used for schema`);
         }
-        for(let i = 0; i < data.characterLore.length; ++i) {
-            const entry = data.characterLore[i];
-            const parsed = new DecoratorParser(entry);
-            if(parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
-                data.characterLore.splice(i, 1);
-                console.debug(`remove character lore ${entry.world}/${entry.uid}-${entry.comment} used for schema`);
-            }
+    }
+    for (let i = 0; i < data.characterLore.length; ++i) {
+        const entry = data.characterLore[i];
+        const parsed = new DecoratorParser(entry);
+        if (parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
+            data.characterLore.splice(i, 1);
+            console.debug(`remove character lore ${entry.world}/${entry.uid}-${entry.comment} used for schema`);
         }
-        for(let i = 0; i < data.chatLore.length; ++i) {
-            const entry = data.chatLore[i];
-            const parsed = new DecoratorParser(entry);
-            if(parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
-                data.chatLore.splice(i, 1);
-                console.debug(`remove chat lore ${entry.world}/${entry.uid}-${entry.comment} used for schema`);
-            }
+    }
+    for (let i = 0; i < data.chatLore.length; ++i) {
+        const entry = data.chatLore[i];
+        const parsed = new DecoratorParser(entry);
+        if (parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d))) {
+            data.chatLore.splice(i, 1);
+            console.debug(`remove chat lore ${entry.world}/${entry.uid}-${entry.comment} used for schema`);
         }
+    }
 }

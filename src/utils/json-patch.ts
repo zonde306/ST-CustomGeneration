@@ -105,7 +105,7 @@ function convertJsonPointerToLodashPath(pointer: JsonPointer): string[] {
  * @param {Array<object>} patches - An array of JSON Patch operations.
  * @returns {object} A new document with the patches applied.
  */
-export function jsonPatch(doc: object, patches: JsonPatch): object {
+export function applyJsonPatch(doc: object, patches: JsonPatch): object {
     // Create a deep copy to ensure the original document is not mutated.
     const newDoc = _.cloneDeep(doc);
 
@@ -189,4 +189,30 @@ export function jsonPatch(doc: object, patches: JsonPatch): object {
     }
 
     return newDoc;
+}
+
+/**
+ * Perform JSON Merge Patch on `target`
+ * @param target source object
+ * @param patch patch object
+ * @returns new object
+ */
+export function applyMergePatch(target: any, patch: any): typeof target {
+    if (!_.isPlainObject(patch)) {
+        return _.cloneDeep(patch);
+    }
+
+    const result = _.cloneDeep(target);
+
+    _.forOwn(patch, (value, key) => {
+        if (value === null) {
+            delete result[key];
+        } else if (_.isPlainObject(value) && _.isPlainObject(result[key])) {
+            result[key] = applyMergePatch(result[key], value);
+        } else {
+            result[key] = _.cloneDeep(value);
+        }
+    });
+
+    return result;
 }

@@ -160,9 +160,9 @@
 	"cg_tool_description_help": "这个工具的介绍，会影响到LLM如何去使用它",
 	"Parameters": "参数描述",
 	"cg_tool_parameters_help": "工具参数的描述，会影响到LLM如何去使用它",
-	"cg_tool_worldinfo_activate": "激活世界书",
-	"cg_tool_worldinfo_get": "读取世界书",
-	"cg_tool_worldinfo_search": "搜索世界书",
+	"cg_tool_activate_worldinfo": "激活世界书",
+	"cg_tool_get_worldinfo": "读取世界书",
+	"cg_tool_search_worldinfo": "搜索世界书",
 	"Create connection": "创建API连接",
 	"Duplicate connection": "复制API连接",
 	"Rename current connection": "重命名API连接",
@@ -171,5 +171,7 @@
 	"Export connections": "导出API连接",
 	"Link/Unlink preset to current API connection": "将预设与API连接关联",
 	"Add regex": "创建正则规则",
-	"(empty)": "(空白)"
+	"(empty)": "(空白)",
+	"cg_tool_get_variable": "读取变量",
+	"cg_tool_set_variable": "设置变量"
 }
