@@ -6,7 +6,7 @@
 	"js": "dist/index.js",
 	"css": "",
 	"author": "zonde306",
-	"version": "0.11.6",
+	"version": "0.11.6.1",
 	"homePage": "https://github.com/zonde306/ST-CustomGeneration",
 	"auto_update": true,
 	"i18n": {
