@@ -49,7 +49,7 @@ async function call(params: any): Promise<string> {
     }
 
     const database = new MiniSearch({
-        fields: ['key', 'keysecondary', 'comment', 'content'],
+        fields: ['key', 'keysecondary', 'comment', 'uid'],
         storeFields: ['key', 'keysecondary', 'comment', 'content'],
     });
 
