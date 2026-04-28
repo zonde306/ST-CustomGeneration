@@ -6,9 +6,9 @@ import MiniSearch from 'minisearch';
 /**
  * Search for World info and output brief information.
  */
-const TOOL_NAME = 'worldinfo_search';
+const TOOL_NAME = 'search_worldinfo';
 const SCHEMA = z.object({
-    keyword: z.string().optional().describe('Search only for the specified keyword; leave blank to remove filtering; separate multiple keywords with commas.'),
+    keyword: z.string().optional().describe('Search only for the specified keyword; leave blank to remove filtering; separate multiple keywords with space.'),
     min_score: z.float32().min(0.01).max(1).optional().default(0.4).describe('Minimum score threshold for search results.'),
     max_results: z.int().min(1).max(100).optional().default(10).describe('Maximum number of search results to return.'),
 });

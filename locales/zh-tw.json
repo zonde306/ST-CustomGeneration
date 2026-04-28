@@ -156,9 +156,9 @@
 	"Parameters": "參數描述",
 	"cg_tool_parameters_help": "工具參數的描述，會影響到LLM如何去使用它",
 
-	"cg_tool_worldinfo_activate": "啟動世界書",
-	"cg_tool_worldinfo_get": "讀取世界書",
-	"cg_tool_worldinfo_search": "搜尋世界書",
+	"cg_tool_activate_worldinfo": "啟動世界書",
+	"cg_tool_get_worldinfo": "讀取世界書",
+	"cg_tool_search_worldinfo": "搜尋世界書",
 	"Create connection": "建立API連線",
 	"Duplicate connection": "複製API連線",
 	"Rename current connection": "重新命名API連線",

@@ -5,7 +5,7 @@ import { eventSource, event_types } from '@st/scripts/events.js';
 /**
  * Activate the specified World Info for the next generation.
  */
-const TOOL_NAME = 'worldinfo_activate';
+const TOOL_NAME = 'activate_worldinfo';
 const SCHEMA = z.object({
     entries: z.array(z.object({
         world: z.string().describe('World/Lorebook name'),

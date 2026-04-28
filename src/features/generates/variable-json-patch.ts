@@ -1,5 +1,5 @@
 import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
-import { jsonPatch } from "@/utils/json-patch";
+import { applyJsonPatch } from "@/utils/json-patch";
 import { SCHEMA } from "@/features/schema";
 import { jsonrepair } from 'jsonrepair';
 import { z } from "zod";
@@ -29,7 +29,7 @@ async function processor(data: DecoratorProcessData) {
         last.variables[data.swipeId] = {};
 
     const patchs = JSON.parse(jsonrepair(data.content));
-    const patched = jsonPatch(last.variables[data.swipeId], patchs);
+    const patched = applyJsonPatch(last.variables[data.swipeId], patchs);
     const validated = SCHEMA.safeParse(patched);
     if(!validated.success) {
         throw new Error(`failed to validate schema: ${JSON.stringify(z.treeifyError(validated.error))}`);
