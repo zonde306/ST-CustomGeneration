@@ -171,5 +171,7 @@
 	"Export connections": "导出API连接",
 	"Link/Unlink preset to current API connection": "将预设与API连接关联",
 	"Add regex": "创建正则规则",
-	"(empty)": "(空白)"
+	"(empty)": "(空白)",
+	"cg_tool_get_variable": "读取变量",
+	"cg_tool_set_variable": "设置变量"
 }
