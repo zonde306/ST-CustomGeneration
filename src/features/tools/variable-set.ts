@@ -11,12 +11,12 @@ const TOOL_NAME = 'set_variable';
 const SCHEMA = z.object({
     json_merge: z.record(z.string(), z.any()).optional().describe('Set variables using RFC 7396 JSON Merge Patch.'),
     json_patch: z.array(z.any()).optional().describe('Set variables using RFC 6902 JSON Patch.'),
-}).refine(d => d.json_merge == null && d.json_patch == null, { message: 'Provide at least one of `json_merge` or `json_patch`.' });
+});
 
 export async function setup() {
     TOOL_DEFINITION.set(TOOL_NAME, {
         name: TOOL_NAME,
-        description: 'Set variables.',
+        description: 'Set variables. Provide at least one of `json_merge` or `json_patch`.',
         parameters: SCHEMA,
         function: call,
     });
@@ -24,6 +24,14 @@ export async function setup() {
 
 async function call(params: any): Promise<string> {
     const args = params as z.infer<typeof SCHEMA> & { context: Context };
+
+    if(!args.json_merge && !args.json_patch) {
+        return JSON.stringify({
+            ok: false,
+            error: 'Provide at least one of `json_merge` or `json_patch`.',
+        });
+    }
+
     let variables = args.context.variables;
 
     if(args.json_merge) {
