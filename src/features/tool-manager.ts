@@ -1,4 +1,5 @@
 import { Tool } from './context';
+import { z } from 'zod';
 import { settings } from '@/settings';
 import { setup as setupButtons } from '@/features/tools/buttons';
 import { setup as setupInput } from '@/features/tools/input';
@@ -39,10 +40,15 @@ export function getAvailableTools(type: string, presetName?: string): Tool[] {
         preset.tools[t.name].triggers.includes(type)
     )).map(t => {
         const overrides = Object.entries(preset.tools[t.name].parameters).map(([key, value]) => {
-            const def = t.parameters.shape[key];
-            return {
-                // Replace describe from preset
-                [key]: def.describe(value),
+            const def = t.parameters.shape[key] as z.ZodType;
+            try {
+                return {
+                    // Replace describe from preset
+                    [key]: def?.describe?.call(def, value),
+                }
+            } catch (e) {
+                console.error(`failed to set description for ${key}`, e);
+                return { [key]: def };
             }
         });
 
