@@ -9,6 +9,7 @@ import { yaml } from "@st/lib.js";
 import { copyText } from '@st/scripts/utils.js';
 import { TOOL_DEFINITION } from '@/features/tool-manager';
 import { z } from 'zod';
+import { openLargeEditor } from '@/utils/large-editor';
 
 export const settings: Settings = clone(defaultSettings);
 
@@ -4225,8 +4226,11 @@ function bindEvents() {
             console.warn(`[LargeEditor] Target element not found or not a textarea: ${targetId}`);
             return;
         }
-        const { openLargeEditor } = await import('@/utils/large-editor');
-        const label = button.closest('label').get(0);
+        if(textarea.disabled) {
+            console.warn(`[LargeEditor] Target element is disabled: ${targetId}`);
+            return;
+        }
+        const label = button.closest('label');
         const title = label?.querySelector('span, small')?.textContent?.trim() || 'Edit Content';
         openLargeEditor(title, textarea.value ?? '', (newContent) => {
             textarea.value = newContent;
