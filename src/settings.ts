@@ -1097,7 +1097,11 @@ function closeDialog(selector: string): void {
 function setAdvancedParametersExpanded(expanded: boolean): void {
     const body = $('#custom_generation_advanced_params_body');
     const icon = $('#custom_generation_advanced_params_icon');
-    body.toggle(expanded);
+    if (expanded) {
+        body.slideDown(200);
+    } else {
+        body.slideUp(200);
+    }
     icon.toggleClass('fa-circle-chevron-down', !expanded);
     icon.toggleClass('fa-circle-chevron-up', expanded);
 }
@@ -1105,7 +1109,11 @@ function setAdvancedParametersExpanded(expanded: boolean): void {
 function setPromptListExpanded(expanded: boolean): void {
     const body = $('#custom_generation_prompt_body');
     const icon = $('#custom_generation_prompt_icon');
-    body.toggle(expanded);
+    if (expanded) {
+        body.slideDown(200);
+    } else {
+        body.slideUp(200);
+    }
     icon.toggleClass('fa-circle-chevron-down', !expanded);
     icon.toggleClass('fa-circle-chevron-up', expanded);
 }
@@ -1113,7 +1121,11 @@ function setPromptListExpanded(expanded: boolean): void {
 function setRegexListExpanded(expanded: boolean): void {
     const body = $('#custom_generation_regex_body');
     const icon = $('#custom_generation_regex_icon');
-    body.toggle(expanded);
+    if (expanded) {
+        body.slideDown(200);
+    } else {
+        body.slideUp(200);
+    }
     icon.toggleClass('fa-circle-chevron-down', !expanded);
     icon.toggleClass('fa-circle-chevron-up', expanded);
 }
@@ -1121,7 +1133,11 @@ function setRegexListExpanded(expanded: boolean): void {
 function setTemplateListExpanded(expanded: boolean): void {
     const body = $('#custom_generation_template_body');
     const icon = $('#custom_generation_template_icon');
-    body.toggle(expanded);
+    if (expanded) {
+        body.slideDown(200);
+    } else {
+        body.slideUp(200);
+    }
     icon.toggleClass('fa-circle-chevron-down', !expanded);
     icon.toggleClass('fa-circle-chevron-up', expanded);
 }
@@ -1129,7 +1145,11 @@ function setTemplateListExpanded(expanded: boolean): void {
 function setToolListExpanded(expanded: boolean): void {
     const body = $('#custom_generation_tool_body');
     const icon = $('#custom_generation_tool_icon');
-    body.toggle(expanded);
+    if (expanded) {
+        body.slideDown(200);
+    } else {
+        body.slideUp(200);
+    }
     icon.toggleClass('fa-circle-chevron-down', !expanded);
     icon.toggleClass('fa-circle-chevron-up', expanded);
 }
@@ -4198,10 +4218,10 @@ export async function setupSettings() {
 
     await ensureModalTemplatesInjected();
     setAdvancedParametersExpanded(false);
-    setPromptListExpanded(true);
-    setRegexListExpanded(true);
-    setTemplateListExpanded(true);
-    setToolListExpanded(true);
+    setPromptListExpanded(false);
+    setRegexListExpanded(false);
+    setTemplateListExpanded(false);
+    setToolListExpanded(false);
 
     bindEvents();
 
