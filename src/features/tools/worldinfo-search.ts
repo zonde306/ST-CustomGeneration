@@ -9,8 +9,7 @@ import MiniSearch from 'minisearch';
 const TOOL_NAME = 'search_worldinfo';
 const SCHEMA = z.object({
     keyword: z.string().optional().describe('Search only for the specified keywords; leave blank to return all results; separate multiple keywords with spaces.'),
-    min_score: z.float32().min(0.01).max(1).optional().default(0.4).describe('Minimum score threshold for search results.'),
-    max_results: z.int().min(1).max(100).optional().default(10).describe('Maximum number of search results to return.'),
+    top_n: z.int().min(1).max(100).optional().default(10).describe('Maximum number of search results to return.'),
 });
 
 export async function setup() {
@@ -53,22 +52,15 @@ async function call(params: any): Promise<string> {
         storeFields: ['key', 'keysecondary', 'comment', 'content'],
     });
 
-    // Parallel processing acceleration
-    await Promise.allSettled(collectEnabledWorldInfos().map(async(lorebook) => {
+    for(const lorebook of collectEnabledWorldInfos()) {
         const entries = await loadWorldInfoEntries(lorebook, false);
         await database.addAllAsync(entries);
-    }));
+    }
 
-    const results = database.search(
-        args.keyword,
-        {
-            boost: { key: 3, keysecondary: 2.5, comment: 2, content: 1 },
-            filter: r => r.score >= args.min_score,
-        }
-    );
+    const results = database.search(args.keyword);
 
     return JSON.stringify({
         ok: true,
-        entries: results.map(entryMapping).slice(0, args.max_results),
+        entries: results.map(entryMapping).slice(0, args.top_n),
     });
 }

@@ -4,6 +4,8 @@ import { getWorldInfoEntry, DecoratorParser } from '@/functions/worldinfo';
 import { evaluate } from '@/utils/ejs';
 import { substituteParams } from '@st/script.js';
 import { WorldInfoEntry } from '@/utils/defines';
+import { Context } from '@/features/context';
+import { DataOverride } from '@/features/override';
 
 /**
  * Get the complete content of the corresponding World Info
@@ -26,17 +28,19 @@ export async function setup() {
 }
 
 async function call(params: any): Promise<string> {
-    const args = params as z.infer<typeof SCHEMA>;
+    const args = params as z.infer<typeof SCHEMA> & { context: Context };
 
     async function mapping(entry: WorldInfoEntry) {
         const parsed = new DecoratorParser(entry);
+        const override = new DataOverride(args.context.chat, args.context.chat_metadata);
+        const content = override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent;
         return {
             world: entry.world,
             uid: entry.uid,
             key: entry.key,
             keysecondary: entry.keysecondary,
             comment: entry.comment,
-            content: await evaluate(substituteParams(parsed.cleanContent)),
+            content: await evaluate(substituteParams(content)),
         };
     }
 

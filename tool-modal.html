@@ -33,11 +33,9 @@
             <div class="completion_prompt_manager_popup_entry_form_control">
                 <label for="custom_generation_tool_description">
                     <span data-i18n="Description">Description</span>
+                    <i class="custom_generation_large_editor_button fa-solid fa-expand menu_button" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_tool_description" style="margin-left:8px;cursor:pointer;opacity:0.7;"></i>
                 </label>
-                <div class="flex-container alignItemsCenter" style="gap:4px;">
-                    <textarea id="custom_generation_tool_description" class="text_pole flex1" rows="3" placeholder="Tool description for the AI model"></textarea>
-                    <i class="custom_generation_large_editor_button fa-solid fa-expand menu_button" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_tool_description" style="flex-shrink:0;cursor:pointer;opacity:0.7;align-self:flex-start;margin-top:4px;"></i>
-                </div>
+                <textarea id="custom_generation_tool_description" class="text_pole" rows="3" placeholder="Tool description for the AI model"></textarea>
                 <small class="text_muted" data-i18n="cg_tool_description_help">
                     The description that will be sent to the AI model to explain what this tool does.
                 </small>

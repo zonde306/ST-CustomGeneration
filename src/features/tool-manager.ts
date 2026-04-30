@@ -9,6 +9,7 @@ import { setup as setupWIGet } from '@/features/tools/worldinfo-get';
 import { setup as setupWISearch } from '@/features/tools/worldinfo-search';
 import { setup as setupVarSet } from '@/features/tools/variable-set';
 import { setup as setupVarGet } from '@/features/tools/variable-get';
+import { setup as setupWISet } from '@/features/tools/worldinfo-set';
 
 export const TOOL_DEFINITION = new Map<string, Tool>();
 
@@ -21,6 +22,7 @@ export async function setup() {
     await setupWISearch();
     await setupVarSet();
     await setupVarGet();
+    await setupWISet();
 }
 
 /**

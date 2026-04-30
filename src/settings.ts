@@ -4209,6 +4209,31 @@ function bindEvents() {
     $('#custom_generation_tool_dialog').on('close', () => {
         editingToolIndex = null;
     });
+
+    // Large editor button event delegation — handles all .custom_generation_large_editor_button clicks globally
+    $(document).on('click', '.custom_generation_large_editor_button', async (event: JQuery.ClickEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const button = $(event.currentTarget);
+        const targetId = button.attr('data-target');
+        if (!targetId) {
+            console.warn('[LargeEditor] Button missing data-target attribute');
+            return;
+        }
+        const textarea = document.getElementById(targetId) as HTMLTextAreaElement | HTMLInputElement | null;
+        if (!textarea || !('value' in textarea)) {
+            console.warn(`[LargeEditor] Target element not found or not a textarea: ${targetId}`);
+            return;
+        }
+        const { openLargeEditor } = await import('@/utils/large-editor');
+        const label = button.closest('label').get(0);
+        const title = label?.querySelector('span, small')?.textContent?.trim() || 'Edit Content';
+        openLargeEditor(title, textarea.value ?? '', (newContent) => {
+            textarea.value = newContent;
+            // Trigger change event so existing handlers (YAML parsing, etc.) pick up the change
+            $(textarea).trigger('change');
+        });
+    });
 }
 
 /**
