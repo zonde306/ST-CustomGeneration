@@ -3282,6 +3282,10 @@ async function ensureModalTemplatesInjected(): Promise<void> {
         $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'tool-modal'));
     }
 
+    if (!$('#custom_generation_large_editor_dialog').length) {
+        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'large-editor'));
+    }
+
     const decoratorSelect = $('#custom_generation_template_decorator');
     if (decoratorSelect.length && decoratorSelect.children().length === 0) {
         for (const decorator of ALL_DECORATORS) {

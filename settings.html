@@ -124,35 +124,44 @@
 
                         <label for="custom_generation_include_headers_yaml">
                             <small data-i18n="Include Request Headers">Request Headers (YAML)</small>
-                            <textarea
-                                id="custom_generation_include_headers_yaml"
-                                class="text_pole textarea_compact"
-                                rows="4"
-                                placeholder="Authorization: Bearer xxx"
-                                data-i18n="[placeholder]custom_include_headers_desc"
-                            ></textarea>
+                            <div class="flex-container alignItemsCenter" style="gap:4px;">
+                                <textarea
+                                    id="custom_generation_include_headers_yaml"
+                                    class="text_pole textarea_compact flex1"
+                                    rows="4"
+                                    placeholder="Authorization: Bearer xxx"
+                                    data-i18n="[placeholder]custom_include_headers_desc"
+                                ></textarea>
+                                <i class="custom_generation_large_editor_button fa-solid fa-expand menu_button" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_include_headers_yaml" style="flex-shrink:0;cursor:pointer;opacity:0.7;"></i>
+                            </div>
                         </label>
 
                         <label for="custom_generation_include_body_yaml">
                             <small data-i18n="Include Body Parameters">Request Body (YAML)</small>
-                            <textarea
-                                id="custom_generation_include_body_yaml"
-                                class="text_pole textarea_compact"
-                                rows="4"
-                                placeholder="temperature: 0.7"
-                                data-i18n="[placeholder]custom_include_body_desc"
-                            ></textarea>
+                            <div class="flex-container alignItemsCenter" style="gap:4px;">
+                                <textarea
+                                    id="custom_generation_include_body_yaml"
+                                    class="text_pole textarea_compact flex1"
+                                    rows="4"
+                                    placeholder="temperature: 0.7"
+                                    data-i18n="[placeholder]custom_include_body_desc"
+                                ></textarea>
+                                <i class="custom_generation_large_editor_button fa-solid fa-expand menu_button" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_include_body_yaml" style="flex-shrink:0;cursor:pointer;opacity:0.7;"></i>
+                            </div>
                         </label>
 
                         <label for="custom_generation_exclude_body_yaml">
                             <small data-i18n="Exclude Body Parameters">Exclude Body Keys (YAML)</small>
-                            <textarea
-                                id="custom_generation_exclude_body_yaml"
-                                class="text_pole textarea_compact"
-                                rows="4"
-                                placeholder="top_p: true"
-                                data-i18n="[placeholder]custom_exclude_body_desc"
-                            ></textarea>
+                            <div class="flex-container alignItemsCenter" style="gap:4px;">
+                                <textarea
+                                    id="custom_generation_exclude_body_yaml"
+                                    class="text_pole textarea_compact flex1"
+                                    rows="4"
+                                    placeholder="top_p: true"
+                                    data-i18n="[placeholder]custom_exclude_body_desc"
+                                ></textarea>
+                                <i class="custom_generation_large_editor_button fa-solid fa-expand menu_button" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_exclude_body_yaml" style="flex-shrink:0;cursor:pointer;opacity:0.7;"></i>
+                            </div>
                         </label>
                     </div>
                 </div>

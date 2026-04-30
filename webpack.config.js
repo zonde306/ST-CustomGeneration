@@ -72,6 +72,8 @@ const serverConfig = {
                 },
             }),
         ],
+        splitChunks: false,
+        runtimeChunk: false,
     },
     plugins: [],
     externals: function({ context, request }, callback) {

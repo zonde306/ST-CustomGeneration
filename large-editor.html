@@ -1,0 +1,101 @@
+<dialog id="custom_generation_large_editor_dialog">
+    <form class="completion_prompt_manager_popup_entry_form flex-container flexFlowColumn" method="dialog" onsubmit="return false;">
+        <div class="completion_prompt_manager_popup_header">
+            <label for="custom_generation_large_editor_title">
+                <span id="custom_generation_large_editor_title" data-i18n="Large Editor">Large Editor</span>
+            </label>
+        </div>
+        <div class="custom_generation_modal_body">
+            <div class="completion_prompt_manager_popup_entry_form_control" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+                <textarea
+                    id="custom_generation_large_editor_textarea"
+                    class="text_pole"
+                    style="flex:1;min-height:320px;resize:none;font-family:var(--mono-font,Consolas,'Courier New',monospace);font-size:0.9em;line-height:1.5;tab-size:4;"
+                ></textarea>
+            </div>
+        </div>
+        <div class="custom_generation_modal_footer flex-container justifySpaceBetween marginTop5">
+            <div></div>
+            <div class="flex-container">
+                <button id="custom_generation_large_editor_cancel" class="custom_generation_button" type="button" data-i18n="Cancel">Cancel</button>
+                <button id="custom_generation_large_editor_save" class="custom_generation_button" type="button" data-i18n="Save">Save</button>
+            </div>
+        </div>
+    </form>
+    <style>
+        #custom_generation_large_editor_dialog {
+            padding: 0;
+            box-sizing: border-box;
+            border: 1.5px solid var(--SmartThemeBorderColor);
+            border-radius: 16px;
+            background-color: var(--SmartThemeBlurTintColor);
+        }
+
+        #custom_generation_large_editor_dialog[open] {
+            max-height: min(92vh, 900px);
+            height: min(88vh, 860px);
+            width: min(96vw, 1000px);
+            overflow: hidden;
+        }
+
+        #custom_generation_large_editor_dialog .completion_prompt_manager_popup_entry_form {
+            width: 100%;
+            max-width: 100%;
+            height: 100%;
+            max-height: 100%;
+            margin: 0;
+            padding: 5px 8px;
+            box-sizing: border-box;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #custom_generation_large_editor_dialog .completion_prompt_manager_popup_header {
+            flex-shrink: 0;
+            padding: 4px 0;
+        }
+
+        #custom_generation_large_editor_dialog .custom_generation_modal_body {
+            flex: 1;
+            overflow: hidden;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #custom_generation_large_editor_dialog .custom_generation_modal_footer {
+            flex-shrink: 0;
+            padding-top: 8px;
+            border-top: 1px solid var(--SmartThemeBorderColor);
+            margin-top: 4px;
+        }
+
+        #custom_generation_large_editor_dialog .flex-container,
+        #custom_generation_large_editor_dialog .completion_prompt_manager_popup_entry_form_control {
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        #custom_generation_large_editor_dialog textarea {
+            width: 100%;
+            box-sizing: border-box;
+            color: var(--SmartThemeBodyColor);
+            background-color: var(--black30a);
+            border: 1px solid var(--SmartThemeBorderColor);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        #custom_generation_large_editor_dialog textarea:focus {
+            outline: 1px solid var(--SmartThemeQuoteColor);
+            outline-offset: -1px;
+        }
+
+        #custom_generation_large_editor_dialog .custom_generation_button {
+            min-width: 72px;
+            white-space: nowrap;
+        }
+    </style>
+</dialog>

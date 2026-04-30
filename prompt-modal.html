@@ -82,7 +82,10 @@
                 <label for="custom_generation_prompt_content">
                     <span data-i18n="Prompt">Prompt</span>
                 </label>
-                <textarea id="custom_generation_prompt_content" class="text_pole textarea_compact" rows="8"></textarea>
+                <div class="flex-container alignItemsCenter" style="gap:4px;">
+                    <textarea id="custom_generation_prompt_content" class="text_pole textarea_compact flex1" rows="8"></textarea>
+                    <i class="custom_generation_large_editor_button fa-solid fa-expand menu_button" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_prompt_content" style="flex-shrink:0;cursor:pointer;opacity:0.7;align-self:flex-start;margin-top:4px;"></i>
+                </div>
             </div>
         </div>
         <div class="custom_generation_modal_footer flex-container justifySpaceBetween marginTop5">
