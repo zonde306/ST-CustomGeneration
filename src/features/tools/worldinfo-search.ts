@@ -48,13 +48,14 @@ async function call(params: any): Promise<string> {
     }
 
     const database = new MiniSearch({
-        fields: ['key', 'keysecondary', 'comment', 'uid'],
+        fields: ['key', 'keysecondary', 'comment', 'uid', 'content'],
         storeFields: ['key', 'keysecondary', 'comment', 'content'],
     });
 
+    let id = 1;
     for(const lorebook of collectEnabledWorldInfos()) {
         const entries = await loadWorldInfoEntries(lorebook, false);
-        await database.addAllAsync(entries);
+        await database.addAllAsync(entries.map(e => ({ ...e, id: id++ })));
     }
 
     const results = database.search(args.keyword);
