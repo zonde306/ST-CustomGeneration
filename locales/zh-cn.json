@@ -173,5 +173,8 @@
 	"Add regex": "创建正则规则",
 	"(empty)": "(空白)",
 	"cg_tool_get_variable": "读取变量",
-	"cg_tool_set_variable": "设置变量"
+	"cg_tool_set_variable": "设置变量",
+	"cg_embed_title": "此角色卡包含嵌入式预设。",
+	"cg_embed_ask": "是否立即导入？",
+	"cg_embed_desc": "如需稍后导入，请在角色面板的"更多..."下拉菜单中选择"导入卡片预设"。"
 }
