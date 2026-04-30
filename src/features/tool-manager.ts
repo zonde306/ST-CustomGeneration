@@ -43,14 +43,12 @@ export function getAvailableTools(type: string, presetName?: string): Tool[] {
     )).map(t => {
         const overrides = Object.entries(preset.tools[t.name].parameters).map(([key, value]) => {
             const def = t.parameters.shape[key] as z.ZodType;
-            try {
-                return {
-                    // Replace describe from preset
-                    [key]: def?.describe?.call(def, value),
-                }
-            } catch (e) {
-                console.error(`failed to set description for ${key}`, e);
-                return { [key]: def };
+            if(!def)
+                return {};
+            
+            return {
+                // Replace describe from preset
+                [key]: def?.describe?.call(def, value) ?? def,
             }
         });
 
