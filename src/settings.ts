@@ -10,6 +10,7 @@ import { copyText } from '@st/scripts/utils.js';
 import { TOOL_DEFINITION } from '@/features/tool-manager';
 import { z } from 'zod';
 import { openLargeEditor } from '@/utils/large-editor';
+import { t } from '@st/scripts/i18n.js';
 
 export const settings: Settings = clone(defaultSettings);
 
@@ -4231,7 +4232,7 @@ function bindEvents() {
             return;
         }
         const label = button.closest('label');
-        const title = label?.querySelector('span, small')?.textContent?.trim() || 'Edit Content';
+        const title = label?.find('span, small')?.text()?.trim() || t`Edit Content`;
         openLargeEditor(title, textarea.value ?? '', (newContent) => {
             textarea.value = newContent;
             // Trigger change event so existing handlers (YAML parsing, etc.) pick up the change
