@@ -61,9 +61,16 @@ export const NOT_ALLOWED_DECORATORS = [
     '@@append_output_ejs_before',
 ];
 
+enum GenStage {
+    None,
+    Generating,
+    Canceled,
+}
+
 let abortController: AbortController | null = null;
 let delayGenerationTimer : number | null = null;
 let dontFilterWI = false;
+let state = GenStage.None;
 
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
@@ -109,6 +116,8 @@ export async function runAfterGenerates(lockButton: boolean = true) {
 
     // Runs in the background, no waiting required.
     processMessage(env, override, false, lockButton);
+
+    state = GenStage.None;
 }
 
 async function processMessage(env: Context, override: DataOverride, before: boolean = false, lockButton: boolean = true) {
@@ -407,6 +416,7 @@ async function onGenerateStarting(type: string, options: any, dryRun: boolean) {
     if((type === 'normal' || type === 'regenerate' || type === 'swipe') && !dryRun) {
         await stopActiveTasks(type != 'regenerate');
         abortController = null; // Abandon managing interrupt handlers
+        state = GenStage.Generating;
         
         const env : Context = options.context ?? Context.global();
         if(env.lastMessage?.is_user) {
@@ -485,16 +495,25 @@ async function onGenerateAfter(data: { type: string, context: Context, error: Er
             console.log('Skip after generate for generate failed');
             return;
         }
+        if(state === GenStage.Canceled) {
+            console.warn('Skip after generate for generate canceled');
+            state = GenStage.None;
+            return;
+        }
 
         const override = new DataOverride(data.context.chat, data.context.chat_metadata);
 
         // Prevent secondary locking when the send button is already locked.
         processMessage(data.context, override, false, !document.body.dataset.generating);
+        
+        state = GenStage.None;
     }
 }
 
 function onGenerateCancelled() {
     stopActiveTasks();
+    if(state === GenStage.Generating)
+        state = GenStage.Canceled;
 }
 
 export function isGenerating(): boolean {
@@ -583,9 +602,17 @@ async function onMessageReceived(messageId: number, type: string) {
                 }
             }
 
-            runAfterGenerates(!document.body.dataset.generating);
             window.clearInterval(delayGenerationTimer!);
             delayGenerationTimer = null;
+
+            if(state === GenStage.Canceled) {
+                console.warn('Skip after generate for generate canceled');
+                state = GenStage.None;
+                return;
+            }
+
+            runAfterGenerates(!document.body.dataset.generating);
+            state = GenStage.None;
         }, 1000);
     }
 }

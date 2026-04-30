@@ -168,5 +168,10 @@
 	"Link/Unlink preset to current API connection": "連結/取消連結預設至目前的API連線",
 	"Add regex": "新增正則規則",
 	"cg_tool_get_variable": "讀取變數",
-	"cg_tool_set_variable": "設定變數"
+	"cg_tool_set_variable": "設定變數",
+	"cg_embed_title": "此角色卡包含嵌入式預設。",
+	"cg_embed_ask": "是否立即匯入？",
+	"cg_embed_desc": "如需稍後匯入，請在角色面板的「更多...」下拉選單中選擇「匯入卡片預設」。",
+	"cg_tool_set_worldinfo": "設定世界書",
+	"Edit Content": "編輯內容"
 }

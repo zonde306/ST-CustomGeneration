@@ -108,9 +108,15 @@ export class PromptContext {
     /**
      * 对话
      */
-    get chatHistory(): { role: 'user' | 'system' | 'assistant', content: string }[] {
+    get chatHistory(): { role: 'user' | 'system' | 'assistant', content: string, reasoning_content?: string }[] {
         // Marked as `is_system` are hidden.
-        return chat.filter(msg => !msg.is_system).map(msg => ({ role: msg.is_user ? 'user' : 'assistant', content: msg.mes ?? '' }));
+        return chat
+            .filter(msg => !msg.is_system)
+            .map(msg => ({
+                role: msg.is_user ? 'user' : 'assistant',
+                content: msg.mes ?? '',
+                reasoning_content: msg.extra?.reasoning,
+            }));
     }
 
     /**
@@ -128,7 +134,7 @@ export class PromptContext {
     }
 
     get worldInfoString(): string {
-        if(!this.ready)
+        if (!this.ready)
             console.warn('worldInfoString called before scan');
 
         return this.worldInfo?.worldInfoString ?? '';
@@ -138,7 +144,7 @@ export class PromptContext {
      * 角色定义之前
      */
     get worldInfoCharBefore(): string {
-        if(!this.ready)
+        if (!this.ready)
             console.warn('worldInfoCharBefore called before scan');
 
         return this.worldInfo?.worldInfoBefore ?? '';
@@ -148,7 +154,7 @@ export class PromptContext {
      * 角色定义之后
      */
     get worldInfoCharAfter(): string {
-        if(!this.ready)
+        if (!this.ready)
             console.warn('worldInfoCharAfter called before scan');
 
         return this.worldInfo?.worldInfoAfter ?? '';
@@ -158,7 +164,7 @@ export class PromptContext {
      * 示例消息之前/之后
      */
     get worldInfoExamples(): { position: typeof wi_anchor_position[keyof typeof wi_anchor_position], content: string }[] {
-        if(!this.ready)
+        if (!this.ready)
             console.warn('worldInfoExamples called before scan');
 
         return this.worldInfo?.worldInfoExamples ?? [];
@@ -169,7 +175,7 @@ export class PromptContext {
      * 注入到 chatHistory 中
      */
     get worldInfoDepth(): { depth: number, entries: string[], role: string | number }[] {
-        if(!this.ready)
+        if (!this.ready)
             console.warn('worldInfoDepth called before scan');
 
         return this.worldInfo?.worldInfoDepth ?? [];
@@ -180,7 +186,7 @@ export class PromptContext {
      * 由宏`{{outlet:名字}}`使用
      */
     get worldInfoOutletEntries(): Record<string, string[]> {
-        if(!this.ready)
+        if (!this.ready)
             console.warn('worldInfoOutletEntries called before scan');
 
         return this.worldInfo?.outletEntries ?? {};
@@ -190,7 +196,7 @@ export class PromptContext {
      * 作者备注之前
      */
     get worldInfoAuthorNoteBefore(): string[] {
-        if(!this.ready)
+        if (!this.ready)
             console.warn('worldInfoAuthorNoteBefore called before scan');
 
         return this.worldInfo?.anBefore ?? [];
@@ -200,7 +206,7 @@ export class PromptContext {
      * 作者备注之后
      */
     get worldInfoAuthorNoteAfter(): string[] {
-        if(!this.ready)
+        if (!this.ready)
             console.warn('worldInfoAuthorNoteAfter called before scan');
 
         return this.worldInfo?.anAfter ?? [];

@@ -3,6 +3,7 @@ import { renderExtensionTemplateAsync } from '@st/scripts/extensions.js';
 import { chat, chat_metadata, name1, name2 } from "@st/script.js";
 import { WorldInfoLoaded } from "@/utils/defines";
 import { copyText } from "@st/scripts/utils.js";
+import { openLargeEditor } from "@/utils/large-editor";
 
 interface WIOverride {
     type: string;
@@ -93,6 +94,17 @@ function buildOverrideBlock(title: string, content: string, onEdit?: (newContent
 
     // 添加编辑按钮（如果提供了编辑回调）
     if (onEdit) {
+        const expandButton = $('<button class="menu_button fa-solid fa-expand custom_generation_large_editor_button" type="button" title="Open in large editor" data-i18n="[title]Open in large editor"></button>');
+        buttonGroup.append(expandButton);
+        expandButton.on('click', async (event: JQuery.ClickEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            openLargeEditor('Override Content', pre.text() ?? '', (newContent) => {
+                pre.text(newContent);
+                onEdit(newContent);
+            });
+        });
+
         const editButton = $('<button class="menu_button fa-solid fa-edit custom_generation_edit_button" type="button" title="Edit" data-i18n="[title]Edit"></button>');
         const saveButton = $('<button class="menu_button fa-solid fa-check custom_generation_save_button" type="button" title="Save" data-i18n="[title]Save" style="display:none;"></button>');
         const cancelButton = $('<button class="menu_button fa-solid fa-times custom_generation_cancel_button" type="button" title="Cancel" data-i18n="[title]Cancel" style="display:none;"></button>');
@@ -105,6 +117,7 @@ function buildOverrideBlock(title: string, content: string, onEdit?: (newContent
                 pre.hide();
                 textarea.show();
                 copyButton.hide();
+                expandButton.hide();
                 editButton.hide();
                 saveButton.show();
                 cancelButton.show();
@@ -112,6 +125,7 @@ function buildOverrideBlock(title: string, content: string, onEdit?: (newContent
                 pre.show();
                 textarea.hide();
                 copyButton.show();
+                expandButton.show();
                 editButton.show();
                 saveButton.hide();
                 cancelButton.hide();

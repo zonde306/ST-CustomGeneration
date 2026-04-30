@@ -124,6 +124,7 @@
 
                         <label for="custom_generation_include_headers_yaml">
                             <small data-i18n="Include Request Headers">Request Headers (YAML)</small>
+                            <i class="custom_generation_large_editor_button fa-solid fa-expand menu_button" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_include_headers_yaml" style="margin-left:8px;cursor:pointer;opacity:0.7;"></i>
                             <textarea
                                 id="custom_generation_include_headers_yaml"
                                 class="text_pole textarea_compact"
@@ -135,6 +136,7 @@
 
                         <label for="custom_generation_include_body_yaml">
                             <small data-i18n="Include Body Parameters">Request Body (YAML)</small>
+                            <i class="custom_generation_large_editor_button fa-solid fa-expand menu_button" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_include_body_yaml" style="margin-left:8px;cursor:pointer;opacity:0.7;"></i>
                             <textarea
                                 id="custom_generation_include_body_yaml"
                                 class="text_pole textarea_compact"
@@ -146,6 +148,7 @@
 
                         <label for="custom_generation_exclude_body_yaml">
                             <small data-i18n="Exclude Body Parameters">Exclude Body Keys (YAML)</small>
+                            <i class="custom_generation_large_editor_button fa-solid fa-expand menu_button" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_exclude_body_yaml" style="margin-left:8px;cursor:pointer;opacity:0.7;"></i>
                             <textarea
                                 id="custom_generation_exclude_body_yaml"
                                 class="text_pole textarea_compact"
@@ -217,7 +220,7 @@
                         <div id="custom_generation_prompt_icon" class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                     </div>
                 </div>
-                <div id="custom_generation_prompt_body" class="inline-drawer-content">
+                <div id="custom_generation_prompt_body" class="inline-drawer-content" style="display: none;">
                     <div id="custom_generation_prompt_list" class="flex-container flexFlowColumn" no-items-text="No prompts" data-i18n="[no-items-text]No prompts"></div>
                     <input id="custom_generation_prompt_import_input" type="file" accept=".json,application/json" style="display: none;" />
                 </div>
@@ -248,7 +251,7 @@
                         <div id="custom_generation_regex_icon" class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                     </div>
                 </div>
-                <div id="custom_generation_regex_body" class="inline-drawer-content">
+                <div id="custom_generation_regex_body" class="inline-drawer-content" style="display: none;">
                     <div id="custom_generation_regex_list" class="flex-container flexFlowColumn" no-items-text="No scripts" data-i18n="[no-items-text]No scripts"></div>
                     <input id="custom_generation_regex_import_input" type="file" accept=".json,application/json" style="display: none;" />
                 </div>
@@ -279,7 +282,7 @@
                         <div id="custom_generation_template_icon" class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                     </div>
                 </div>
-                <div id="custom_generation_template_body" class="inline-drawer-content">
+                <div id="custom_generation_template_body" class="inline-drawer-content" style="display: none;">
                     <div id="custom_generation_template_list" class="flex-container flexFlowColumn" no-items-text="No templates" data-i18n="[no-items-text]No templates"></div>
                     <input id="custom_generation_template_import_input" type="file" accept=".json,application/json" style="display: none;" />
                 </div>
@@ -306,8 +309,8 @@
                         <div id="custom_generation_tool_icon" class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                     </div>
                 </div>
-                <div id="custom_generation_tool_body" class="inline-drawer-content">
-                    <small class="text_muted" data-i18n="cg_tools_help">Tools are defined in code. Enable/disable and configure triggers here.</small>
+                <div id="custom_generation_tool_body" class="inline-drawer-content" style="display: none;">
+                     <small class="text_muted" data-i18n="cg_tools_help">Tools are defined in code. Enable/disable and configure triggers here.</small>
                     <div id="custom_generation_tool_list" class="flex-container flexFlowColumn" no-items-text="No tools" data-i18n="[no-items-text]No tools"></div>
                     <input id="custom_generation_tool_import_input" type="file" accept=".json,application/json" style="display: none;" />
                 </div>
@@ -342,6 +345,9 @@
     </dialog>
 
     <style>
+        /* ===== MODERN FLAT UI FOR SETTINGS ===== */
+
+        /* List containers */
         #custom_generation_prompt_list,
         #custom_generation_regex_list,
         #custom_generation_template_list,
@@ -350,7 +356,7 @@
             width: 100%;
             max-width: 100%;
             align-items: stretch;
-            gap: 6px;
+            gap: 10px;
         }
 
         #custom_generation_prompt_list > *,
@@ -363,85 +369,102 @@
             box-sizing: border-box;
         }
 
-        #custom_generation_settings .custom_generation_list_row {
+        /* Generic list row (modernized) */
+        .custom_generation_list_row {
             width: 100%;
             max-width: 100%;
             box-sizing: border-box;
             display: flex;
             flex-wrap: nowrap;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            border: 1px solid var(--SmartThemeBorderColor);
+            border-radius: 12px;
+            padding: 6px 10px;
+            background-color: var(--SmartThemeBlurTintColor);
+            transition: border-color var(--animation-duration-2x), background-color var(--animation-duration-2x);
+        }
+
+        .custom_generation_list_row:hover {
+            border-color: var(--SmartThemeQuoteColor);
+            background-color: rgba(255,255,255,0.06);
+        }
+
+        #custom_generation_settings .custom_generation_list_row {
+            /* ensure specificity */
         }
 
         #custom_generation_settings .custom_generation_list_row > .flex1 {
             min-width: 0;
         }
 
-        .custom_generation_list_row {
-            border: 1px solid var(--SmartThemeBorderColor);
-            border-radius: 5px;
-            padding-left: 3px;
-            padding-right: 3px;
-        }
-
+        /* ----- BUTTONS (flat, no grayscale) ----- */
         .custom_generation_button {
             color: var(--SmartThemeBodyColor);
-            filter: grayscale(0.5);
             background-color: var(--SmartThemeBlurTintColor);
             border: 1px solid var(--SmartThemeBorderColor);
-            border-radius: 5px;
-            padding: 3px 5px;
+            border-radius: 10px;
+            padding: 6px 12px;
             cursor: pointer;
-            margin: 5px 0;
-            transition: var(--animation-duration-2x);
+            margin: 4px 2px;
+            transition: background-color var(--animation-duration-2x), border-color var(--animation-duration-2x), color var(--animation-duration-2x);
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 6px;
             text-align: center;
             min-width: 0;
             width: auto;
             text-decoration: none;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            /* no filter — clean modern look */
         }
 
         .custom_generation_button:hover,
-        .custom_generation_button:active {
+        .custom_generation_button:active,
+        .custom_generation_button:focus-visible {
             background-color: var(--white30a);
+            border-color: var(--SmartThemeQuoteColor);
+            color: var(--SmartThemeQuoteColor);
         }
 
         .custom_generation_button_icon {
             flex-direction: column;
-            line-height: 1.1;
+            line-height: 1.2;
         }
 
+        /* Dialog form width helpers (kept for compatibility) */
         #custom_generation_prompt_dialog .completion_prompt_manager_popup_entry_form,
         #custom_generation_regex_dialog .completion_prompt_manager_popup_entry_form,
         #custom_generation_template_dialog .completion_prompt_manager_popup_entry_form {
             width: min(720px, 92vw);
             max-width: 92vw;
             box-sizing: border-box;
+            border-radius: 16px;
         }
 
         #custom_generation_prompt_dialog .custom_generation_button,
         #custom_generation_regex_dialog .custom_generation_button,
         #custom_generation_template_dialog .custom_generation_button,
         #custom_generation_export_dialog .custom_generation_button {
-            min-width: 72px;
+            min-width: 78px;
             white-space: nowrap;
         }
 
+        /* Template card inside settings */
         #custom_generation_settings .custom_generation_template_row {
             align-items: stretch;
         }
 
         #custom_generation_settings .custom_generation_template_row_body {
             min-width: 0;
-            gap: 8px;
+            gap: 10px;
         }
 
         #custom_generation_settings .custom_generation_template_meta {
             min-width: 0;
-            gap: 2px;
+            gap: 4px;
             justify-content: center;
         }
 
@@ -456,24 +479,54 @@
 
         #custom_generation_settings .custom_generation_template_title {
             font-weight: 600;
+            font-size: 0.95em;
         }
 
         #custom_generation_settings .custom_generation_template_subtitle,
         #custom_generation_settings .custom_generation_template_preview {
-            opacity: 0.85;
-            font-size: 0.9em;
+            opacity: 0.8;
+            font-size: 0.85em;
         }
 
         #custom_generation_template_prompts {
             min-height: 220px;
+            border-radius: 12px;
         }
 
+        /* Utility */
         .justifyAround {
             justify-content: space-around;
         }
 
         #custom_generation_settings > div {
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+        }
+
+        /* Drawer headers – subtle flat look */
+        .inline-drawer-header {
+            border-radius: 10px;
+            transition: background-color var(--animation-duration-2x);
+        }
+
+        .inline-drawer-header:hover {
+            background-color: var(--white10a);
+        }
+
+        /* Export dialog modernization */
+        #custom_generation_export_dialog {
+            border-radius: 16px;
+            border: 1.5px solid var(--SmartThemeBorderColor);
+            background-color: var(--SmartThemeBlurTintColor);
+        }
+
+        #custom_generation_list_export_dialog {
+            border-radius: 16px;
+            border: 1.5px solid var(--SmartThemeBorderColor);
+            background-color: var(--SmartThemeBlurTintColor);
+        }
+
+        .custom_generation_large_editor_button {
+            float: inline-end;
         }
     </style>
 </div>

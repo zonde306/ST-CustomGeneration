@@ -9,6 +9,8 @@ import { yaml } from "@st/lib.js";
 import { copyText } from '@st/scripts/utils.js';
 import { TOOL_DEFINITION } from '@/features/tool-manager';
 import { z } from 'zod';
+import { openLargeEditor } from '@/utils/large-editor';
+import { t } from '@st/scripts/i18n.js';
 
 export const settings: Settings = clone(defaultSettings);
 
@@ -1097,7 +1099,11 @@ function closeDialog(selector: string): void {
 function setAdvancedParametersExpanded(expanded: boolean): void {
     const body = $('#custom_generation_advanced_params_body');
     const icon = $('#custom_generation_advanced_params_icon');
-    body.toggle(expanded);
+    if (expanded) {
+        body.slideDown(200);
+    } else {
+        body.slideUp(200);
+    }
     icon.toggleClass('fa-circle-chevron-down', !expanded);
     icon.toggleClass('fa-circle-chevron-up', expanded);
 }
@@ -1105,7 +1111,11 @@ function setAdvancedParametersExpanded(expanded: boolean): void {
 function setPromptListExpanded(expanded: boolean): void {
     const body = $('#custom_generation_prompt_body');
     const icon = $('#custom_generation_prompt_icon');
-    body.toggle(expanded);
+    if (expanded) {
+        body.slideDown(200);
+    } else {
+        body.slideUp(200);
+    }
     icon.toggleClass('fa-circle-chevron-down', !expanded);
     icon.toggleClass('fa-circle-chevron-up', expanded);
 }
@@ -1113,7 +1123,11 @@ function setPromptListExpanded(expanded: boolean): void {
 function setRegexListExpanded(expanded: boolean): void {
     const body = $('#custom_generation_regex_body');
     const icon = $('#custom_generation_regex_icon');
-    body.toggle(expanded);
+    if (expanded) {
+        body.slideDown(200);
+    } else {
+        body.slideUp(200);
+    }
     icon.toggleClass('fa-circle-chevron-down', !expanded);
     icon.toggleClass('fa-circle-chevron-up', expanded);
 }
@@ -1121,7 +1135,11 @@ function setRegexListExpanded(expanded: boolean): void {
 function setTemplateListExpanded(expanded: boolean): void {
     const body = $('#custom_generation_template_body');
     const icon = $('#custom_generation_template_icon');
-    body.toggle(expanded);
+    if (expanded) {
+        body.slideDown(200);
+    } else {
+        body.slideUp(200);
+    }
     icon.toggleClass('fa-circle-chevron-down', !expanded);
     icon.toggleClass('fa-circle-chevron-up', expanded);
 }
@@ -1129,7 +1147,11 @@ function setTemplateListExpanded(expanded: boolean): void {
 function setToolListExpanded(expanded: boolean): void {
     const body = $('#custom_generation_tool_body');
     const icon = $('#custom_generation_tool_icon');
-    body.toggle(expanded);
+    if (expanded) {
+        body.slideDown(200);
+    } else {
+        body.slideUp(200);
+    }
     icon.toggleClass('fa-circle-chevron-down', !expanded);
     icon.toggleClass('fa-circle-chevron-up', expanded);
 }
@@ -3262,6 +3284,10 @@ async function ensureModalTemplatesInjected(): Promise<void> {
         $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'tool-modal'));
     }
 
+    if (!$('#custom_generation_large_editor_dialog').length) {
+        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'large-editor'));
+    }
+
     const decoratorSelect = $('#custom_generation_template_decorator');
     if (decoratorSelect.length && decoratorSelect.children().length === 0) {
         for (const decorator of ALL_DECORATORS) {
@@ -4185,6 +4211,34 @@ function bindEvents() {
     $('#custom_generation_tool_dialog').on('close', () => {
         editingToolIndex = null;
     });
+
+    // Large editor button event delegation — handles all .custom_generation_large_editor_button clicks globally
+    $(document).on('click', '.custom_generation_large_editor_button', async (event: JQuery.ClickEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const button = $(event.currentTarget);
+        const targetId = button.attr('data-target');
+        if (!targetId) {
+            console.warn('[LargeEditor] Button missing data-target attribute');
+            return;
+        }
+        const textarea = document.getElementById(targetId) as HTMLTextAreaElement | HTMLInputElement | null;
+        if (!textarea || !('value' in textarea)) {
+            console.warn(`[LargeEditor] Target element not found or not a textarea: ${targetId}`);
+            return;
+        }
+        if(textarea.disabled) {
+            console.warn(`[LargeEditor] Target element is disabled: ${targetId}`);
+            return;
+        }
+        const label = button.closest('label');
+        const title = label?.find('span, small')?.text()?.trim() || t`Edit Content`;
+        openLargeEditor(title, textarea.value ?? '', (newContent) => {
+            textarea.value = newContent;
+            // Trigger change event so existing handlers (YAML parsing, etc.) pick up the change
+            $(textarea).trigger('change');
+        });
+    });
 }
 
 /**
@@ -4198,10 +4252,10 @@ export async function setupSettings() {
 
     await ensureModalTemplatesInjected();
     setAdvancedParametersExpanded(false);
-    setPromptListExpanded(true);
-    setRegexListExpanded(true);
-    setTemplateListExpanded(true);
-    setToolListExpanded(true);
+    setPromptListExpanded(false);
+    setRegexListExpanded(false);
+    setTemplateListExpanded(false);
+    setToolListExpanded(false);
 
     bindEvents();
 

@@ -33,6 +33,7 @@
             <div class="completion_prompt_manager_popup_entry_form_control">
                 <label for="custom_generation_tool_description">
                     <span data-i18n="Description">Description</span>
+                    <i class="custom_generation_large_editor_button fa-solid fa-expand menu_button" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_tool_description" style="margin-left:8px;cursor:pointer;opacity:0.7;"></i>
                 </label>
                 <textarea id="custom_generation_tool_description" class="text_pole" rows="3" placeholder="Tool description for the AI model"></textarea>
                 <small class="text_muted" data-i18n="cg_tool_description_help">
@@ -63,6 +64,9 @@
         #custom_generation_tool_dialog {
             padding: 0;
             box-sizing: border-box;
+            border: 1.5px solid var(--SmartThemeBorderColor);
+            border-radius: 16px;
+            background-color: var(--SmartThemeBlurTintColor);
         }
 
         #custom_generation_tool_dialog[open] {
@@ -126,6 +130,10 @@
 
         #custom_generation_tool_parameters_container .tool-parameter-input {
             width: 100%;
+        }
+
+        .custom_generation_large_editor_button {
+            float: inline-end;
         }
     </style>
 </dialog>

@@ -1,4 +1,5 @@
 import { Tool } from './context';
+import { z } from 'zod';
 import { settings } from '@/settings';
 import { setup as setupButtons } from '@/features/tools/buttons';
 import { setup as setupInput } from '@/features/tools/input';
@@ -8,6 +9,7 @@ import { setup as setupWIGet } from '@/features/tools/worldinfo-get';
 import { setup as setupWISearch } from '@/features/tools/worldinfo-search';
 import { setup as setupVarSet } from '@/features/tools/variable-set';
 import { setup as setupVarGet } from '@/features/tools/variable-get';
+import { setup as setupWISet } from '@/features/tools/worldinfo-set';
 
 export const TOOL_DEFINITION = new Map<string, Tool>();
 
@@ -20,6 +22,7 @@ export async function setup() {
     await setupWISearch();
     await setupVarSet();
     await setupVarGet();
+    await setupWISet();
 }
 
 /**
@@ -39,10 +42,13 @@ export function getAvailableTools(type: string, presetName?: string): Tool[] {
         preset.tools[t.name].triggers.includes(type)
     )).map(t => {
         const overrides = Object.entries(preset.tools[t.name].parameters).map(([key, value]) => {
-            const def = t.parameters.shape[key];
+            const def = t.parameters.shape[key] as z.ZodType;
+            if(!def)
+                return {};
+            
             return {
                 // Replace describe from preset
-                [key]: def.describe(value),
+                [key]: def?.describe?.call(def, value) ?? def,
             }
         });
 

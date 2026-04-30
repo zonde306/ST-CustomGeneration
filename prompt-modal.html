@@ -81,6 +81,7 @@
             <div class="completion_prompt_manager_popup_entry_form_control">
                 <label for="custom_generation_prompt_content">
                     <span data-i18n="Prompt">Prompt</span>
+                    <i class="custom_generation_large_editor_button fa-solid fa-expand menu_button" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_prompt_content" style="margin-left:8px;cursor:pointer;opacity:0.7;"></i>
                 </label>
                 <textarea id="custom_generation_prompt_content" class="text_pole textarea_compact" rows="8"></textarea>
             </div>
@@ -98,6 +99,9 @@
         #custom_generation_prompt_dialog {
             padding: 0;
             box-sizing: border-box;
+            border: 1.5px solid var(--SmartThemeBorderColor);
+            border-radius: 16px;
+            background-color: var(--SmartThemeBlurTintColor);
         }
 
         #custom_generation_prompt_dialog[open] {
@@ -145,6 +149,10 @@
         #custom_generation_prompt_content {
             max-height: min(42vh, 360px);
             resize: vertical;
+        }
+
+        .custom_generation_large_editor_button {
+            float: inline-end;
         }
     </style>
 </dialog>
