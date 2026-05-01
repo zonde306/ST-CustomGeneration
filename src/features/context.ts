@@ -101,9 +101,9 @@ export class Context {
     public filters: PromptFilter;
     public tools: Map<string, Tool>;
 
-    constructor(_chat: ChatMessageEx[] = [], _metadata: ChatMetadataEx = {}) {
-        this.chat = _chat;
-        this.chat_metadata = _metadata;
+    constructor({ chat, chat_metadata }: { chat: ChatMessageEx[], chat_metadata: ChatMetadataEx }) {
+        this.chat = chat;
+        this.chat_metadata = chat_metadata;
         this.isGlobal = false;
         this.presetOverride = undefined;
         this.apiOverride = {};
@@ -117,7 +117,7 @@ export class Context {
      * @returns Context
      */
     static global(): Context {
-        const ctx = new Context();
+        const ctx = new Context({ chat, chat_metadata });
         ctx.chat = chat;
         ctx.chat_metadata = chat_metadata;
         ctx.isGlobal = true;
@@ -125,7 +125,7 @@ export class Context {
     }
 
     static fromObject(value: any): Context {
-        const context = new Context();
+        const context = new Context({ chat: [], chat_metadata: {} });
         context.chat = value.chat ?? [];
         context.chat_metadata = value.chat_metadata ?? {};
         context.presetOverride = value.presetOverride;

@@ -21,6 +21,231 @@ type ChatMessageOverrideEntry = { messageId: number; swipeId: number; content: s
 const PREVIEW_LIMIT = 120;
 let isOverridesEventsBound = false;
 
+export class DataOverride {
+    public chat: ChatMessageEx[];
+    public chat_metadata: ChatMetadata;
+
+    constructor({ chat, chat_metadata }: { chat: ChatMessageEx[]; chat_metadata: ChatMetadata }) {
+        this.chat = Array.isArray(chat) ? chat : [];
+        this.chat_metadata = chat_metadata ?? {};
+    }
+
+    /**
+     * WI overrides of the current chat file
+     */
+    static global(): DataOverride {
+        return new DataOverride({ chat, chat_metadata });
+    }
+
+    /**
+     * Dont use this.
+     */
+    async onWorldInfoLoaded(data: WorldInfoLoaded) {
+        for(let i = 0; i < data.globalLore.length; ++i) {
+            const entry = data.globalLore[i];
+            const override = this.getOverride(entry.world, String(entry.uid));
+            if(override) {
+                data.globalLore[i] = {  ...entry, content: override.content };
+                console.debug(`override global lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
+            }
+        }
+        for(let i = 0; i < data.personaLore.length; ++i) {
+            const entry = data.personaLore[i];
+            const override = this.getOverride(entry.world, String(entry.uid));
+            if(override) {
+                data.personaLore[i] = {  ...entry, content: override.content };
+                console.debug(`override persona lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
+            }
+        }
+        for(let i = 0; i < data.characterLore.length; ++i) {
+            const entry = data.characterLore[i];
+            const override = this.getOverride(entry.world, String(entry.uid));
+            if(override) {
+                data.characterLore[i] = {  ...entry, content: override.content };
+                console.debug(`override character lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
+            }
+        }
+        for(let i = 0; i < data.chatLore.length; ++i) {
+            const entry = data.chatLore[i];
+            const override = this.getOverride(entry.world, String(entry.uid));
+            if(override) {
+                data.chatLore[i] = {  ...entry, content: override.content };
+                console.debug(`override chat lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
+            }
+        }
+    }
+
+    /**
+     * Retrieve the overridden content of a specified WorldInfo.
+     * @param world world info name
+     * @param uid entry uid
+     * @param mesId Specify message ID, otherwise specify the latest message.
+     * @param swipeId Specify swipe ID, otherwise specify the latest swipe.
+     * @param maxDepth Maximum query depth
+     * @returns Returns overwritten data on success, otherwise returns null.
+     */
+    getOverride(world: string, uid: string | number, mesId?: number, swipeId?: number, maxDepth: number = 999): WIOverride | null {
+        for(let i = mesId ?? this.chat.length - 1; i >= 0; --i) {
+            if(maxDepth < 0)
+                return null;
+
+            const message = this.chat[i];
+            const swipe = (i === mesId || i === this.chat.length - 1) ? swipeId ?? message.swipe_id ?? 0 : message.swipe_id ?? 0;
+            const override = message.swipe_info?.[swipe]?.wi_overrides?.[world]?.[String(uid)];
+            if(override)
+                return override;
+
+            maxDepth -= 1;
+        }
+
+        return null;
+    }
+
+    /**
+     * Modify the content of WorldInfo overwrite data
+     * @param world world info name
+     * @param uid entry uid
+     * @param type Override type tags
+     * @param content Rewritten content
+     * @param messageId Specify message ID, otherwise specify the latest message.
+     * @param swipeId Specify swipe ID, otherwise specify the latest swipe.
+     */
+    setOverride(
+        world: string,
+        uid: string | number,
+        type: string,
+        content: string,
+        messageId: number = this.chat.length - 1,
+        swipeId: number = this.chat[messageId].swipe_id ?? 0,
+    ) {
+        const last = this.chat[messageId];
+        if(!last.swipe_info)
+            last.swipe_info = [];
+        if(!last.swipe_info[swipeId])
+            last.swipe_info[swipeId] = {};
+        if(!last.swipe_info[swipeId].wi_overrides)
+            last.swipe_info[swipeId].wi_overrides = {};
+        if(!last.swipe_info[swipeId].wi_overrides?.[world])
+            last.swipe_info[swipeId].wi_overrides[world] = {};
+        last.swipe_info[swipeId].wi_overrides[world][String(uid)] = { type, content };
+    }
+
+    getChatOverride(messageId: number): string | null {
+        const message = this.chat[messageId];
+        return message?.swipe_info?.[message.swipe_id ?? 0]?.mes_override ?? null;
+    }
+
+    setChatOverride(messageId: number, content: string) {
+        const message = this.chat[messageId];
+        if(!message.swipe_info)
+            message.swipe_info = [];
+        if(!message.swipe_info[message.swipe_id ?? 0])
+            message.swipe_info[message.swipe_id ?? 0] = {};
+        message.swipe_info[message.swipe_id ?? 0].mes_override = content;
+    }
+
+    lookupOverrides(depth: number = 9): (WIOverride & {
+        world: string; uid: string; messageId: number; swipeId: number;
+    })[] {
+        const results = new Map<string, WIOverride & { world: string; uid: string; messageId: number; swipeId: number; }>();
+
+        for(let i = this.chat.length - 1; i >= 0; --i) {
+            if(depth < 0)
+                break;
+
+            const message = this.chat[i];
+            if(!message)
+                continue;
+
+            const overrides = message.swipe_info?.[message.swipe_id ?? 0]?.wi_overrides;
+            if(overrides) {
+                for(const [world, entries] of Object.entries(overrides)) {
+                    for(const [uid, override] of Object.entries(entries)) {
+                        if(!results.has(`${world}/${uid}`)) {
+                            results.set(`${world}/${uid}`, {
+                                ...override,
+                                world: world,
+                                uid: uid,
+                                messageId: i,
+                                swipeId: message.swipe_id ?? 0,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        return Array.from(results.values());
+    }
+
+    lookupChatOverrides(depth: number = 9): ({
+        messageId: number; swipeId: number; content: string; name: string;
+    })[] {
+        const results: {
+            messageId: number; swipeId: number; content: string; name: string;
+        }[] = [];
+
+        const startIndex = Math.max(0, this.chat.length - 1 - depth);
+        for(let i = startIndex; i < this.chat.length; ++i) {
+            const message = this.chat[i];
+
+            // message is hidden
+            if(!message || message.is_system)
+                continue;
+
+            const content = message.swipe_info?.[message.swipe_id ?? 0]?.mes_override;
+            if(content) {
+                results.push({
+                    messageId: i,
+                    swipeId: message.swipe_id ?? 0,
+                    content: content,
+                    name: message.name ?? (message.is_user ? name1 : name2),
+                });
+            }
+        }
+
+        return results;
+    }
+}
+
+async function onWorldInfoLoaded(data: WorldInfoLoaded) {
+    const override: DataOverride = data.context ?
+        new DataOverride(data.context) :
+        DataOverride.global();
+    
+    await override.onWorldInfoLoaded(data);
+}
+
+export async function setup() {
+    eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded);
+    eventSource.on(event_types.APP_READY, onAppReady);
+}
+
+async function onAppReady() {
+    if (!$('#custom_generation_overrides_dialog').length) {
+        const host = document.body ?? document.documentElement;
+        $(host).append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'overrides-modal'));
+    }
+
+    bindOverridesEvents();
+
+    if (!$('#extensionsMenu')?.find('custom_generation_overrides_button')?.length) {
+        $('#extensionsMenu').append(`
+            <div id="custom_generation_overrides_button" class="extension_container interactable" tabindex="0">
+                <div id="customGenerateOverrides" class="list-group-item flex-container flexGap5 interactable" title="View Overrides." tabindex="0" role="listitem">
+                    <div class="fa-fw fa-solid fa-book extensionsMenuExtensionButton"></div>
+                    <span data-i18n="View Overrides">View Overrides</span>
+                </div>
+            </div>
+        `);
+
+        $('#customGenerateOverrides').on('click', () => {
+            updateOverridesList();
+            openDialog('#custom_generation_overrides_dialog');
+        });
+    }
+}
+
 function getDialog(selector: string): HTMLDialogElement | null {
     const element = document.querySelector(selector);
     return element instanceof HTMLDialogElement ? element : null;
@@ -297,229 +522,4 @@ function bindOverridesEvents(): void {
     $('#custom_generation_overrides_close').on('click', () => {
         closeDialog('#custom_generation_overrides_dialog');
     });
-}
-
-export class DataOverride {
-    public chat: ChatMessageEx[];
-    public chat_metadata: ChatMetadata;
-
-    constructor(_chat: ChatMessage[], _metadata: ChatMetadata) {
-        this.chat = Array.isArray(_chat) ? _chat : [];
-        this.chat_metadata = _metadata ?? {};
-    }
-
-    /**
-     * WI overrides of the current chat file
-     */
-    static global(): DataOverride {
-        return new DataOverride(chat, chat_metadata);
-    }
-
-    /**
-     * Dont use this.
-     */
-    async onWorldInfoLoaded(data: WorldInfoLoaded) {
-        for(let i = 0; i < data.globalLore.length; ++i) {
-            const entry = data.globalLore[i];
-            const override = this.getOverride(entry.world, String(entry.uid));
-            if(override) {
-                data.globalLore[i] = {  ...entry, content: override.content };
-                console.debug(`override global lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
-            }
-        }
-        for(let i = 0; i < data.personaLore.length; ++i) {
-            const entry = data.personaLore[i];
-            const override = this.getOverride(entry.world, String(entry.uid));
-            if(override) {
-                data.personaLore[i] = {  ...entry, content: override.content };
-                console.debug(`override persona lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
-            }
-        }
-        for(let i = 0; i < data.characterLore.length; ++i) {
-            const entry = data.characterLore[i];
-            const override = this.getOverride(entry.world, String(entry.uid));
-            if(override) {
-                data.characterLore[i] = {  ...entry, content: override.content };
-                console.debug(`override character lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
-            }
-        }
-        for(let i = 0; i < data.chatLore.length; ++i) {
-            const entry = data.chatLore[i];
-            const override = this.getOverride(entry.world, String(entry.uid));
-            if(override) {
-                data.chatLore[i] = {  ...entry, content: override.content };
-                console.debug(`override chat lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
-            }
-        }
-    }
-
-    /**
-     * Retrieve the overridden content of a specified WorldInfo.
-     * @param world world info name
-     * @param uid entry uid
-     * @param mesId Specify message ID, otherwise specify the latest message.
-     * @param swipeId Specify swipe ID, otherwise specify the latest swipe.
-     * @param maxDepth Maximum query depth
-     * @returns Returns overwritten data on success, otherwise returns null.
-     */
-    getOverride(world: string, uid: string | number, mesId?: number, swipeId?: number, maxDepth: number = 999): WIOverride | null {
-        for(let i = mesId ?? this.chat.length - 1; i >= 0; --i) {
-            if(maxDepth < 0)
-                return null;
-
-            const message = this.chat[i];
-            const swipe = (i === mesId || i === this.chat.length - 1) ? swipeId ?? message.swipe_id ?? 0 : message.swipe_id ?? 0;
-            const override = message.swipe_info?.[swipe]?.wi_overrides?.[world]?.[String(uid)];
-            if(override)
-                return override;
-
-            maxDepth -= 1;
-        }
-
-        return null;
-    }
-
-    /**
-     * Modify the content of WorldInfo overwrite data
-     * @param world world info name
-     * @param uid entry uid
-     * @param type Override type tags
-     * @param content Rewritten content
-     * @param messageId Specify message ID, otherwise specify the latest message.
-     * @param swipeId Specify swipe ID, otherwise specify the latest swipe.
-     */
-    setOverride(
-        world: string,
-        uid: string | number,
-        type: string,
-        content: string,
-        messageId: number = this.chat.length - 1,
-        swipeId: number = this.chat[messageId].swipe_id ?? 0,
-    ) {
-        const last = this.chat[messageId];
-        if(!last.swipe_info)
-            last.swipe_info = [];
-        if(!last.swipe_info[swipeId])
-            last.swipe_info[swipeId] = {};
-        if(!last.swipe_info[swipeId].wi_overrides)
-            last.swipe_info[swipeId].wi_overrides = {};
-        if(!last.swipe_info[swipeId].wi_overrides?.[world])
-            last.swipe_info[swipeId].wi_overrides[world] = {};
-        last.swipe_info[swipeId].wi_overrides[world][String(uid)] = { type, content };
-    }
-
-    getChatOverride(messageId: number): string | null {
-        const message = this.chat[messageId];
-        return message?.swipe_info?.[message.swipe_id ?? 0]?.mes_override ?? null;
-    }
-
-    setChatOverride(messageId: number, content: string) {
-        const message = this.chat[messageId];
-        if(!message.swipe_info)
-            message.swipe_info = [];
-        if(!message.swipe_info[message.swipe_id ?? 0])
-            message.swipe_info[message.swipe_id ?? 0] = {};
-        message.swipe_info[message.swipe_id ?? 0].mes_override = content;
-    }
-
-    lookupOverrides(depth: number = 9): (WIOverride & {
-        world: string; uid: string; messageId: number; swipeId: number;
-    })[] {
-        const results = new Map<string, WIOverride & { world: string; uid: string; messageId: number; swipeId: number; }>();
-
-        for(let i = this.chat.length - 1; i >= 0; --i) {
-            if(depth < 0)
-                break;
-
-            const message = this.chat[i];
-            if(!message)
-                continue;
-
-            const overrides = message.swipe_info?.[message.swipe_id ?? 0]?.wi_overrides;
-            if(overrides) {
-                for(const [world, entries] of Object.entries(overrides)) {
-                    for(const [uid, override] of Object.entries(entries)) {
-                        if(!results.has(`${world}/${uid}`)) {
-                            results.set(`${world}/${uid}`, {
-                                ...override,
-                                world: world,
-                                uid: uid,
-                                messageId: i,
-                                swipeId: message.swipe_id ?? 0,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        return Array.from(results.values());
-    }
-
-    lookupChatOverrides(depth: number = 9): ({
-        messageId: number; swipeId: number; content: string; name: string;
-    })[] {
-        const results: {
-            messageId: number; swipeId: number; content: string; name: string;
-        }[] = [];
-
-        const startIndex = Math.max(0, this.chat.length - 1 - depth);
-        for(let i = startIndex; i < this.chat.length; ++i) {
-            const message = this.chat[i];
-
-            // message is hidden
-            if(!message || message.is_system)
-                continue;
-
-            const content = message.swipe_info?.[message.swipe_id ?? 0]?.mes_override;
-            if(content) {
-                results.push({
-                    messageId: i,
-                    swipeId: message.swipe_id ?? 0,
-                    content: content,
-                    name: message.name ?? (message.is_user ? name1 : name2),
-                });
-            }
-        }
-
-        return results;
-    }
-}
-
-async function onWorldInfoLoaded(data: WorldInfoLoaded) {
-    const override: DataOverride = data.context ?
-        new DataOverride(data.context.chat, data.context.chat_metadata) :
-        DataOverride.global();
-    
-    await override.onWorldInfoLoaded(data);
-}
-
-export async function setup() {
-    eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded);
-    eventSource.on(event_types.APP_READY, onAppReady);
-}
-
-async function onAppReady() {
-    if (!$('#custom_generation_overrides_dialog').length) {
-        const host = document.body ?? document.documentElement;
-        $(host).append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'overrides-modal'));
-    }
-
-    bindOverridesEvents();
-
-    if (!$('#extensionsMenu')?.find('custom_generation_overrides_button')?.length) {
-        $('#extensionsMenu').append(`
-            <div id="custom_generation_overrides_button" class="extension_container interactable" tabindex="0">
-                <div id="customGenerateOverrides" class="list-group-item flex-container flexGap5 interactable" title="View Overrides." tabindex="0" role="listitem">
-                    <div class="fa-fw fa-solid fa-book extensionsMenuExtensionButton"></div>
-                    <span data-i18n="View Overrides">View Overrides</span>
-                </div>
-            </div>
-        `);
-
-        $('#customGenerateOverrides').on('click', () => {
-            updateOverridesList();
-            openDialog('#custom_generation_overrides_dialog');
-        });
-    }
 }

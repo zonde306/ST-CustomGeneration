@@ -39,7 +39,7 @@ async function call(params: any): Promise<string> {
 
     async function mapping(entry: WorldInfoEntry) {
         const parsed = new DecoratorParser(entry);
-        const override = new DataOverride(args.context.chat, args.context.chat_metadata);
+        const override = new DataOverride(args.context);
         const content = override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent;
         return {
             world: entry.world,
