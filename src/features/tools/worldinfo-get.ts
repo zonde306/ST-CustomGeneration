@@ -8,20 +8,27 @@ import { Context } from '@/features/context';
 import { DataOverride } from '@/features/override';
 
 /**
- * Get the complete content of the corresponding World Info
+ * Retrieve the full content of specific World Info / Lorebook entries.
+ *
+ * Provide one or more entries identified by their `world` (lorebook name) and `uid` (entry unique ID).
+ * Each returned entry includes: world, uid, key, keysecondary, comment, and the resolved content.
+ *
+ * Returns a JSON object: { ok: true, entries: Array<{ world, uid, key, keysecondary, comment, content }> }
+ *
+ * Use this after `search_worldinfo` to fetch the complete content of entries you want to examine in detail.
  */
 const TOOL_NAME = 'get_worldinfo';
 const SCHEMA = z.object({
     entries: z.array(z.object({
-        world: z.string().describe('World/Lorebook name'),
-        uid: z.union([z.string(), z.number()]).describe('Unique identifier for the world info entry'),
-    })).min(1).describe('World Info entries to get'),
+        world: z.string().describe('The name of the World/Lorebook containing the entry.'),
+        uid: z.union([z.string(), z.number()]).describe('The unique identifier (UID) of the World Info entry to retrieve.'),
+    })).min(1).describe('Array of { world, uid } objects identifying which World Info entries to fetch.'),
 });
 
 export async function setup() {
     TOOL_DEFINITION.set(TOOL_NAME, {
         name: TOOL_NAME,
-        description: 'Get the complete content of the corresponding World Info',
+        description: 'Retrieve the full content of specific World Info entries by their world name and UID. Returns key, comment, and resolved content for each entry.',
         parameters: SCHEMA,
         function: call,
     });

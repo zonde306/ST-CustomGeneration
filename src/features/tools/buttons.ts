@@ -4,30 +4,38 @@ import { TOOL_DEFINITION } from "@/features/tool-manager";
 import { DOMPurify } from '@st/lib.js';
 
 const STRING_ARRAY = z.preprocess(
-    v => {
-        if(v && typeof v === 'object')
-            return Object.values(v);
-        return v;
-    },
-    z.array(z.string())
+v => {
+    if(v && typeof v === 'object')
+        return Object.values(v);
+    return v;
+},
+z.array(z.string())
 );
 
 /**
- * Display a list of options for the user to choose from.
- */
+* Display a popup menu with custom options for the user to choose from.
+*
+* When `multiple` is false (default): the user clicks one option and the popup closes immediately.
+*   The selected value is returned as a single string. If the user dismisses the popup, `ok` is false.
+*
+* When `multiple` is true: the user can toggle one or more options, then confirm with the OK button.
+*   The selected values are returned as a string array.
+*
+* Returns a JSON object: { ok: boolean, selected: string | string[] | null }
+*/
 const TOOL_NAME = 'buttons';
 const SCHEMA = z.object({
-    message: z.string().describe('Dialog messages allow the use of HTML and inline CSS code.'),
-    options: STRING_ARRAY.describe('A list of options will be displayed to the user.'),
-    multiple: z.coerce.boolean().describe('Whether multiple choices can be selected.').default(false).optional(),
-    ok: z.string().describe('If multiple is enabled, close the dialog box button text.').default('OK').optional(),
-    cancel: z.string().describe('If multiple is not enabled, close the dialog box button text.').default('Cancel').optional(),
+message: z.string().describe('The message to display in the popup dialog. Supports HTML and inline CSS for formatting.'),
+options: STRING_ARRAY.describe('A list of option labels (strings) to present to the user. Each label becomes a clickable button.'),
+multiple: z.coerce.boolean().describe('Set to true to allow the user to select multiple options before confirming. When false (or omitted), clicking any option immediately selects it and closes the popup.').default(false).optional(),
+ok: z.string().describe('Label for the confirm/OK button. Only used when `multiple` is true.').default('OK').optional(),
+cancel: z.string().describe('Label for the dismiss/cancel button. When `multiple` is false, this button cancels the selection; when `multiple` is true, it is shown as the confirmation button.').default('Cancel').optional(),
 });
 
 export async function setup() {
     TOOL_DEFINITION.set(TOOL_NAME, {
         name: TOOL_NAME,
-        description: 'A selection menu pops up, allowing the user to choose one or more items.',
+        description: 'Display a popup menu with custom options for the user to select one or more items. Use this when you need the user to choose from a list of choices.',
         parameters: SCHEMA,
         function: call,
     });
