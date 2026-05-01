@@ -4,24 +4,30 @@ import { TOOL_DEFINITION } from "@/features/tool-manager";
 import { DOMPurify } from '@st/lib.js';
 
 /**
- * Display an input dialog box for the user to enter content.
+ * Display a text input dialog for the user to enter or edit text.
+ *
+ * Returns a JSON object: { ok: boolean, value: string | null }
+ * - If the user confirms with OK: `ok` is true and `value` contains the entered text.
+ * - If the user cancels: `ok` is false and `value` is null/false.
+ *
+ * Use this when you need the user to provide free-form text input.
  */
 const TOOL_NAME = 'input';
 const SCHEMA = z.object({
-    message: z.string().describe('Dialog messages allow the use of HTML and inline CSS code.'),
-    default: z.string().describe('The default value to be displayed in the input box.').optional(),
-    large: z.coerce.boolean().describe('Whether to use a large input box.').default(false).optional(),
-    wide: z.coerce.boolean().describe('Whether to use a wide input box.').default(false).optional(),
-    rows: z.coerce.number().int().describe('The number of rows to display in the input box.').default(4).optional(),
-    placeholder: z.string().describe('The placeholder text to display in the input box.').optional(),
-    tooltip: z.string().describe('The tooltip text to display in the input box.').optional(),
-    ok: z.string().describe('The text of the "OK" button.').default('OK').optional(),
+    message: z.string().describe('The message or prompt to display above the input box. Supports HTML and inline CSS for formatting.'),
+    default: z.string().describe('Default text to pre-fill in the input box.').optional(),
+    large: z.coerce.boolean().describe('Set to true to use a larger multi-line text area instead of a single-line input.').default(false).optional(),
+    wide: z.coerce.boolean().describe('Set to true to make the input dialog wider.').default(false).optional(),
+    rows: z.coerce.number().int().describe('Number of visible text rows when `large` is true.').default(4).optional(),
+    placeholder: z.string().describe('Placeholder text shown when the input box is empty.').optional(),
+    tooltip: z.string().describe('Tooltip text that appears on hover over the input box.').optional(),
+    ok: z.string().describe('Label for the confirm/OK button.').default('OK').optional(),
 });
 
 export async function setup() {
     TOOL_DEFINITION.set(TOOL_NAME, {
         name: TOOL_NAME,
-        description: 'An input box pops up, prompting the user to enter text.',
+        description: 'Display a text input dialog for the user to enter or edit text. Returns the entered text or null if cancelled.',
         parameters: SCHEMA,
         function: call,
     });

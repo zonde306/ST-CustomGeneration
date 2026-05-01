@@ -5,19 +5,32 @@ import { collectEnabledWorldInfos, loadWorldInfoEntries, DecoratorParser } from 
 import MiniSearch from 'minisearch';
 
 /**
- * Search for World info and output brief information.
+ * Search for World Info / Lorebook entries using full-text search.
+ *
+ * Searches across all enabled World Info entries by their key, secondary key, comment, UID, and content.
+ * Supports fuzzy matching with multiple keywords separated by spaces (combined with OR logic).
+ *
+ * If `keyword` is omitted or empty, returns a preview of ALL enabled entries (limited to `top_n`).
+ *
+ * Each returned entry is a brief preview: { world, uid, comment, key, keysecondary, content_preview }
+ * The content_preview is truncated to the first 50 characters. Use `get_worldinfo` to fetch the full content.
+ *
+ * Returns a JSON object: { ok: true, entries: Array<{ world, uid, comment, key, keysecondary, content_preview }> }
+ *
+ * Use this as the FIRST step when looking for World Info entries — search to find relevant entries,
+ * then use `get_worldinfo` to read their full content.
  */
 const TOOL_NAME = 'search_worldinfo';
 const SCHEMA = z.object({
-    keyword: z.string().optional().describe('Search only for the specified keywords; leave blank to return all results; separate multiple keywords with spaces.'),
-    top_n: z.int().min(1).max(100).optional().default(10).describe('Maximum number of search results to return.'),
+    keyword: z.string().optional().describe('Search keywords separated by spaces. Uses fuzzy OR matching across entry keys, secondary keys, comments, UIDs, and content. Omit or leave empty to list all entries.'),
+    top_n: z.int().min(1).max(100).optional().default(10).describe('Maximum number of results to return (1-100).'),
 });
 let database : MiniSearch | null = null;
 
 export async function setup() {
     TOOL_DEFINITION.set(TOOL_NAME, {
         name: TOOL_NAME,
-        description: 'Search for World info using full-text search capabilities.',
+        description: 'Full-text search across all enabled World Info entries. Returns brief previews (first 50 chars of content). Use this first to find relevant entries, then use get_worldinfo to read full content.',
         parameters: SCHEMA,
         function: call,
     });

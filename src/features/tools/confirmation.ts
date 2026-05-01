@@ -4,19 +4,24 @@ import { TOOL_DEFINITION } from "@/features/tool-manager";
 import { DOMPurify } from '@st/lib.js';
 
 /**
- * Display a confirmation dialog box, allowing the user to choose whether to accept.
+ * Display a confirmation dialog with OK/Cancel buttons for the user to make a binary choice.
+ *
+ * Returns a JSON object: { ok: true, selected: string } where `selected` is the label
+ * of the button that was clicked (the `ok` text if confirmed, the `cancel` text if dismissed).
+ *
+ * Use this when you need to ask the user a yes/no or proceed/cancel question.
  */
 const TOOL_NAME = 'confirm';
 const SCHEMA = z.object({
-    message: z.string().describe('Dialog messages allow the use of HTML and inline CSS code.'),
-    ok: z.string().describe('The text of the "OK" button.').default('OK').optional(),
-    cancel: z.string().describe('The text of the "Cancel" button.').default('Cancel').optional(),
+    message: z.string().describe('The message to display in the confirmation dialog. Supports HTML and inline CSS for formatting.'),
+    ok: z.string().describe('Label for the confirm/OK button.').default('OK').optional(),
+    cancel: z.string().describe('Label for the cancel/dismiss button.').default('Cancel').optional(),
 });
 
 export async function setup() {
     TOOL_DEFINITION.set(TOOL_NAME, {
         name: TOOL_NAME,
-        description: 'A dialog box pops up, providing "OK" and "Cancel" buttons for the user to choose from.',
+        description: 'Display a confirmation dialog with OK/Cancel buttons for the user to make a binary choice. Returns the label of the button that was clicked.',
         parameters: SCHEMA,
         function: call,
     });
