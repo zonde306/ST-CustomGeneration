@@ -510,7 +510,8 @@ async function runCustomGenerations(
         }
 
         let current = substituteParams(override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent);
-        const ctx = new Context({ chat: await template.buildChatHistory(env.chat), chat_metadata: env.chat_metadata });
+        const chatHistory = await template.buildChatHistory(env.chat);
+        const ctx = new Context({ chat: chatHistory, chat_metadata: env.chat_metadata });
         ctx.macroOverride.original = parsed.cleanContent;
         ctx.macroOverride.macros = {
             'lastUserMessage': () => substituteParams(messages.findLast(msg => msg.is_user)?.mes ?? ''),
