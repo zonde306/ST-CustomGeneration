@@ -60,7 +60,7 @@ const MAX_LOG_COUNT = 100;
 export const loggers: GenerateLogEntry[] = [];
 
 let isLoggerEventsBound = false;
-const streamUpdateThrottle = new Map<string, ReturnType<typeof setTimeout>>();
+const streamUpdateThrottle = new Map<string, { lastUpdate: number; timer: ReturnType<typeof setTimeout> | null }>();
 
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
@@ -115,13 +115,13 @@ function formatMessageContent(content: any): string {
     }
 
     // Chat completion message
-    if(typeof content.content === 'string') {
-        if(typeof content.reasoning_content === 'string') {
+    if (typeof content.content === 'string') {
+        if (typeof content.reasoning_content === 'string') {
             return `<think>\n${content.reasoning_content}\n</think>\n\n${content.content}`;
         }
         return content.content;
     }
-    
+
     return safeStringify(content);
 }
 
@@ -141,26 +141,29 @@ async function buildLoggerResponseTitle(response: string, index: number): Promis
 }
 
 function buildLoggerSection(title: string, blocks: JQuery<HTMLElement>[], sectionClass?: string): JQuery<HTMLElement> {
-const section = $('<div class="custom_generation_logger_section"></div>');
-if (sectionClass) {
-    section.addClass(sectionClass);
-}
-const titleEl = $('<div class="custom_generation_logger_section_title"></div>').text(title);
-const body = $('<div class="custom_generation_logger_section_body"></div>');
-section.append(titleEl, body);
+    const section = $('<div class="custom_generation_logger_section"></div>');
+    if (sectionClass) {
+        section.addClass(sectionClass);
+    }
+    const titleEl = $('<div class="custom_generation_logger_section_title"></div>').text(title);
+    const body = $('<div class="custom_generation_logger_section_body"></div>');
+    section.append(titleEl, body);
 
-if (!blocks.length) {
-    const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text(t`(empty)`);
-    body.append(empty);
+    if (!blocks.length) {
+        const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text(t`(empty)`);
+        body.append(empty);
+        return section;
+    }
+
+    blocks.forEach(block => body.append(block));
     return section;
 }
 
-blocks.forEach(block => body.append(block));
-return section;
-}
-
-function buildLoggerAccordionBlock(title: string, content: string, blockClass?: string): JQuery<HTMLElement>[] {
+function buildLoggerAccordionBlock(title: string, content: string, blockClass?: string, index?: number): JQuery<HTMLElement>[] {
     const header = $('<div class="custom_generation_logger_block_header"></div>');
+    if (index !== undefined) {
+        header.attr('data-index', String(index));
+    }
     const titleEl = $('<div class="custom_generation_logger_block_title"><i class="fa-solid fa-chevron-right custom_generation_logger_block_caret"></i></div>').append(document.createTextNode(title));
     const copyButton = createCopyButton(content);
     titleEl.append(copyButton);
@@ -198,10 +201,10 @@ async function buildLoggerResponseBlocks(responses: string[]): Promise<JQuery<HT
     }
 
     const blocks: JQuery<HTMLElement>[] = [];
-    for(const [index, response] of responses.entries()) {
+    for (const [index, response] of responses.entries()) {
         const title = await buildLoggerResponseTitle(response, index);
         const content = String(response ?? '');
-        blocks.push(...buildLoggerAccordionBlock(title, content, 'custom_generation_logger_response'));
+        blocks.push(...buildLoggerAccordionBlock(title, content, 'custom_generation_logger_response', index));
     }
     return blocks;
 }
@@ -217,26 +220,26 @@ async function buildLoggerToolMessageTitle(message: ToolMessage, index: number):
 
 function formatToolMessageContent(message: ToolMessage): string {
     const parts: string[] = [];
-    
+
     if (message.reasoning_content) {
         // Reasoning for tool calls
         parts.push(`<think>\n${message.reasoning_content}\n</think>\n`);
     }
-    
+
     if (message.content) {
         // Tool call response
         parts.push(`${message.content}`);
     }
-    
+
     if (message.tool_calls && message.tool_calls.length > 0) {
         // Tool calls parameters
         parts.push(`${safeStringify(message.tool_calls)}`);
     }
-    
+
     if (parts.length === 0) {
         return t`(empty)`;
     }
-    
+
     return parts.join('\n');
 }
 
@@ -259,7 +262,7 @@ function buildLoggerStatus(entry: GenerateLogEntry): string {
         return '❌Error';
     }
 
-    switch(entry.state) {
+    switch (entry.state) {
         case 'done':
             return '✅ Done';
         case 'running':
@@ -392,7 +395,7 @@ async function updateLoggerList(): Promise<void> {
         return;
     }
 
-    const nodes : JQuery<HTMLElement>[] = [];
+    const nodes: JQuery<HTMLElement>[] = [];
 
     if (loggers.length === 0) {
         const emptyText = String(list.attr('no-items-text') ?? t`No logs`);
@@ -436,7 +439,7 @@ function bindLoggerEvents(): void {
 
 async function onGenerateBefore(data: GenerateBefore) {
     const entry = loggers.findLast(e => e.taskId === data.taskId);
-    if(entry) {
+    if (entry) {
         entry.state = 'tool_calling';
         entry.messages = data.messages ?? entry.messages ?? [];
         entry.options = data.options ?? entry.options ?? [];
@@ -471,10 +474,10 @@ async function onGenerateAfter(data: GenerateAfter) {
         return;
     }
 
-    if(data.response) {
-        if(data.response.reasoning.length) {
+    if (data.response) {
+        if (data.response.reasoning.length) {
             entry.responses = [];
-            for(let i = 0; i < data.response.swipes.length; ++i) {
+            for (let i = 0; i < data.response.swipes.length; ++i) {
                 entry.responses.push(`<think>\n${data.response.reasoning[i]}\n</think>\n${data.response.swipes[i]}`);
             }
         } else {
@@ -487,6 +490,13 @@ async function onGenerateAfter(data: GenerateAfter) {
     entry.error = data.error ?? null;
     entry.state = 'done';
 
+    // 清除可能残留的节流定时器
+    const throttleState = streamUpdateThrottle.get(data.taskId);
+    if (throttleState?.timer) {
+        clearTimeout(throttleState.timer);
+    }
+    streamUpdateThrottle.delete(data.taskId);
+
     await refreshLoggerListIfVisible();
 }
 
@@ -497,7 +507,7 @@ async function onToolCalling(data: ToolCalling) {
         return;
     }
 
-    if(data.options.toolMessages?.length) {
+    if (data.options.toolMessages?.length) {
         entry.toolMessages = data.options.toolMessages;
     }
 
@@ -524,25 +534,73 @@ async function updateLoggerEntryUI(entry: GenerateLogEntry): Promise<void> {
         metaEl.text(buildLoggerMeta(entry));
     }
 
-    // 重建 responses section
-    const oldSection = container.find('.custom_generation_logger_responses_section');
-    const responseBlocks = await buildLoggerResponseBlocks(entry.responses);
-    const newSection = buildLoggerSection('Responses', responseBlocks, 'custom_generation_logger_responses_section');
+    // 增量更新 responses section，保持 accordion 展开状态
+    const sectionBody = container.find('.custom_generation_logger_responses_section .custom_generation_logger_section_body');
 
-    if (oldSection.length) {
-        oldSection.find('.custom_generation_logger_section_body').accordion('destroy');
-        oldSection.replaceWith(newSection);
-    } else {
+    if (!sectionBody.length) {
+        // Section 尚未存在，首次创建
+        const responseBlocks = await buildLoggerResponseBlocks(entry.responses);
+        const newSection = buildLoggerSection('Responses', responseBlocks, 'custom_generation_logger_responses_section');
         container.find('.custom_generation_logger_body').append(newSection);
+        newSection.find('.custom_generation_logger_section_body').accordion({
+            header: '> .custom_generation_logger_block_header',
+            heightStyle: 'content',
+            collapsible: true,
+            active: false,
+            icons: false,
+        });
+        return;
     }
 
-    newSection.find('.custom_generation_logger_section_body').accordion({
-        header: '> .custom_generation_logger_block_header',
-        heightStyle: 'content',
-        collapsible: true,
-        active: false,
-        icons: false,
+    const responses = entry.responses;
+
+    // 更新已有 block 或新增缺失的 block
+    for (let i = 0; i < responses.length; i++) {
+        const response = responses[i];
+        const existingHeader = sectionBody.find(`.custom_generation_logger_block_header[data-index="${i}"]`);
+
+        if (existingHeader.length) {
+            // 更新已有 block 的标题和内容
+            const title = await buildLoggerResponseTitle(response, i);
+            const titleEl = existingHeader.find('.custom_generation_logger_block_title');
+            if (titleEl.length) {
+                // 保留 chevron 图标，替换文本和复制按钮
+                const caret = titleEl.find('.custom_generation_logger_block_caret');
+                titleEl.empty().append(caret).append(document.createTextNode(title));
+                const copyButton = createCopyButton(String(response ?? ''));
+                titleEl.append(copyButton);
+            }
+
+            const panel = existingHeader.next('.custom_generation_logger_block_panel');
+            if (panel.length) {
+                const pre = panel.find('.custom_generation_logger_pre');
+                if (pre.length) {
+                    pre.text(String(response ?? ''));
+                }
+            }
+        } else {
+            // 新增 block
+            const title = await buildLoggerResponseTitle(response, i);
+            const content = String(response ?? '');
+            const newBlocks = buildLoggerAccordionBlock(title, content, 'custom_generation_logger_response', i);
+            sectionBody.append(...newBlocks);
+        }
+    }
+
+    // 移除多余的 block（response 数量减少时）
+    sectionBody.find('.custom_generation_logger_block_header').each((_i, el) => {
+        const index = parseInt($(el).attr('data-index') ?? '', 10);
+        if (!isNaN(index) && index >= responses.length) {
+            const panel = $(el).next('.custom_generation_logger_block_panel');
+            $(el).remove();
+            if (panel.length) {
+                panel.remove();
+            }
+        }
     });
+
+    // 通知 accordion 刷新，保持已有的展开/折叠状态
+    sectionBody.accordion('refresh');
 }
 
 async function onGenerateStream(data: StreamChunk) {
@@ -552,15 +610,15 @@ async function onGenerateStream(data: StreamChunk) {
         return;
     }
 
-    if(!entry.responses[data.swipe])
+    if (!entry.responses[data.swipe])
         entry.responses[data.swipe] = '';
-    if(data.reasoning && !entry.responses[data.swipe])
+    if (data.reasoning && !entry.responses[data.swipe])
         entry.responses[data.swipe] += '\n';
-    if(data.reasoning && !entry.responses[data.swipe].includes(''))
+    if (data.reasoning && !entry.responses[data.swipe].includes(''))
         entry.responses[data.swipe] += data.reasoning;
-    if((data.text || data.toolCalls?.length) && !entry.responses[data.swipe].includes(''))
+    if ((data.text || data.toolCalls?.length) && !entry.responses[data.swipe].includes(''))
         entry.responses[data.swipe] += '\n\n\n';
-    if(data.text)
+    if (data.text)
         entry.responses[data.swipe] += data.text;
 
     entry.state = 'running';
@@ -571,14 +629,34 @@ async function onGenerateStream(data: StreamChunk) {
         return;
     }
 
-    if (streamUpdateThrottle.has(data.taskId)) {
-        clearTimeout(streamUpdateThrottle.get(data.taskId));
-    }
+    const THROTTLE_INTERVAL = 100;
+    const now = Date.now();
+    const throttleState = streamUpdateThrottle.get(data.taskId);
 
-    streamUpdateThrottle.set(data.taskId, setTimeout(async () => {
-        streamUpdateThrottle.delete(data.taskId);
+    if (throttleState) {
+        if (throttleState.timer) {
+            clearTimeout(throttleState.timer);
+            throttleState.timer = null;
+        }
+
+        if (now - throttleState.lastUpdate >= THROTTLE_INTERVAL) {
+            throttleState.lastUpdate = now;
+            await updateLoggerEntryUI(entry);
+        } else {
+            const delay = THROTTLE_INTERVAL - (now - throttleState.lastUpdate);
+            throttleState.timer = setTimeout(async () => {
+                const state = streamUpdateThrottle.get(data.taskId);
+                if (state) {
+                    state.lastUpdate = Date.now();
+                    state.timer = null;
+                }
+                await updateLoggerEntryUI(entry);
+            }, delay);
+        }
+    } else {
+        streamUpdateThrottle.set(data.taskId, { lastUpdate: now, timer: null });
         await updateLoggerEntryUI(entry);
-    }, 100));
+    }
 }
 
 async function onAppReady() {
