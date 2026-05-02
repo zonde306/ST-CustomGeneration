@@ -43,7 +43,7 @@ interface GenerateLogEntry {
     streaming: boolean;
     responses: string[];
     error: Error | null;
-    done: boolean;
+    state: 'start' | 'running' | 'tool_calling' | 'done';
     type: string;
     toolMessages: ToolMessage[];
 }
@@ -52,12 +52,14 @@ const MAX_LOG_COUNT = 100;
 export const loggers: GenerateLogEntry[] = [];
 
 let isLoggerEventsBound = false;
+const streamUpdateThrottle = new Map<string, ReturnType<typeof setTimeout>>();
 
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
     eventSource.makeLast(eventTypes.GENERATE_BEFORE, onGenerateBefore);
     eventSource.makeLast(eventTypes.GENERATE_AFTER, onGenerateAfter);
     eventSource.makeLast(eventTypes.TOOL_CALLING, onToolCalling);
+    eventSource.makeLast(eventTypes.GENERATION_STREAM_CHUNK, onGenerateStream);
 }
 
 function getDialog(selector: string): HTMLDialogElement | null {
@@ -130,20 +132,23 @@ async function buildLoggerResponseTitle(response: string, index: number): Promis
     return base;
 }
 
-function buildLoggerSection(title: string, blocks: JQuery<HTMLElement>[]): JQuery<HTMLElement> {
-    const section = $('<div class="custom_generation_logger_section"></div>');
-    const titleEl = $('<div class="custom_generation_logger_section_title"></div>').text(title);
-    const body = $('<div class="custom_generation_logger_section_body"></div>');
-    section.append(titleEl, body);
+function buildLoggerSection(title: string, blocks: JQuery<HTMLElement>[], sectionClass?: string): JQuery<HTMLElement> {
+const section = $('<div class="custom_generation_logger_section"></div>');
+if (sectionClass) {
+    section.addClass(sectionClass);
+}
+const titleEl = $('<div class="custom_generation_logger_section_title"></div>').text(title);
+const body = $('<div class="custom_generation_logger_section_body"></div>');
+section.append(titleEl, body);
 
-    if (!blocks.length) {
-        const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text(t`(empty)`);
-        body.append(empty);
-        return section;
-    }
-
-    blocks.forEach(block => body.append(block));
+if (!blocks.length) {
+    const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text(t`(empty)`);
+    body.append(empty);
     return section;
+}
+
+blocks.forEach(block => body.append(block));
+return section;
 }
 
 function buildLoggerAccordionBlock(title: string, content: string, blockClass?: string): JQuery<HTMLElement>[] {
@@ -245,7 +250,19 @@ function buildLoggerStatus(entry: GenerateLogEntry): string {
     if (entry.error) {
         return '❌Error';
     }
-    return entry.done ? '✅Done' : '🔄Running';
+
+    switch(entry.state) {
+        case 'done':
+            return '✅ Done';
+        case 'running':
+            return '🔄 Running';
+        case 'start':
+            return '⏳ Starting';
+        case 'tool_calling':
+            return '🛠️ Tool Calling';
+        default:
+            return '❓ Unknown';
+    }
 }
 
 async function buildLoggerTitle(entry: GenerateLogEntry, index: number): Promise<string> {
@@ -319,7 +336,7 @@ async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise
     info.append(
         buildLoggerInfoItem('Task', entry.taskId || '-'),
         buildLoggerInfoItem('Streaming', entry.streaming ? 'Yes' : 'No'),
-        buildLoggerInfoItem('Completed', entry.done ? 'Yes' : 'No'),
+        buildLoggerInfoItem('Completed', entry.state ? 'Yes' : 'No'),
     );
 
     body.append(info);
@@ -329,7 +346,7 @@ async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise
     const responseBlocks = await buildLoggerResponseBlocks(entry.responses);
     body.append(buildLoggerSection('Messages', messageBlocks));
     body.append(buildLoggerSection('Tool Messages', toolMessageBlocks));
-    body.append(buildLoggerSection('Responses', responseBlocks));
+    body.append(buildLoggerSection('Responses', responseBlocks, 'custom_generation_logger_responses_section'));
 
     if (entry.error) {
         const errorText = entry.error.stack || entry.error.message || String(entry.error);
@@ -337,6 +354,7 @@ async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise
     }
 
     container.append(summary, body);
+    container.attr('data-task-id', entry.taskId);
 
     container.accordion({
         header: '> .custom_generation_logger_summary',
@@ -411,7 +429,7 @@ function bindLoggerEvents(): void {
 async function onGenerateBefore(data: GenerateBefore) {
     const entry = loggers.findLast(e => e.taskId === data.taskId);
     if(entry) {
-        entry.done = false;
+        entry.state = 'start';
         entry.messages = data.messages ?? entry.messages ?? [];
         entry.options = data.options ?? entry.options ?? [];
         entry.toolMessages = data.options.toolMessages ?? [];
@@ -426,7 +444,7 @@ async function onGenerateBefore(data: GenerateBefore) {
         streaming: data.streaming ?? false,
         responses: [],
         error: null,
-        done: false,
+        state: 'start',
         type: data.type,
         toolMessages: [],
     });
@@ -459,7 +477,7 @@ async function onGenerateAfter(data: GenerateAfter) {
     }
 
     entry.error = data.error ?? null;
-    entry.done = true;
+    entry.state = 'done';
 
     await refreshLoggerListIfVisible();
 }
@@ -475,9 +493,84 @@ async function onToolCalling(data: ToolCalling) {
         entry.toolMessages = data.options.toolMessages;
     }
 
-    entry.done = true;
+    entry.state = 'tool_calling';
 
     await refreshLoggerListIfVisible();
+}
+
+async function updateLoggerEntryUI(entry: GenerateLogEntry): Promise<void> {
+    const container = $(`[data-task-id="${entry.taskId}"]`);
+    if (!container.length) {
+        return;
+    }
+
+    // 更新状态
+    const statusEl = container.find('.custom_generation_logger_status');
+    if (statusEl.length) {
+        statusEl.text(buildLoggerStatus(entry));
+    }
+
+    // 更新 meta（响应数量变化）
+    const metaEl = container.find('.custom_generation_logger_meta');
+    if (metaEl.length) {
+        metaEl.text(buildLoggerMeta(entry));
+    }
+
+    // 重建 responses section
+    const oldSection = container.find('.custom_generation_logger_responses_section');
+    const responseBlocks = await buildLoggerResponseBlocks(entry.responses);
+    const newSection = buildLoggerSection('Responses', responseBlocks, 'custom_generation_logger_responses_section');
+
+    if (oldSection.length) {
+        oldSection.find('.custom_generation_logger_section_body').accordion('destroy');
+        oldSection.replaceWith(newSection);
+    } else {
+        container.find('.custom_generation_logger_body').append(newSection);
+    }
+
+    newSection.find('.custom_generation_logger_section_body').accordion({
+        header: '> .custom_generation_logger_block_header',
+        heightStyle: 'content',
+        collapsible: true,
+        active: false,
+        icons: false,
+    });
+}
+
+async function onGenerateStream(taskId: string, swipe: number, text: string, reasoning: string) {
+    const entry = loggers.findLast(e => e.taskId === taskId);
+    if (!entry) {
+        console.error(`Failed to find log entry for task ${taskId}`);
+        return;
+    }
+
+    if(!entry.responses[swipe])
+        entry.responses[swipe] = '';
+    if(reasoning && !entry.responses[swipe])
+        entry.responses[swipe] += '\n';
+    if(reasoning && !entry.responses[swipe].includes(''))
+        entry.responses[swipe] += reasoning;
+    if(text && !entry.responses[swipe].includes(''))
+        entry.responses[swipe] += '\n\n\n';
+    if(text)
+        entry.responses[swipe] += text;
+
+    entry.state = 'running';
+
+    // 仅在对话框可见时更新 UI，通过节流避免高频更新
+    const dialog = getDialog('#custom_generation_logger_dialog');
+    if (!dialog || (!dialog.open && !dialog.hasAttribute('open'))) {
+        return;
+    }
+
+    if (streamUpdateThrottle.has(taskId)) {
+        clearTimeout(streamUpdateThrottle.get(taskId));
+    }
+
+    streamUpdateThrottle.set(taskId, setTimeout(async () => {
+        streamUpdateThrottle.delete(taskId);
+        await updateLoggerEntryUI(entry);
+    }, 100));
 }
 
 async function onAppReady() {

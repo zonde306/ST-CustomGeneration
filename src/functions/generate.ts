@@ -61,7 +61,7 @@ export async function generate(
         signal,
         taskId,
         api,
-        hiddenOptions: customOptions,
+        hiddenOptions,
         streaming,
         tools,
         tool_choice,
@@ -89,7 +89,7 @@ export async function generate(
         messages,
         taskId,
         api,
-        customOptions,
+        hiddenOptions,
         streaming
     });
 
@@ -122,18 +122,17 @@ export async function generate(
             data.tools = tools ?? [];
             data.tool_choice = tool_choice ?? (tools?.length ? 'auto' : 'none');
 
-            for(const [key, val] of Object.entries(customOptions ?? {})) {
-                Object.defineProperty(data, key, {
-                    value: val,
-                    writable: true,
-                    enumerable: false,
-                    configurable: true,
-                });
+            if(hiddenOptions) {
+                Object.defineProperties(data,
+                    Object.fromEntries(
+                        Object.entries(hiddenOptions) // Avoid being serialized and passed to the API
+                            .map(([key, value]) => [key, { value, enumerable: false }])
+                    )
+                );
             }
 
             // @ts-expect-error: 2345
             eventSource.removeListener(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
-            // Object.assign(oai_settings, originalSettings);
         };
 
         // compatibility with other extensions and API parameter passing
@@ -218,7 +217,7 @@ class StreamHandler {
                 if(chunk.toolCalls?.length)
                     this.toolCalls = chunk.toolCalls;
 
-                const { swipe, text } = this.parseChunk(chunk);
+                const { swipe, text, reasoning } = this.parseChunk(chunk);
                 if(!text)
                     continue;
 
@@ -226,7 +225,7 @@ class StreamHandler {
                     taskId: this.taskId,
                     swipe,
                     text,
-                    buffer: this.buffer,
+                    reasoning,
                 });
             }
         } catch (err) {
@@ -261,7 +260,7 @@ class StreamHandler {
                     taskId: this.taskId,
                     swipe,
                     text,
-                    buffer: this.buffer,
+                    reasoning,
                 });
 
                 yield { swipe, text, reasoning, toolCalls: chunk.toolCalls?.[swipe] ?? [] };

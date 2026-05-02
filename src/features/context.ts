@@ -428,7 +428,7 @@ export class Context {
                 signal: abortController.signal,
                 taskId,
                 api: apiConfig as ApiConfig,
-                hiddenOptions: { context: this, type },
+                hiddenOptions: { context: this, type, taskId, options },
                 streaming: options.streaming,
                 tools,
                 tool_choice: options.toolChoice,
