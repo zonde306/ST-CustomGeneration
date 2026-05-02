@@ -35,6 +35,13 @@ interface ToolCalling {
     toolCalls: ToolCalls;
 }
 
+interface StreamChunk {
+    taskId: string;
+    swipe: number;
+    text: string;
+    reasoning: string;
+}
+
 interface GenerateLogEntry {
     taskId: string;
     messages: ChatCompletionMessage[];
@@ -537,23 +544,23 @@ async function updateLoggerEntryUI(entry: GenerateLogEntry): Promise<void> {
     });
 }
 
-async function onGenerateStream(taskId: string, swipe: number, text: string, reasoning: string) {
-    const entry = loggers.findLast(e => e.taskId === taskId);
+async function onGenerateStream(data: StreamChunk) {
+    const entry = loggers.findLast(e => e.taskId === data.taskId);
     if (!entry) {
-        console.error(`Failed to find log entry for task ${taskId}`);
+        console.error(`Failed to find log entry for task ${data.taskId}`);
         return;
     }
 
-    if(!entry.responses[swipe])
-        entry.responses[swipe] = '';
-    if(reasoning && !entry.responses[swipe])
-        entry.responses[swipe] += '\n';
-    if(reasoning && !entry.responses[swipe].includes(''))
-        entry.responses[swipe] += reasoning;
-    if(text && !entry.responses[swipe].includes(''))
-        entry.responses[swipe] += '\n\n\n';
-    if(text)
-        entry.responses[swipe] += text;
+    if(!entry.responses[data.swipe])
+        entry.responses[data.swipe] = '';
+    if(data.reasoning && !entry.responses[data.swipe])
+        entry.responses[data.swipe] += '\n';
+    if(data.reasoning && !entry.responses[data.swipe].includes(''))
+        entry.responses[data.swipe] += data.reasoning;
+    if(data.text && !entry.responses[data.swipe].includes(''))
+        entry.responses[data.swipe] += '\n\n\n';
+    if(data.text)
+        entry.responses[data.swipe] += data.text;
 
     entry.state = 'running';
 
@@ -563,12 +570,12 @@ async function onGenerateStream(taskId: string, swipe: number, text: string, rea
         return;
     }
 
-    if (streamUpdateThrottle.has(taskId)) {
-        clearTimeout(streamUpdateThrottle.get(taskId));
+    if (streamUpdateThrottle.has(data.taskId)) {
+        clearTimeout(streamUpdateThrottle.get(data.taskId));
     }
 
-    streamUpdateThrottle.set(taskId, setTimeout(async () => {
-        streamUpdateThrottle.delete(taskId);
+    streamUpdateThrottle.set(data.taskId, setTimeout(async () => {
+        streamUpdateThrottle.delete(data.taskId);
         await updateLoggerEntryUI(entry);
     }, 100));
 }
