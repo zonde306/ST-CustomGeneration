@@ -210,7 +210,7 @@ async function buildLoggerToolMessageTitle(message: ToolMessage, index: number):
     const role = String(message.role ?? 'unknown');
     const markup = message.role === 'assistant' ? '🤖' : '🔧';
     const id = message.tool_call_id ? ` (id: ${message.tool_call_id})` : '';
-    const tokens = await getTokenCountAsync(message.content ?? '');
+    const tokens = await getTokenCountAsync(message.content ?? JSON.stringify(message.tool_calls) ?? '');
     const base = `Tool Message #${index + 1} · ${markup}${role}${id} · 🧠${tokens} tokens`;
     return base;
 }
