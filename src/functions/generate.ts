@@ -226,6 +226,7 @@ class StreamHandler {
                     swipe,
                     text,
                     reasoning,
+                    toolCalls: chunk.toolCalls,
                 });
             }
         } catch (err) {
@@ -261,6 +262,7 @@ class StreamHandler {
                     swipe,
                     text,
                     reasoning,
+                    toolCalls: chunk.toolCalls,
                 });
 
                 yield { swipe, text, reasoning, toolCalls: chunk.toolCalls?.[swipe] ?? [] };

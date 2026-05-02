@@ -40,6 +40,7 @@ interface StreamChunk {
     swipe: number;
     text: string;
     reasoning: string;
+    toolCalls: ToolCalls;
 }
 
 interface GenerateLogEntry {
@@ -557,7 +558,7 @@ async function onGenerateStream(data: StreamChunk) {
         entry.responses[data.swipe] += '\n';
     if(data.reasoning && !entry.responses[data.swipe].includes(''))
         entry.responses[data.swipe] += data.reasoning;
-    if(data.text && !entry.responses[data.swipe].includes(''))
+    if((data.text || data.toolCalls?.length) && !entry.responses[data.swipe].includes(''))
         entry.responses[data.swipe] += '\n\n\n';
     if(data.text)
         entry.responses[data.swipe] += data.text;
