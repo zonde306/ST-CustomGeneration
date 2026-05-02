@@ -610,17 +610,18 @@ async function onGenerateStream(data: StreamChunk) {
         return;
     }
 
-    if (!entry.responses[data.swipe])
-        entry.responses[data.swipe] = '';
-    if (data.reasoning && !entry.responses[data.swipe])
-        entry.responses[data.swipe] += '\n';
-    if (data.reasoning && !entry.responses[data.swipe].includes(''))
-        entry.responses[data.swipe] += data.reasoning;
-    if ((data.text || data.toolCalls?.length) && !entry.responses[data.swipe].includes(''))
-        entry.responses[data.swipe] += '\n\n\n';
-    if (data.text)
-        entry.responses[data.swipe] += data.text;
+    let content = entry.responses[data.swipe] ?? '';
 
+    if (data.reasoning && !content.startsWith('<think>'))
+        content += '<think>\n';
+    if (data.reasoning && !content.endsWith('</think>'))
+        content += data.reasoning;
+    if ((data.text || data.toolCalls?.length) && !content.includes('</think>'))
+        content += '\n</think>\n\n';
+    if (data.text)
+        content += data.text;
+
+    entry.responses[data.swipe] = content;
     entry.state = 'running';
 
     // 仅在对话框可见时更新 UI，通过节流避免高频更新
