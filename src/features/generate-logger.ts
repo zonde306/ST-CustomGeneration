@@ -134,8 +134,8 @@ async function buildLoggerMessageTitle(message: ChatCompletionMessage, index: nu
     return base;
 }
 
-async function buildLoggerResponseTitle(response: string, index: number): Promise<string> {
-    const tokens = await getTokenCountAsync(response ?? '');
+async function buildLoggerResponseTitle(response: string, index: number, countTokens: boolean = true): Promise<string> {
+    const tokens = countTokens ? await getTokenCountAsync(response ?? '') : '❔';
     const base = `Response #${index + 1} · 🧠${tokens} tokens`;
     return base;
 }
@@ -195,14 +195,14 @@ async function buildLoggerMessageBlocks(messages: ChatCompletionMessage[]): Prom
     return blocks;
 }
 
-async function buildLoggerResponseBlocks(responses: string[]): Promise<JQuery<HTMLElement>[]> {
+async function buildLoggerResponseBlocks(responses: string[], countTokens: boolean = true): Promise<JQuery<HTMLElement>[]> {
     if (!responses.length) {
         return [];
     }
 
     const blocks: JQuery<HTMLElement>[] = [];
     for (const [index, response] of responses.entries()) {
-        const title = await buildLoggerResponseTitle(response, index);
+        const title = await buildLoggerResponseTitle(response, index, countTokens);
         const content = String(response ?? '');
         blocks.push(...buildLoggerAccordionBlock(title, content, 'custom_generation_logger_response', index));
     }
@@ -539,7 +539,7 @@ async function updateLoggerEntryUI(entry: GenerateLogEntry): Promise<void> {
 
     if (!sectionBody.length) {
         // Section 尚未存在，首次创建
-        const responseBlocks = await buildLoggerResponseBlocks(entry.responses);
+        const responseBlocks = await buildLoggerResponseBlocks(entry.responses, false);
         const newSection = buildLoggerSection('Responses', responseBlocks, 'custom_generation_logger_responses_section');
         container.find('.custom_generation_logger_body').append(newSection);
         newSection.find('.custom_generation_logger_section_body').accordion({
@@ -561,7 +561,7 @@ async function updateLoggerEntryUI(entry: GenerateLogEntry): Promise<void> {
 
         if (existingHeader.length) {
             // 更新已有 block 的标题和内容
-            const title = await buildLoggerResponseTitle(response, i);
+            const title = await buildLoggerResponseTitle(response, i, false);
             const titleEl = existingHeader.find('.custom_generation_logger_block_title');
             if (titleEl.length) {
                 // 保留 chevron 图标，替换文本和复制按钮
@@ -580,7 +580,7 @@ async function updateLoggerEntryUI(entry: GenerateLogEntry): Promise<void> {
             }
         } else {
             // 新增 block
-            const title = await buildLoggerResponseTitle(response, i);
+            const title = await buildLoggerResponseTitle(response, i, false);
             const content = String(response ?? '');
             const newBlocks = buildLoggerAccordionBlock(title, content, 'custom_generation_logger_response', i);
             sectionBody.append(...newBlocks);
