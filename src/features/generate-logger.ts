@@ -436,7 +436,7 @@ function bindLoggerEvents(): void {
 async function onGenerateBefore(data: GenerateBefore) {
     const entry = loggers.findLast(e => e.taskId === data.taskId);
     if(entry) {
-        entry.state = 'start';
+        entry.state = 'tool_calling';
         entry.messages = data.messages ?? entry.messages ?? [];
         entry.options = data.options ?? entry.options ?? [];
         entry.toolMessages = data.options.toolMessages ?? [];
@@ -451,7 +451,7 @@ async function onGenerateBefore(data: GenerateBefore) {
         streaming: data.streaming ?? false,
         responses: [],
         error: null,
-        state: 'start',
+        state: (data.streaming || data.options?.streaming) ? 'start' : 'running',
         type: data.type,
         toolMessages: [],
     });
