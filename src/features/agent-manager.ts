@@ -7,16 +7,16 @@ import { DataOverride } from "@/features/override";
 import { Context } from "@/features/context";
 import { generate } from "@/utils/retries"
 import { WorldInfoEntry, WorldInfoLoaded } from "@/utils/defines";
-import { setup as setupReplace } from "@/features/generates/replace"
-import { setup as setupReplaceDiff } from "@/features/generates/replace-diff";
-import { setup as setupVarJson } from "@/features/generates/variable-json";
-import { setup as setupVarYaml } from "@/features/generates/variable-yaml";
-import { setup as setupVarJsonPatch } from "@/features/generates/variable-json-patch";
-import { setup as setupEjsEvaluate } from "@/features/generates/ejs-evaluate";
-import { setup as setupReplaceEjs } from "@/features/generates/ejs-replace";
-import { setup as setupReplaceSearch } from "@/features/generates/replace-search";
-import { setup as setupAppendMessage } from "@/features/generates/append-message";
-import { setup as setupAppendEjs } from "@/features/generates/ejs-append";
+import { setup as setupReplace } from "@/features/agents/replace"
+import { setup as setupReplaceDiff } from "@/features/agents/replace-diff";
+import { setup as setupVarJson } from "@/features/agents/variable-json";
+import { setup as setupVarYaml } from "@/features/agents/variable-yaml";
+import { setup as setupVarJsonPatch } from "@/features/agents/variable-json-patch";
+import { setup as setupEjsEvaluate } from "@/features/agents/ejs-evaluate";
+import { setup as setupReplaceEjs } from "@/features/agents/ejs-replace";
+import { setup as setupReplaceSearch } from "@/features/agents/replace-search";
+import { setup as setupAppendMessage } from "@/features/agents/append-message";
+import { setup as setupAppendEjs } from "@/features/agents/ejs-append";
 import { eventTypes } from "@/utils/events";
 import { execute as batchExecute } from "@/utils/concurrency-limiter";
 import { settings } from "@/settings";
@@ -99,7 +99,7 @@ export async function setup() {
 /**
  * Execute after generate processing
  */
-export async function runAfterGenerates(lockButton: boolean = true) {
+export async function runAfterAgents(lockButton: boolean = true) {
     if(delayGenerationTimer != null) {
         // Cancel previous delay generation
         window.clearInterval(delayGenerationTimer);
@@ -112,19 +112,21 @@ export async function runAfterGenerates(lockButton: boolean = true) {
         return;
     }
 
-    const override = new DataOverride(env.chat, env.chat_metadata);
-
     // Runs in the background, no waiting required.
-    processMessage(env, override, false, lockButton);
+    processMessage(env, false, lockButton);
 
     state = GenStage.None;
 }
 
-async function processMessage(env: Context, override: DataOverride, before: boolean = false, lockButton: boolean = true) {
+async function processMessage(
+    env: Context,
+    before: boolean = false,
+    lockButton: boolean = true
+) {
     if(abortController?.signal?.aborted === false) {
         abortController?.abort();
         toastr.warning(`Aborting previous ${before ? 'before' : 'after'}-generate`);
-        await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'regenerate' });
+        await eventSource.emit(eventTypes.AGENTS_END, { type: '', reason: 'regenerate' });
         abortController = null;
     }
 
@@ -168,170 +170,14 @@ async function processMessage(env: Context, override: DataOverride, before: bool
     if(!before && lockButton)
         deactivateSendButtons();
 
-    await eventSource.emit(eventTypes.GENERATION_WORLDINFO_START, { abortController, entries: groups });
+    await eventSource.emit(eventTypes.AGENTS_START, { abortController, context: env, entries: groups, messageId, swipeId, type: before ? 'before' : 'after' });
 
-    const cache = new Map<string, TemplateHandler>();
-
-    // TODO: Since different APIs have different concurrency limits, we should set limits for them separately.
-    const maxConcurrency = settings.apis[settings.currentApi].maxConcurrency;
-
-    for(const [ batch, entries ] of Object.entries(groups)) {
-        const tasks: (() => Promise<any>)[] = [];
-        let activeTasks = 0;
-        
-        // It should be wrapped as a separate function, but that seems a bit difficult.
-        for(const ent of entries) {
-            const { entry, decorator, parsed, processor } = ent;
-
-            const tag = parsed.parameters[decorator]?.[0] ?? '';
-            const cacheKey = `${decorator}:${tag}`;
-            let template: TemplateHandler = cache.get(cacheKey)!;
-            if(template === undefined) {
-                template = TemplateHandler.find(decorator, tag)!;
-                cache.set(cacheKey, template);
-            }
-            if(template === null) {
-                console.error(`Failed to find template for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
-                continue;
-            }
-
-            const messageContent = messages.filter(msg => !msg.is_system && !msg.is_user)?.map(msg => msg.mes ?? '').join('\n\n');
-            const testing = template.test(messageContent);
-            if(!testing.success) {
-                console.warn(`Failed to test message for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
-                toastr.warning(`Failed to test message for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`, `${before ? 'Before' : 'After'} Generate`);
-                continue;
-            }
-
-            let current = substituteParams(override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent);
-            const ctx = new Context(await template.buildChatHistory(env.chat), env.chat_metadata);
-            ctx.macroOverride.original = parsed.cleanContent;
-            ctx.macroOverride.macros = {
-                'lastUserMessage': () => substituteParams(messages.findLast(msg => msg.is_user)?.mes ?? ''),
-                'lastCharMessage': () => substituteParams(messages.findLast(msg => !msg.is_user && !msg.is_system)?.mes ?? ''),
-                'message': substituteParams(testing.content ?? ''),
-                'original': substituteParams(parsed.cleanContent),
-                'current': () => current,
-                'lastError': '',
-                ...testing.arguments ?? {},
-            };
-
-            // Reduce Attention Depletion
-            ctx.filters = template.filters;
-
-            if(parsed.decorators.includes('@@preset')) {
-                ctx.presetOverride = parsed.parameters['@@preset']?.[0];
-            }
-
-            try {
-                const checked = await processor.checker({
-                    entry,
-                    content: testing.content || parsed.cleanContent,
-                    args: testing.arguments ?? {},
-                    override,
-                    decorator: parsed,
-                    env,
-                    messageId,
-                    swipeId,
-                    current,
-                });
-
-                if(!checked) {
-                    console.info(`The inspection failed for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
-                    continue;
-                }
-
-                // If the checker returns a string, it means that the checker has changed the current content.
-                if(typeof checked === 'string')
-                    current = checked;
-            } catch (e) {
-                console.error(`An error occurred during the check for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`, e);
-                toastr.error(`An error occurred during the check for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`, `${before ? 'Before' : 'After'} Generate`);
-                continue;
-            }
-            
-            // A concurrency limiter should be added to it.
-            tasks.push(() => {
-                console.log(`After Generate: ${entry.world}/${entry.uid}-${entry.comment} - ${decorator}`);
-                return generate(
-                    ctx,
-                    decorator,
-                    {
-                        validator: async(response) => {
-                            response = Array.isArray(response) ? response : [ response ];
-
-                            for(const content of response) {
-                                const processed = template.process(content);
-                                if(processed.success) {
-                                    if (await processor.processor({
-                                        entry,
-                                        content: processed.content ?? content,
-                                        args: processed.arguments ?? {},
-                                        override,
-                                        decorator: parsed,
-                                        env,
-                                        messageId,
-                                        swipeId,
-                                        current,
-                                    })) {
-                                        return true;
-                                    }
-                                }
-                            }
-
-                            // retry
-                            return false;
-                        },
-                        dontCreate: true,
-                        abortController: abortController ?? undefined,
-                    },
-                    false,
-                    template.retries,
-                    template.interval,
-                ).catch((e: Error) => {
-                    if(abortController?.signal.aborted === false) {
-                        activeTasks -= 1;
-                        if(!e.message.includes('canceled')) {
-                            toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, `${before ? 'Before' : 'After'} Generate`);
-                            console.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}, ${activeTasks} tasks remaining`, e);
-                        }
-                    }
-                }).then(r => {
-                    if(abortController?.signal.aborted === false) {
-                        activeTasks -= 1;
-                        console.log(`Task completed: ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}, ${activeTasks} tasks remaining`);
-                    }
-                    return r;
-                });
-            });
-        }
-
-        // Waiting for batch completion
-        let collected = batchExecute(tasks, maxConcurrency);
-
-        if(tasks.length) {
-            collected = collected.then(async(results) => {
-                if(abortController?.signal.aborted === false) {
-                    toastr.success(`All generate tasks ended`, `${before ? 'Before' : 'After'} Generate`);
-                    refreshMessage(messageId);
-                }
-                abortController = null;
-                activeTasks = 0;
-
-                return results;
-            });
-
-            toastr.info(`Batch ${Number(batch) + 1}/${_.size(groups)} batch, ${tasks.length} tasks`, `${before ? 'Before' : 'After'} Generate`);
-        } else {
-            console.log(`No ${before ? 'before' : 'after'} generate tasks found`);
-        }
-
-        console.log(`Waiting for the ${Number(batch) + 1} batch of ${before ? 'before' : 'after'} generate tasks to complete`, tasks.length);
-        await collected;
-        activeTasks = 0;
+    for(const entries of Object.values(groups)) {
+        // Process each batch
+        await runCustomGenerations(entries, env, messageId);
     }
 
-    await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: before ? 'before' : 'after', reason: 'done' });
+    await eventSource.emit(eventTypes.AGENTS_END, { entries: groups, context: env, messageId, swipeId, type: before ? 'before' : 'after', reason: 'done' });
 
     if(before) {
         if(!env.chat[messageId].swipe_info)
@@ -359,7 +205,7 @@ async function onAppReady() {
         `);
 
         $('#customGenerateAfter').on('click', () => {
-            runAfterGenerates();
+            runAfterAgents();
             toastr.info('After Generate Starting');
         });
     }
@@ -420,8 +266,7 @@ async function onGenerateStarting(type: string, options: any, dryRun: boolean) {
         
         const env : Context = options.context ?? Context.global();
         if(env.lastMessage?.is_user) {
-            const override = new DataOverride(env.chat, env.chat_metadata);
-            await processMessage(env, override, true, false);
+            await processMessage(env, true, false);
         }
     }
 }
@@ -436,8 +281,7 @@ async function onUserMessageSent(messageId: number) {
         return;
     }
 
-    const override = new DataOverride(env.chat, env.chat_metadata);
-    await processMessage(env, override, true, false);
+    await processMessage(env, true, false);
 }
 
 async function stopActiveTasks(ask: boolean = false) {
@@ -455,7 +299,7 @@ async function stopActiveTasks(ask: boolean = false) {
             delayGenerationTimer = null;
         }
 
-        await eventSource.emit(eventTypes.GENERATION_WORLDINFO_END, { type: '', reason: 'canceled' });
+        await eventSource.emit(eventTypes.AGENTS_END, { type: '', reason: 'canceled' });
         activateSendButtons();
     }
 }
@@ -501,10 +345,8 @@ async function onGenerateAfter(data: { type: string, context: Context, error: Er
             return;
         }
 
-        const override = new DataOverride(data.context.chat, data.context.chat_metadata);
-
         // Prevent secondary locking when the send button is already locked.
-        processMessage(data.context, override, false, !document.body.dataset.generating);
+        processMessage(data.context, false, !document.body.dataset.generating);
         
         state = GenStage.None;
     }
@@ -520,7 +362,7 @@ export function isGenerating(): boolean {
     return abortController?.signal.aborted === false;
 }
 
-interface WorldInfoEntryWithDecorator {
+export interface WorldInfoEntryWithDecorator {
     entry: WorldInfoEntry;
     decorator: string;
     parsed: DecoratorParser;
@@ -611,8 +453,185 @@ async function onMessageReceived(messageId: number, type: string) {
                 return;
             }
 
-            runAfterGenerates(!document.body.dataset.generating);
+            runAfterAgents(!document.body.dataset.generating);
             state = GenStage.None;
         }, 1000);
     }
+}
+
+async function runCustomGenerations(
+    entries: WorldInfoEntryWithDecorator[],
+    env: Context,
+    messageId?: number,
+) {
+    messageId = messageId ?? env.lastMessage?.id;
+    if(messageId == null) {
+        console.warn(`Skipping generate for no message`);
+        return;
+    }
+
+    const swipeId = env.chat[messageId]?.swipe_id ?? 0;
+
+    let activeTasks = 0;
+    const tasks: (() => Promise<any>)[] = [];
+    const messages = env.chat.slice(-world_info_depth);
+
+    // TODO: Since different APIs have different concurrency limits, we should set limits for them separately.
+    const maxConcurrency = settings.apis[settings.currentApi].maxConcurrency;
+
+    const override = new DataOverride(env);
+    
+    // It should be wrapped as a separate function, but that seems a bit difficult.
+    for(const ent of entries) {
+        const { entry, decorator, parsed, processor } = ent;
+
+        const tag = parsed.parameters[decorator]?.[0] ?? '';
+        const template = TemplateHandler.find(decorator, tag);
+        if(template === null) {
+            console.error(`Failed to find template for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
+            continue;
+        }
+
+        const messageContent = messages.filter(msg => !msg.is_system && !msg.is_user)?.map(msg => msg.mes ?? '').join('\n\n');
+
+        // Verify whether the content meets the requirements.
+        const testing = template.test(messageContent);
+        if(!testing.success) {
+            console.warn(`Failed to test message for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
+            toastr.warning(`Failed to test message for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`, `Custom generate`);
+            continue;
+        }
+
+        let current = substituteParams(override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent);
+        const chatHistory = await template.buildChatHistory(env.chat);
+        const ctx = new Context({ chat: chatHistory, chat_metadata: env.chat_metadata });
+        ctx.macroOverride.original = parsed.cleanContent;
+        ctx.macroOverride.macros = {
+            'lastUserMessage': () => substituteParams(messages.findLast(msg => msg.is_user)?.mes ?? ''),
+            'lastCharMessage': () => substituteParams(messages.findLast(msg => !msg.is_user && !msg.is_system)?.mes ?? ''),
+            'message': substituteParams(testing.content ?? ''),
+            'original': substituteParams(parsed.cleanContent),
+            'current': () => current,
+            'lastError': '',
+            ...testing.arguments ?? {},
+        };
+
+        // Reduce Attention Depletion
+        ctx.filters = template.filters;
+
+        // Handle preset override
+        if(parsed.decorators.includes('@@preset')) {
+            ctx.presetOverride = parsed.parameters['@@preset']?.[0];
+        }
+
+        try {
+            const checked = await processor.checker({
+                entry,
+                content: testing.content || parsed.cleanContent,
+                args: testing.arguments ?? {},
+                override,
+                decorator: parsed,
+                env,
+                messageId,
+                swipeId,
+                current,
+            });
+
+            if(!checked) {
+                console.info(`The inspection failed for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
+                continue;
+            }
+
+            // If the checker returns a string, it means that the checker has changed the current content.
+            if(typeof checked === 'string')
+                current = checked;
+        } catch (e) {
+            console.error(`An error occurred during the check for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`, e);
+            toastr.error(`An error occurred during the check for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`, `Custom generate`);
+            continue;
+        }
+        
+        // A concurrency limiter should be added to it.
+        tasks.push(async() => {
+            console.log(`After Generate: ${entry.world}/${entry.uid}-${entry.comment} - ${decorator}`);
+            await eventSource.emit(eventTypes.AGENT_START, { entry, template, decorator: parsed, context: env, messageId, swipeId, current });
+            return await generate(
+                ctx,
+                decorator,
+                {
+                    validator: async(response) => {
+                        response = Array.isArray(response) ? response : [ response ];
+
+                        // Multiple responses
+                        for(const content of response) {
+                            const processed = template.process(content);
+                            if(processed.success) {
+                                if (await processor.processor({
+                                    entry,
+                                    content: processed.content ?? content,
+                                    args: processed.arguments ?? {},
+                                    override,
+                                    decorator: parsed,
+                                    env,
+                                    messageId,
+                                    swipeId,
+                                    current,
+                                })) {
+                                    return true;
+                                }
+                            }
+                        }
+
+                        // retry
+                        return false;
+                    },
+                    dontCreate: true,
+                    abortController: abortController ?? undefined,
+                },
+                false,
+                template.retries,
+                template.interval,
+            ).catch((e: Error) => {
+                if(abortController?.signal.aborted === false) {
+                    activeTasks -= 1;
+                    if(!e.message.includes('canceled')) {
+                        toastr.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}`, `Custom generate`);
+                        console.error(`Failed to generate content for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment} ${e.message}, ${activeTasks} tasks remaining`, e);
+                    }
+                }
+            }).then(r => {
+                if(abortController?.signal.aborted === false) {
+                    activeTasks -= 1;
+                    console.log(`Task completed: ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}, ${activeTasks} tasks remaining`);
+                }
+                return r;
+            }).finally(() => {
+                eventSource.emit(eventTypes.AGENT_END, { entry, template, decorator: parsed, context: env, messageId, swipeId, current });
+            });
+        });
+    }
+
+    // Waiting for batch completion
+    let collected = batchExecute(tasks, maxConcurrency);
+
+    if(tasks.length) {
+        collected = collected.then(async(results) => {
+            if(abortController?.signal.aborted === false) {
+                toastr.success(`All generate tasks ended`, `Custom generate`);
+                refreshMessage(messageId);
+            }
+            abortController = null;
+            activeTasks = 0;
+
+            return results;
+        });
+
+        toastr.info(`${tasks.length} tasks`, `Custom generate`);
+    } else {
+        console.log(`No generate tasks found`);
+    }
+
+    console.log(`Waiting for the generate tasks to complete`, tasks.length);
+    await collected;
+    activeTasks = 0;
 }

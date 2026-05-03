@@ -44,7 +44,7 @@ async function call(params: any): Promise<string> {
         });
     }
 
-    const override = new DataOverride(args.context.chat, args.context.chat_metadata);
+    const override = new DataOverride(args.context);
     override.setOverride(args.world, entry.uid, 'tool_call', args.content);
 
     return JSON.stringify({

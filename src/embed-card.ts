@@ -7,6 +7,7 @@ import { power_user } from "@st/scripts/power-user.js";
 import { accountStorage } from "@st/scripts/util/AccountStorage.js";
 import { callGenericPopup, POPUP_TYPE } from "@st/scripts/popup.js";
 import { Preset } from "@/utils/defines";
+import { templatePath } from "@/utils/default-settings";
 
 let isEmbedCardEventsBound = false;
 
@@ -97,7 +98,7 @@ function normalizeLinkedPresets(raw: unknown): Preset[] {
 async function ensureEmbedCardModalInjected(): Promise<void> {
     if (!$('#custom_generation_embed_card_dialog').length) {
         $('#char-management-dropdown').closest('.inline-drawer, .drawer, body').append(
-            await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'embed-card-modal'),
+            await renderExtensionTemplateAsync(templatePath, 'embed-card-modal'),
         );
     }
 

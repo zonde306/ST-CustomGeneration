@@ -8,6 +8,7 @@ import { copyText } from '@st/scripts/utils.js';
 import { Response } from '@/functions/generate';
 import { ToolCalls, ToolMessage } from '@/utils/defines';
 import { t } from '@st/scripts/i18n.js'
+import { templatePath } from "@/utils/default-settings";
 
 interface GenerateBefore {
     type: string;
@@ -35,6 +36,14 @@ interface ToolCalling {
     toolCalls: ToolCalls;
 }
 
+interface StreamChunk {
+    taskId: string;
+    swipe: number;
+    text: string;
+    reasoning: string;
+    toolCalls: ToolCalls;
+}
+
 interface GenerateLogEntry {
     taskId: string;
     messages: ChatCompletionMessage[];
@@ -43,7 +52,7 @@ interface GenerateLogEntry {
     streaming: boolean;
     responses: string[];
     error: Error | null;
-    done: boolean;
+    state: 'start' | 'running' | 'tool_calling' | 'done';
     type: string;
     toolMessages: ToolMessage[];
 }
@@ -52,12 +61,14 @@ const MAX_LOG_COUNT = 100;
 export const loggers: GenerateLogEntry[] = [];
 
 let isLoggerEventsBound = false;
+const streamUpdateThrottle = new Map<string, { lastUpdate: number; timer: ReturnType<typeof setTimeout> | null }>();
 
 export async function setup() {
     eventSource.makeLast(event_types.APP_READY, onAppReady);
     eventSource.makeLast(eventTypes.GENERATE_BEFORE, onGenerateBefore);
     eventSource.makeLast(eventTypes.GENERATE_AFTER, onGenerateAfter);
     eventSource.makeLast(eventTypes.TOOL_CALLING, onToolCalling);
+    eventSource.makeLast(eventTypes.GENERATION_STREAM_CHUNK, onGenerateStream);
 }
 
 function getDialog(selector: string): HTMLDialogElement | null {
@@ -105,13 +116,13 @@ function formatMessageContent(content: any): string {
     }
 
     // Chat completion message
-    if(typeof content.content === 'string') {
-        if(typeof content.reasoning_content === 'string') {
+    if (typeof content.content === 'string') {
+        if (typeof content.reasoning_content === 'string') {
             return `<think>\n${content.reasoning_content}\n</think>\n\n${content.content}`;
         }
         return content.content;
     }
-    
+
     return safeStringify(content);
 }
 
@@ -124,14 +135,17 @@ async function buildLoggerMessageTitle(message: ChatCompletionMessage, index: nu
     return base;
 }
 
-async function buildLoggerResponseTitle(response: string, index: number): Promise<string> {
-    const tokens = await getTokenCountAsync(response ?? '');
+async function buildLoggerResponseTitle(response: string, index: number, countTokens: boolean = true): Promise<string> {
+    const tokens = countTokens ? await getTokenCountAsync(response ?? '') : '❔';
     const base = `Response #${index + 1} · 🧠${tokens} tokens`;
     return base;
 }
 
-function buildLoggerSection(title: string, blocks: JQuery<HTMLElement>[]): JQuery<HTMLElement> {
+function buildLoggerSection(title: string, blocks: JQuery<HTMLElement>[], sectionClass?: string): JQuery<HTMLElement> {
     const section = $('<div class="custom_generation_logger_section"></div>');
+    if (sectionClass) {
+        section.addClass(sectionClass);
+    }
     const titleEl = $('<div class="custom_generation_logger_section_title"></div>').text(title);
     const body = $('<div class="custom_generation_logger_section_body"></div>');
     section.append(titleEl, body);
@@ -146,8 +160,11 @@ function buildLoggerSection(title: string, blocks: JQuery<HTMLElement>[]): JQuer
     return section;
 }
 
-function buildLoggerAccordionBlock(title: string, content: string, blockClass?: string): JQuery<HTMLElement>[] {
+function buildLoggerAccordionBlock(title: string, content: string, blockClass?: string, index?: number): JQuery<HTMLElement>[] {
     const header = $('<div class="custom_generation_logger_block_header"></div>');
+    if (index !== undefined) {
+        header.attr('data-index', String(index));
+    }
     const titleEl = $('<div class="custom_generation_logger_block_title"><i class="fa-solid fa-chevron-right custom_generation_logger_block_caret"></i></div>').append(document.createTextNode(title));
     const copyButton = createCopyButton(content);
     titleEl.append(copyButton);
@@ -179,16 +196,16 @@ async function buildLoggerMessageBlocks(messages: ChatCompletionMessage[]): Prom
     return blocks;
 }
 
-async function buildLoggerResponseBlocks(responses: string[]): Promise<JQuery<HTMLElement>[]> {
+async function buildLoggerResponseBlocks(responses: string[], countTokens: boolean = true): Promise<JQuery<HTMLElement>[]> {
     if (!responses.length) {
         return [];
     }
 
     const blocks: JQuery<HTMLElement>[] = [];
-    for(const [index, response] of responses.entries()) {
-        const title = await buildLoggerResponseTitle(response, index);
+    for (const [index, response] of responses.entries()) {
+        const title = await buildLoggerResponseTitle(response, index, countTokens);
         const content = String(response ?? '');
-        blocks.push(...buildLoggerAccordionBlock(title, content, 'custom_generation_logger_response'));
+        blocks.push(...buildLoggerAccordionBlock(title, content, 'custom_generation_logger_response', index));
     }
     return blocks;
 }
@@ -197,33 +214,33 @@ async function buildLoggerToolMessageTitle(message: ToolMessage, index: number):
     const role = String(message.role ?? 'unknown');
     const markup = message.role === 'assistant' ? '🤖' : '🔧';
     const id = message.tool_call_id ? ` (id: ${message.tool_call_id})` : '';
-    const tokens = await getTokenCountAsync(message.content ?? '');
+    const tokens = await getTokenCountAsync(message.content ?? JSON.stringify(message.tool_calls) ?? '');
     const base = `Tool Message #${index + 1} · ${markup}${role}${id} · 🧠${tokens} tokens`;
     return base;
 }
 
 function formatToolMessageContent(message: ToolMessage): string {
     const parts: string[] = [];
-    
+
     if (message.reasoning_content) {
         // Reasoning for tool calls
         parts.push(`<think>\n${message.reasoning_content}\n</think>\n`);
     }
-    
+
     if (message.content) {
         // Tool call response
         parts.push(`${message.content}`);
     }
-    
+
     if (message.tool_calls && message.tool_calls.length > 0) {
         // Tool calls parameters
         parts.push(`${safeStringify(message.tool_calls)}`);
     }
-    
+
     if (parts.length === 0) {
         return t`(empty)`;
     }
-    
+
     return parts.join('\n');
 }
 
@@ -245,7 +262,19 @@ function buildLoggerStatus(entry: GenerateLogEntry): string {
     if (entry.error) {
         return '❌Error';
     }
-    return entry.done ? '✅Done' : '🔄Running';
+
+    switch (entry.state) {
+        case 'done':
+            return '✅ Done';
+        case 'running':
+            return '🔄 Running';
+        case 'start':
+            return '⏳ Starting';
+        case 'tool_calling':
+            return '🛠️ Tool Calling';
+        default:
+            return '❓ Unknown';
+    }
 }
 
 async function buildLoggerTitle(entry: GenerateLogEntry, index: number): Promise<string> {
@@ -319,7 +348,7 @@ async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise
     info.append(
         buildLoggerInfoItem('Task', entry.taskId || '-'),
         buildLoggerInfoItem('Streaming', entry.streaming ? 'Yes' : 'No'),
-        buildLoggerInfoItem('Completed', entry.done ? 'Yes' : 'No'),
+        buildLoggerInfoItem('Completed', entry.state ? 'Yes' : 'No'),
     );
 
     body.append(info);
@@ -329,7 +358,7 @@ async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise
     const responseBlocks = await buildLoggerResponseBlocks(entry.responses);
     body.append(buildLoggerSection('Messages', messageBlocks));
     body.append(buildLoggerSection('Tool Messages', toolMessageBlocks));
-    body.append(buildLoggerSection('Responses', responseBlocks));
+    body.append(buildLoggerSection('Responses', responseBlocks, 'custom_generation_logger_responses_section'));
 
     if (entry.error) {
         const errorText = entry.error.stack || entry.error.message || String(entry.error);
@@ -337,6 +366,7 @@ async function buildLoggerEntry(entry: GenerateLogEntry, index: number): Promise
     }
 
     container.append(summary, body);
+    container.attr('data-task-id', entry.taskId);
 
     container.accordion({
         header: '> .custom_generation_logger_summary',
@@ -366,7 +396,7 @@ async function updateLoggerList(): Promise<void> {
         return;
     }
 
-    const nodes : JQuery<HTMLElement>[] = [];
+    const nodes: JQuery<HTMLElement>[] = [];
 
     if (loggers.length === 0) {
         const emptyText = String(list.attr('no-items-text') ?? t`No logs`);
@@ -410,8 +440,8 @@ function bindLoggerEvents(): void {
 
 async function onGenerateBefore(data: GenerateBefore) {
     const entry = loggers.findLast(e => e.taskId === data.taskId);
-    if(entry) {
-        entry.done = false;
+    if (entry) {
+        entry.state = 'tool_calling';
         entry.messages = data.messages ?? entry.messages ?? [];
         entry.options = data.options ?? entry.options ?? [];
         entry.toolMessages = data.options.toolMessages ?? [];
@@ -426,7 +456,7 @@ async function onGenerateBefore(data: GenerateBefore) {
         streaming: data.streaming ?? false,
         responses: [],
         error: null,
-        done: false,
+        state: (data.streaming || data.options?.streaming) ? 'start' : 'running',
         type: data.type,
         toolMessages: [],
     });
@@ -445,10 +475,10 @@ async function onGenerateAfter(data: GenerateAfter) {
         return;
     }
 
-    if(data.response) {
-        if(data.response.reasoning.length) {
+    if (data.response) {
+        if (data.response.reasoning.length) {
             entry.responses = [];
-            for(let i = 0; i < data.response.swipes.length; ++i) {
+            for (let i = 0; i < data.response.swipes.length; ++i) {
                 entry.responses.push(`<think>\n${data.response.reasoning[i]}\n</think>\n${data.response.swipes[i]}`);
             }
         } else {
@@ -459,7 +489,14 @@ async function onGenerateAfter(data: GenerateAfter) {
     }
 
     entry.error = data.error ?? null;
-    entry.done = true;
+    entry.state = 'done';
+
+    // 清除可能残留的节流定时器
+    const throttleState = streamUpdateThrottle.get(data.taskId);
+    if (throttleState?.timer) {
+        clearTimeout(throttleState.timer);
+    }
+    streamUpdateThrottle.delete(data.taskId);
 
     await refreshLoggerListIfVisible();
 }
@@ -471,19 +508,163 @@ async function onToolCalling(data: ToolCalling) {
         return;
     }
 
-    if(data.options.toolMessages?.length) {
+    if (data.options.toolMessages?.length) {
         entry.toolMessages = data.options.toolMessages;
     }
 
-    entry.done = true;
+    entry.state = 'tool_calling';
 
     await refreshLoggerListIfVisible();
+}
+
+async function updateLoggerEntryUI(entry: GenerateLogEntry): Promise<void> {
+    const container = $(`[data-task-id="${entry.taskId}"]`);
+    if (!container.length) {
+        return;
+    }
+
+    // 更新状态
+    const statusEl = container.find('.custom_generation_logger_status');
+    if (statusEl.length) {
+        statusEl.text(buildLoggerStatus(entry));
+    }
+
+    // 更新 meta（响应数量变化）
+    const metaEl = container.find('.custom_generation_logger_meta');
+    if (metaEl.length) {
+        metaEl.text(buildLoggerMeta(entry));
+    }
+
+    // 增量更新 responses section，保持 accordion 展开状态
+    const sectionBody = container.find('.custom_generation_logger_responses_section .custom_generation_logger_section_body');
+
+    if (!sectionBody.length) {
+        // Section 尚未存在，首次创建
+        const responseBlocks = await buildLoggerResponseBlocks(entry.responses, false);
+        const newSection = buildLoggerSection('Responses', responseBlocks, 'custom_generation_logger_responses_section');
+        container.find('.custom_generation_logger_body').append(newSection);
+        newSection.find('.custom_generation_logger_section_body').accordion({
+            header: '> .custom_generation_logger_block_header',
+            heightStyle: 'content',
+            collapsible: true,
+            active: false,
+            icons: false,
+        });
+        return;
+    }
+
+    const responses = entry.responses;
+
+    // 更新已有 block 或新增缺失的 block
+    for (let i = 0; i < responses.length; i++) {
+        const response = responses[i];
+        const existingHeader = sectionBody.find(`.custom_generation_logger_block_header[data-index="${i}"]`);
+
+        if (existingHeader.length) {
+            // 更新已有 block 的标题和内容
+            const title = await buildLoggerResponseTitle(response, i, false);
+            const titleEl = existingHeader.find('.custom_generation_logger_block_title');
+            if (titleEl.length) {
+                // 保留 chevron 图标，替换文本和复制按钮
+                const caret = titleEl.find('.custom_generation_logger_block_caret');
+                titleEl.empty().append(caret).append(document.createTextNode(title));
+                const copyButton = createCopyButton(String(response ?? ''));
+                titleEl.append(copyButton);
+            }
+
+            const panel = existingHeader.next('.custom_generation_logger_block_panel');
+            if (panel.length) {
+                const pre = panel.find('.custom_generation_logger_pre');
+                if (pre.length) {
+                    pre.text(String(response ?? ''));
+                }
+            }
+        } else {
+            // 新增 block
+            const title = await buildLoggerResponseTitle(response, i, false);
+            const content = String(response ?? '');
+            const newBlocks = buildLoggerAccordionBlock(title, content, 'custom_generation_logger_response', i);
+            sectionBody.append(...newBlocks);
+        }
+    }
+
+    // 移除多余的 block（response 数量减少时）
+    sectionBody.find('.custom_generation_logger_block_header').each((_i, el) => {
+        const index = parseInt($(el).attr('data-index') ?? '', 10);
+        if (!isNaN(index) && index >= responses.length) {
+            const panel = $(el).next('.custom_generation_logger_block_panel');
+            $(el).remove();
+            if (panel.length) {
+                panel.remove();
+            }
+        }
+    });
+
+    // 通知 accordion 刷新，保持已有的展开/折叠状态
+    sectionBody.accordion('refresh');
+}
+
+async function onGenerateStream(data: StreamChunk) {
+    const entry = loggers.findLast(e => e.taskId === data.taskId);
+    if (!entry) {
+        console.error(`Failed to find log entry for task ${data.taskId}`);
+        return;
+    }
+
+    let content = entry.responses[data.swipe] ?? '';
+
+    if (data.reasoning && !content.startsWith('<think>'))
+        content += '<think>\n';
+    if (data.reasoning && !content.endsWith('</think>'))
+        content += data.reasoning;
+    if ((data.text || data.toolCalls?.length) && !content.includes('</think>'))
+        content += '\n</think>\n\n';
+    if (data.text)
+        content += data.text;
+
+    entry.responses[data.swipe] = content;
+    entry.state = 'running';
+
+    // 仅在对话框可见时更新 UI，通过节流避免高频更新
+    const dialog = getDialog('#custom_generation_logger_dialog');
+    if (!dialog || (!dialog.open && !dialog.hasAttribute('open'))) {
+        return;
+    }
+
+    const THROTTLE_INTERVAL = 100;
+    const now = Date.now();
+    const throttleState = streamUpdateThrottle.get(data.taskId);
+
+    if (throttleState) {
+        if (throttleState.timer) {
+            clearTimeout(throttleState.timer);
+            throttleState.timer = null;
+        }
+
+        if (now - throttleState.lastUpdate >= THROTTLE_INTERVAL) {
+            throttleState.lastUpdate = now;
+            await updateLoggerEntryUI(entry);
+        } else {
+            const delay = THROTTLE_INTERVAL - (now - throttleState.lastUpdate);
+            throttleState.timer = setTimeout(async () => {
+                const state = streamUpdateThrottle.get(data.taskId);
+                if (state) {
+                    state.lastUpdate = Date.now();
+                    state.timer = null;
+                }
+                await updateLoggerEntryUI(entry);
+            }, delay);
+        }
+    } else {
+        streamUpdateThrottle.set(data.taskId, { lastUpdate: now, timer: null });
+        await updateLoggerEntryUI(entry);
+    }
 }
 
 async function onAppReady() {
     if (!$('#custom_generation_logger_dialog').length) {
         const host = document.body ?? document.documentElement;
-        $(host).append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'logger-modal'));
+        $(host).append(await renderExtensionTemplateAsync(templatePath, 'logger-modal'));
     }
 
     bindLoggerEvents();

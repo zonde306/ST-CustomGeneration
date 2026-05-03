@@ -61,7 +61,7 @@ export async function generate(
         signal,
         taskId,
         api,
-        hiddenOptions: customOptions,
+        hiddenOptions,
         streaming,
         tools,
         tool_choice,
@@ -89,7 +89,7 @@ export async function generate(
         messages,
         taskId,
         api,
-        customOptions,
+        hiddenOptions,
         streaming
     });
 
@@ -122,18 +122,17 @@ export async function generate(
             data.tools = tools ?? [];
             data.tool_choice = tool_choice ?? (tools?.length ? 'auto' : 'none');
 
-            for(const [key, val] of Object.entries(customOptions ?? {})) {
-                Object.defineProperty(data, key, {
-                    value: val,
-                    writable: true,
-                    enumerable: false,
-                    configurable: true,
-                });
+            if(hiddenOptions) {
+                Object.defineProperties(data,
+                    Object.fromEntries(
+                        Object.entries(hiddenOptions) // Avoid being serialized and passed to the API
+                            .map(([key, value]) => [key, { value, enumerable: false }])
+                    )
+                );
             }
 
             // @ts-expect-error: 2345
             eventSource.removeListener(event_types.CHAT_COMPLETION_SETTINGS_READY, eventHandler);
-            // Object.assign(oai_settings, originalSettings);
         };
 
         // compatibility with other extensions and API parameter passing
@@ -167,10 +166,13 @@ export async function generate(
     } catch(err) {
         console.error(`Error on generating`, err);
 
+        // for Non-streaming
         await eventSource.emit(eventTypes.GENERATION_END, {
             taskId: taskId,
             error: err,
-            responses: [],
+            swipes: [],
+            reasoning: [],
+            toolCalls: [],
         });
 
         throw err;
@@ -188,18 +190,18 @@ export async function generate(
 class StreamHandler {
     public generator?: () => AsyncGenerator<StreamChunk>;
     public singal: AbortSignal;
-    private buffer: string[];
+    private textBuffer: string[];
     private taskId: string;
     public toolCalls: ToolCalls;
-    private reasoning: string;
+    private reasoningBuffer: string; // ST's streaming can only return a reasoning for one choice.
     private settings: Record<string, any>;
 
     constructor(taskId: string, singal?: AbortSignal, restoreSettings?: Record<string, any>) {
         this.taskId = taskId;
         this.singal = singal ?? new AbortController().signal;
-        this.buffer = [];
+        this.textBuffer = [];
         this.toolCalls = [];
-        this.reasoning = '';
+        this.reasoningBuffer = '';
         this.settings = restoreSettings ?? {};
     }
 
@@ -218,15 +220,16 @@ class StreamHandler {
                 if(chunk.toolCalls?.length)
                     this.toolCalls = chunk.toolCalls;
 
-                const { swipe, text } = this.parseChunk(chunk);
-                if(!text)
+                const { swipe, text, reasoning } = this.parseChunkText(chunk);
+                if(!text && !reasoning)
                     continue;
 
                 await eventSource.emit(eventTypes.GENERATION_STREAM_CHUNK, {
                     taskId: this.taskId,
                     swipe,
                     text,
-                    buffer: this.buffer,
+                    reasoning,
+                    toolCalls: chunk.toolCalls,
                 });
             }
         } catch (err) {
@@ -238,10 +241,12 @@ class StreamHandler {
         await eventSource.emit(eventTypes.GENERATION_END, {
             taskId: this.taskId,
             error: lastError,
-            responses: this.buffer,
+            swipes: this.textBuffer,
+            reasoning: [ this.reasoningBuffer ],
+            toolCalls: this.toolCalls,
         });
 
-        return { swipes: this.buffer, toolCalls: this.toolCalls, reasoning: [ this.reasoning ] };
+        return { swipes: this.textBuffer, toolCalls: this.toolCalls, reasoning: [ this.reasoningBuffer ] };
     }
 
     async *streaming(): AsyncGenerator<StreamResponse> {
@@ -253,7 +258,13 @@ class StreamHandler {
         let lastError = null;
         try {
             for await (const chunk of this.generator()) {
-                const { swipe, text, reasoning } = this.parseChunk(chunk);
+                if(this.singal.aborted)
+                    break;
+
+                if(chunk.toolCalls?.length)
+                    this.toolCalls = chunk.toolCalls;
+
+                const { swipe, text, reasoning } = this.parseChunkText(chunk);
                 if(!text && !reasoning)
                     continue;
 
@@ -261,7 +272,8 @@ class StreamHandler {
                     taskId: this.taskId,
                     swipe,
                     text,
-                    buffer: this.buffer,
+                    reasoning,
+                    toolCalls: chunk.toolCalls,
                 });
 
                 yield { swipe, text, reasoning, toolCalls: chunk.toolCalls?.[swipe] ?? [] };
@@ -275,28 +287,30 @@ class StreamHandler {
         await eventSource.emit(eventTypes.GENERATION_END, {
             taskId: this.taskId,
             error: lastError,
-            responses: this.buffer,
+            swipes: this.textBuffer,
+            reasoning: [ this.reasoningBuffer ],
+            toolCalls: this.toolCalls,
         });
     }
 
-    parseChunk(chunk: StreamChunk): Omit<StreamResponse, 'toolCalls'> {
-        if(chunk.state.reasoning.length > this.reasoning.length) {
-            const chunked = chunk.state.reasoning.substring(this.reasoning.length);
-            this.reasoning = chunk.state.reasoning;
+    parseChunkText(chunk: StreamChunk): Omit<StreamResponse, 'toolCalls'> {
+        if(chunk.state.reasoning.length > this.reasoningBuffer.length) {
+            const chunked = chunk.state.reasoning.substring(this.reasoningBuffer.length);
+            this.reasoningBuffer = chunk.state.reasoning;
 
             // Currently, only the first reasoning can be obtained.
             return { swipe: 0, text: '', reasoning: chunked };
         }
 
         if(chunk.text) {
-            const lastLength = this.buffer[0]?.length ?? 0;
-            this.buffer[0] = chunk.text;
+            const lastLength = this.textBuffer[0]?.length ?? 0;
+            this.textBuffer[0] = chunk.text;
             return { swipe: 0, text: chunk.text.substring(lastLength), reasoning: '' };
         } else if(chunk.swipes?.length > 0) {
             for(const [ i, text ] of Object.entries(chunk.swipes)) {
                 const idx = Number(i);
-                const lastLength = this.buffer[idx]?.length ?? 0;
-                this.buffer[idx] = text;
+                const lastLength = this.textBuffer[idx]?.length ?? 0;
+                this.textBuffer[idx] = text;
                 return { swipe: Number(idx), text: text.substring(lastLength), reasoning: '' };
             }
         }
@@ -307,15 +321,17 @@ class StreamHandler {
 
 async function responseHandler(response: any, taskId: string): Promise<Response> {
     const { swipes, reasoning } = extractText(response);
+    const toolCalls = convertNonStreamingToolCalls(response);
 
     await eventSource.emit(eventTypes.GENERATION_END, {
         taskId,
-        error: response.error ?? null,
         swipes,
         reasoning,
+        toolCalls,
+        error: response.error ?? null,
     });
 
-    return { swipes, reasoning, toolCalls: convertNonStreamingToolCalls(response) };
+    return { swipes, reasoning, toolCalls };
 }
 
 function extractText(data: any): { swipes: string[], reasoning: string[] } {
