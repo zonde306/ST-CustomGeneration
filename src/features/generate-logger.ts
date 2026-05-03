@@ -617,7 +617,7 @@ async function onGenerateStream(data: StreamChunk) {
         content += '<think>\n';
     if (data.reasoning && !content.endsWith('</think>'))
         content += data.reasoning;
-    if ((data.text || data.toolCalls?.length) && !content.includes('</think>'))
+    if ((data.text || data.toolCalls?.length) && content.startsWith('<think>') && !content.includes('</think>'))
         content += '\n</think>\n\n';
     if (data.text)
         content += data.text;
