@@ -34,6 +34,17 @@ export async function setup() {
     eventSource.makeLast(eventTypes.AGENTS_END, onAgentsEnd);
 }
 
+const AGENT_COLORS = [
+    '#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c',
+    '#e67e22', '#e91e63', '#00bcd4', '#ff9800', '#4caf50', '#9c27b0',
+    '#d35400', '#16a085', '#2980b9', '#8e44ad', '#27ae60', '#f1c40f',
+    '#c0392b', '#34495e'
+];
+
+function getAgentColor(uid: number): string {
+    return AGENT_COLORS[uid % AGENT_COLORS.length];
+}
+
 async function onAgentsStart(data: AgentsData) {
     const node = $(`<div agentsindicator="${data.messageId}"></div>`);
     node.append(await renderExtensionTemplateAsync(templatePath, 'agent-indicator'));
@@ -58,13 +69,20 @@ async function onAgentsEnd(data: AgentsData) {
 async function onAgentStart(data: AgnetData) {
     const title = data.entry.comment.trim() || data.entry.uid.toString();
     const iconText = getAgentIconText(title);
+    const color = getAgentColor(data.entry.uid);
     const icon = $(`<div class="custom_generation_agent_icon" data-agent-world="${data.entry.world}" data-agent-uid="${data.entry.uid}" title="${title}">${iconText}</div>`);
+    icon.css('background-color', color);
     $(`[agentsindicator="${data.messageId}"] .custom_generation_agents_list`).append(icon);
     // Add to detail list
     const detailItem = $('<div class="custom_generation_agent_detail_item"></div>')
         .attr('data-agent-world', data.entry.world)
         .attr('data-agent-uid', data.entry.uid)
         .text(title);
+    detailItem.css({
+        'background-color': color,
+        'color': '#ffffff',
+        'border-color': color
+    });
     $(`[agentsindicator="${data.messageId}"] .custom_generation_agents_detail`).append(detailItem);
     updateStatusText(data.messageId);
 }
