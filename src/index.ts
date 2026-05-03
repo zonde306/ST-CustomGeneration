@@ -10,6 +10,7 @@ import { setup as setupLogger } from "@/features/generate-logger";
 import { setup as setupTools } from "@/features/tool-manager";
 import { setup as setupSchema } from "@/features/schema";
 import { setup as setupAgentIndicator } from "@/features/agent-indicator";
+import { search as testSearch } from "@/features/tools/worldinfo-search";
 
 // jQuery
 $(async () => {
@@ -37,6 +38,7 @@ $(async () => {
         eventTypes,
         runAfterAgents,
         isAgentGenerating: isGenerating,
+        testSearch,
     };
     
     console.log('Custom generation initialized');

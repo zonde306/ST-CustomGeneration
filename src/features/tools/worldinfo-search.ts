@@ -87,3 +87,7 @@ async function buildDatabase() {
         await database.addAllAsync(entries.map(e => ({ ...e, id: id++ })));
     }
 }
+
+export async function search(keyword: string) {
+    return await call({ keyword, top_n: 100 });
+}
