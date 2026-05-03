@@ -1,12 +1,12 @@
-import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
-import { jsonrepair } from 'jsonrepair';
+import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/agent-manager";
+import { yaml } from "@st/lib.js";
 import { SCHEMA } from "@/features/schema";
 import { z } from "zod";
 
 /**
- * The generated result is parsed as JSON to update the current chat message variable.
+ * The generated results are parsed into YAML to update the current chat message variable.
  */
-const WI_DECORATOR = '@@variables_json';
+const WI_DECORATOR = '@@variables_yaml';
 
 export async function setup() {
     WI_DECORATOR_MAPPING.set(WI_DECORATOR, { processor, checker });
@@ -27,13 +27,12 @@ async function processor(data: DecoratorProcessData) {
     if(!last.variables[data.swipeId])
         last.variables[data.swipeId] = {};
 
-    const merge = JSON.parse(jsonrepair(data.content));
-    const merged = _.mergeWith(last.variables[data.swipeId], merge, (_dst: unknown, src: unknown) => _.isArray(src) ? src : undefined);
-    const validated = SCHEMA.safeParse(merged);
+    const patched = _.mergeWith(last.variables[data.swipeId], yaml.parse(data.content), (_dst: unknown, src: unknown) => _.isArray(src) ? src : undefined);
+    const validated = SCHEMA.safeParse(patched);
     if(!validated.success) {
         throw new Error(`failed to validate schema: ${JSON.stringify(z.treeifyError(validated.error))}`);
     }
-
+    
     console.debug(`update ${data.messageId}#${data.swipeId} variables: `, last.variables[data.swipeId], validated.data);
 
     last.variables[data.swipeId] = validated.data;

@@ -4,7 +4,7 @@ import { PromptContext } from "@/functions/prompt-context";
 import { MessageBuilder } from "@/functions/message-builder";
 import { setup as setupEmbedCard } from "@/embed-card";
 import { eventTypes } from "@/utils/events";
-import { setup as setupGenerates, runAfterGenerates, isGenerating } from "@/features/generate-processor";
+import { setup as setupGenerates, runAfterGenerates, isGenerating } from "@/features/agent-manager";
 import { setup as setupOverrides, DataOverride } from "@/features/override";
 import { setup as setupLogger } from "@/features/generate-logger";
 import { setup as setupTools } from "@/features/tool-manager";

@@ -1,10 +1,10 @@
-import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/generate-processor";
+import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/agent-manager";
 import { evaluate, isEjsAvailable } from "@/utils/ejs";
 
 /**
- * The generated result is processed using EJS, and then the original WorldInfo content is overwritten.
+ * The generated results are processed using EJS, and then the output is discarded.
  */
-const WI_DECORATOR = '@@replace_ejs';
+const WI_DECORATOR = '@@evaluate_ejs';
 
 export async function setup() {
     WI_DECORATOR_MAPPING.set(WI_DECORATOR, { processor, checker });
@@ -22,7 +22,7 @@ async function processor(data: DecoratorProcessData) {
     const result = await evaluate(data.content, {
         ...data.args,
     });
-    data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, result, data.messageId, data.swipeId);
-    console.debug(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} evaluated to ${data.messageId}#${data.swipeId}, and result: ${result}`);
+
+    console.debug(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} evaluated to ${result}`);
     return true;
 }
