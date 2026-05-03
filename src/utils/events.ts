@@ -8,7 +8,9 @@ export const eventTypes = {
     MESSAGE_RECEIVED: 'cg_message_received',
     GENERATE_BEFORE: 'cg_generate_before',
     GENERATE_AFTER: 'cg_generate_after',
-    GENERATION_WORLDINFO_START: 'cg_generate_worldinfo_start',
-    GENERATION_WORLDINFO_END: 'cg_generate_worldinfo_end',
+    AGENTS_START: 'cg_agents_start',
+    AGENTS_END: 'cg_agents_end',
     TOOL_CALLING: 'cg_tool_calling',
+    AGENT_START: 'cg_agent_start',
+    AGENT_END: 'cg_agent_end',
 }
