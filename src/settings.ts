@@ -4,7 +4,7 @@ import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { generate as runGenerate, ApiConfig } from '@/functions/generate';
 import { KNOWN_DECORATORS } from '@/functions/worldinfo';
 import { PresetPrompt, RegEx, Template, Preset, Settings, ExportPayload, ListExportKind, ListExportItem, ListExportDialogState, ListExportPayload, ImportPayload, ApiSettings, ApiExportPayload, ApiImportPayload, ToolSettings } from '@/utils/defines';
-import { defaultSettings, defaultTemplate, defaultPreset, defaultApiSettings, defaultApiName, defaultToolSettings } from './utils/default-settings';
+import { defaultSettings, defaultTemplate, defaultPreset, defaultApiSettings, defaultApiName, defaultToolSettings, templatePath } from '@/utils/default-settings';
 import { yaml } from "@st/lib.js";
 import { copyText } from '@st/scripts/utils.js';
 import { TOOL_DEFINITION } from '@/features/tool-manager';
@@ -3269,23 +3269,23 @@ async function importApiPresetsFromFile(file: File): Promise<void> {
 
 async function ensureModalTemplatesInjected(): Promise<void> {
     if (!$('#custom_generation_prompt_dialog').length) {
-        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'prompt-modal'));
+        $('#custom_generation_settings').append(await renderExtensionTemplateAsync(templatePath, 'prompt-modal'));
     }
 
     if (!$('#custom_generation_regex_dialog').length) {
-        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'regex-modal'));
+        $('#custom_generation_settings').append(await renderExtensionTemplateAsync(templatePath, 'regex-modal'));
     }
 
     if (!$('#custom_generation_template_dialog').length) {
-        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'template-modal'));
+        $('#custom_generation_settings').append(await renderExtensionTemplateAsync(templatePath, 'template-modal'));
     }
 
     if (!$('#custom_generation_tool_dialog').length) {
-        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'tool-modal'));
+        $('#custom_generation_settings').append(await renderExtensionTemplateAsync(templatePath, 'tool-modal'));
     }
 
     if (!$('#custom_generation_large_editor_dialog').length) {
-        $('#custom_generation_settings').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'large-editor'));
+        $('#custom_generation_settings').append(await renderExtensionTemplateAsync(templatePath, 'large-editor'));
     }
 
     const decoratorSelect = $('#custom_generation_template_decorator');
@@ -4247,7 +4247,7 @@ function bindEvents() {
 export async function setupSettings() {
     // Inject settings into the page
     if (!$('#custom_generation_settings').length) {
-        $('#extensions_settings2').append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'settings'));
+        $('#extensions_settings2').append(await renderExtensionTemplateAsync(templatePath, 'settings'));
     }
 
     await ensureModalTemplatesInjected();

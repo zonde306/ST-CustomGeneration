@@ -8,6 +8,7 @@ import { copyText } from '@st/scripts/utils.js';
 import { Response } from '@/functions/generate';
 import { ToolCalls, ToolMessage } from '@/utils/defines';
 import { t } from '@st/scripts/i18n.js'
+import { templatePath } from "@/utils/default-settings";
 
 interface GenerateBefore {
     type: string;
@@ -663,7 +664,7 @@ async function onGenerateStream(data: StreamChunk) {
 async function onAppReady() {
     if (!$('#custom_generation_logger_dialog').length) {
         const host = document.body ?? document.documentElement;
-        $(host).append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'logger-modal'));
+        $(host).append(await renderExtensionTemplateAsync(templatePath, 'logger-modal'));
     }
 
     bindLoggerEvents();

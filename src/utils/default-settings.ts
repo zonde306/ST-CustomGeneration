@@ -4,6 +4,8 @@ import { t } from "@st/scripts/i18n.js"
 
 export const defaultApiName = t`Default`;
 
+export const templatePath = 'third-party/ST-CustomGeneration/templates';
+
 export const defaultTemplate: Template = {
     decorator: '@@record',
     tag: '',

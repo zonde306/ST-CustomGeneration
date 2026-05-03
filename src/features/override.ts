@@ -4,6 +4,7 @@ import { chat, chat_metadata, name1, name2 } from "@st/script.js";
 import { WorldInfoLoaded } from "@/utils/defines";
 import { copyText } from "@st/scripts/utils.js";
 import { openLargeEditor } from "@/utils/large-editor";
+import { templatePath } from "@/utils/default-settings";
 
 interface WIOverride {
     type: string;
@@ -224,7 +225,7 @@ export async function setup() {
 async function onAppReady() {
     if (!$('#custom_generation_overrides_dialog').length) {
         const host = document.body ?? document.documentElement;
-        $(host).append(await renderExtensionTemplateAsync('third-party/ST-CustomGeneration', 'overrides-modal'));
+        $(host).append(await renderExtensionTemplateAsync(templatePath, 'overrides-modal'));
     }
 
     bindOverridesEvents();
