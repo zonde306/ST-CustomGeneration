@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { eventSource, event_types } from '@st/scripts/events.js';
 import { TOOL_DEFINITION } from "@/features/tool-manager";
 import { collectEnabledWorldInfos, loadWorldInfoEntries, DecoratorParser } from '@/functions/worldinfo';
+import { WorldInfoEntry } from '@/utils/defines';
 import MiniSearch from 'minisearch';
 
 /**
@@ -27,6 +28,7 @@ const SCHEMA = z.object({
 });
 
 let database: MiniSearch | null = null;
+const FIELDS = ['key', 'keysecondary', 'comment', 'uid', 'content', 'world'];
 
 export async function setup() {
     TOOL_DEFINITION.set(TOOL_NAME, {
@@ -58,7 +60,16 @@ async function call(params: any): Promise<string> {
     if (database == null)
         await buildDatabase();
 
-    const results = database!.search(args.keyword, { combineWith: 'OR', fuzzy: true, boost: { 'key': 2, 'uid': 2, 'keysecondary': 1.5 } });
+    const results = database!.search(args.keyword, {
+        combineWith: 'OR',
+        fuzzy: true,
+        boost: {
+            'key': 2,
+            'uid': 2,
+            'keysecondary': 1.5,
+            'world': 0.25,
+        }
+    });
     return JSON.stringify({
         ok: true,
         entries: results.map(entryMapping).slice(0, args.top_n),
@@ -66,8 +77,8 @@ async function call(params: any): Promise<string> {
     });
 }
 
-function entryMapping(entry: any) {
-    const parsed = new DecoratorParser(entry);
+function entryMapping(entry: ReturnType<typeof MiniSearch.prototype.search>[0] | Record<string, any>) {
+    const parsed = new DecoratorParser(entry as WorldInfoEntry);
     return {
         world: entry.world,
         uid: entry.uid,
@@ -75,14 +86,14 @@ function entryMapping(entry: any) {
         key: entry.key,
         keysecondary: entry.keysecondary,
         content_preview: parsed.cleanContent.substring(0, 50),
+        score: entry.score,
     };
 }
 
 async function buildDatabase() {
-    const fields = ['key', 'keysecondary', 'comment', 'uid', 'content'];
     database = new MiniSearch({
-        fields: fields,
-        storeFields: fields.concat(['world']),
+        fields: FIELDS,
+        storeFields: FIELDS,
         tokenize: (s) => smartTokenize(s),
         extractField: (doc, field) => {
             if(field === 'key' || field === 'keysecondary')
