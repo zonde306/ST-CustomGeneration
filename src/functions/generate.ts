@@ -99,7 +99,7 @@ export async function generate(
                 if(api?.[key] === null)
                     _.unset(data, key);
                 else if(api?.[key] != null)
-                    _.set(api, key, api[key]);
+                    _.set(data, key, api[key]);
             }
 
             data.reverse_proxy = api.url;
