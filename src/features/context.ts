@@ -21,6 +21,7 @@ import { defaultPreset } from '@/utils/default-settings';
 import { AsyncMutex } from '@/utils/mutex';
 import { getAvailableTools, getTool } from '@/features/tool-manager';
 import { z } from 'zod';
+import { yaml } from "@st/lib.js";
 
 const locker = new AsyncMutex();
 
@@ -602,6 +603,9 @@ export class Context {
             top_p: this.apiOverride.top_p ?? api.topP,
             frequency_penalty: this.apiOverride.frequency_penalty ?? api.frequencyPenalty,
             presence_penalty: this.apiOverride.presence_penalty ?? api.presencePenalty,
+            custom_exclude_body: this.apiOverride.custom_exclude_body ?? yaml.stringify(api.excludeBody),
+            custom_include_body: this.apiOverride.custom_include_body ?? yaml.stringify(api.includeBody),
+            custom_include_headers: this.apiOverride.custom_include_headers ?? yaml.stringify(api.includeHeaders),
         };
     }
 
