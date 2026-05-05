@@ -131,7 +131,7 @@ export class TemplateHandler {
         builder.evaluateMacro = false;
         builder.prompts = this.template.prompts;
         const messages = await builder.build(type || this.template.decorator, false);
-        return messages.map(msg => ({ is_user: msg.role === 'user', is_system: msg.role === 'system', mes: msg.content }));
+        return messages.map(msg => ({ is_user: msg.role === 'user', is_system: msg.role === 'system', mes: msg.content as string }));
     }
 
     get prompts(): PresetPrompt[] {

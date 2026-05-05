@@ -3,7 +3,7 @@ import { oai_settings, sendOpenAIRequest, chat_completion_sources, custom_prompt
 import { TokenLogprobs } from '@st/scripts/logprobs.js';
 import { uuidv4 } from '@st/scripts/utils.js';
 import { eventTypes } from '@/utils/events'
-import { ToolCalls, ToolSignatures, PartialToolCall, ToolDefinition } from '@/utils/defines';
+import { ToolCalls, ToolSignatures, PartialToolCall, ToolDefinition, ChatCompMessage } from '@/utils/defines';
 
 export interface ApiConfig {
     url: string;
@@ -56,7 +56,7 @@ interface StreamChunk {
 }
 
 export async function generate(
-    messages: ChatCompletionMessage[],
+    messages: ChatCompletionMessage[] | ChatCompMessage[],
     {
         signal,
         taskId,
@@ -153,14 +153,14 @@ export async function generate(
         if(api?.stream) {
             oai_settings.stream_openai = true;
             const handler = new StreamHandler(taskId, signal);
-            handler.generator = await sendOpenAIRequest(api?.type || 'quiet', messages, signal) as typeof handler.generator;
+            handler.generator = await sendOpenAIRequest(api?.type || 'quiet', messages as ChatCompletionMessage[], signal) as typeof handler.generator;
             if(streaming)
                 result = handler.streaming();
             else
                 result = await handler.generate();
         } else {
             oai_settings.stream_openai = false;
-            const response = await sendOpenAIRequest(api?.type || 'quiet', messages, signal);
+            const response = await sendOpenAIRequest(api?.type || 'quiet', messages as ChatCompletionMessage[], signal);
             result = await responseHandler(response, taskId);
         }
     } catch(err) {

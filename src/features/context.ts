@@ -16,7 +16,7 @@ import { MessageBuilder, PromptFilter, MacroOverride } from '@/functions/message
 import { ContextRole, ToolCalls, ToolDefinition } from '@/utils/defines'
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
 import { eventTypes } from '@/utils/events';
-import { Preset, ToolMessage } from '@/utils/defines';
+import { Preset, ChatCompMessage } from '@/utils/defines';
 import { defaultPreset } from '@/utils/default-settings';
 import { AsyncMutex } from '@/utils/mutex';
 import { getAvailableTools, getTool } from '@/features/tool-manager';
@@ -78,7 +78,7 @@ export interface GenerateOptionsLite {
     /**
      * Tool messages
      */
-    toolMessages?: ToolMessage[];
+    toolMessages?: ChatCompMessage[];
 
     taskId?: number | string;
 }
@@ -385,18 +385,28 @@ export class Context {
             }
         });
 
+        const evalMacro = _.partial(substituteParams, _, {
+            name1Override: this.macroOverride.user,
+            name2Override: this.macroOverride.char,
+            original: this.macroOverride.original,
+            groupOverride: this.macroOverride.group,
+            dynamicMacros: {
+                lastUserMessage: () => this.lastMessage?.mes ?? '',
+                lastCharMessage: () => this.lastCharMessage?.mes ?? '',
+                ...(this.macroOverride.macros ?? {}),
+            },
+        });
+
         for(const message of messages) {
-            message.content = substituteParams(message.content, {
-                name1Override: this.macroOverride.user,
-                name2Override: this.macroOverride.char,
-                original: this.macroOverride.original,
-                groupOverride: this.macroOverride.group,
-                dynamicMacros: {
-                    lastUserMessage: () => this.lastMessage?.mes ?? '',
-                    lastCharMessage: () => this.lastCharMessage?.mes ?? '',
-                    ...(this.macroOverride.macros ?? {}),
-                },
-            });
+            if(typeof message.content === 'string') {
+                message.content = evalMacro(message.content);
+            } else if(message.content) {
+                for(const part of message.content) {
+                    if(part.type === 'text' && part.text) {
+                        part.text = evalMacro(part.text);
+                    }
+                }
+            }
         }
 
         await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun, context: this, type });
@@ -781,7 +791,7 @@ export class Context {
         return tools;
     }
 
-    private async handleToolCalls(calls: ToolCalls, args: Record<string, any> = {}): Promise<ToolMessage[]> {
+    private async handleToolCalls(calls: ToolCalls, args: Record<string, any> = {}): Promise<ChatCompMessage[]> {
         if(!calls?.length)
             return [];
 

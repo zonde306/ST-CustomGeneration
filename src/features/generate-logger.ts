@@ -6,14 +6,14 @@ import { ApiConfig } from "@/functions/generate";
 import { getTokenCountAsync } from '@st/scripts/tokenizers.js';
 import { copyText } from '@st/scripts/utils.js';
 import { Response } from '@/functions/generate';
-import { ToolCalls, ToolMessage } from '@/utils/defines';
+import { ToolCalls, ChatCompMessage } from '@/utils/defines';
 import { t } from '@st/scripts/i18n.js'
 import { templatePath } from "@/utils/default-settings";
 
 interface GenerateBefore {
     type: string;
     options: GenerateOptionsLite;
-    messages: ChatCompletionMessage[];
+    messages: ChatCompMessage[];
     taskId: string;
     context: Context;
     apiConfig: ApiConfig;
@@ -46,7 +46,7 @@ interface StreamChunk {
 
 interface GenerateLogEntry {
     taskId: string;
-    messages: ChatCompletionMessage[];
+    messages: ChatCompMessage[];
     options: GenerateOptionsLite;
     model: string;
     streaming: boolean;
@@ -54,7 +54,7 @@ interface GenerateLogEntry {
     error: Error | null;
     state: 'start' | 'running' | 'tool_calling' | 'done';
     type: string;
-    toolMessages: ToolMessage[];
+    toolMessages: ChatCompMessage[];
 }
 
 const MAX_LOG_COUNT = 100;
@@ -126,11 +126,34 @@ function formatMessageContent(content: any): string {
     return safeStringify(content);
 }
 
-async function buildLoggerMessageTitle(message: ChatCompletionMessage, index: number): Promise<string> {
+async function getTokenCount(message: ChatCompMessage) {
+    if(!message.content?.length && !message.tool_calls?.length)
+        return 0;
+
+    if(message.content && typeof message.content === 'string') {
+        return await getTokenCountAsync(message.content);
+    }
+    
+    let total = 0;
+    if(Array.isArray(message.content)) {
+        for(const part of message.content) {
+            if(part.type === 'text' && part.text)
+                total += await getTokenCountAsync(part.text);
+        }
+    }
+
+    if(Array.isArray(message.tool_calls)) {
+        total += await getTokenCountAsync(JSON.stringify(message.tool_calls));
+    }
+    
+    return total;
+}
+
+async function buildLoggerMessageTitle(message: ChatCompMessage, index: number): Promise<string> {
     const role = String(message.role ?? 'unknown');
     const name = message.name ? ` (${message.name})` : '';
     const markup = message.role === 'system' ? '⚙️' : message.role === 'user' ? '👤' : message.role === 'assistant' ? '🤖' : '⁉';
-    const tokens = await getTokenCountAsync(message.content ?? '');
+    const tokens = await getTokenCount(message);
     const base = `Message #${index + 1} · ${markup}${role}${name} · 🧠${tokens} tokens`;
     return base;
 }
@@ -182,7 +205,7 @@ function buildLoggerAccordionBlock(title: string, content: string, blockClass?: 
     return [header, panel];
 }
 
-async function buildLoggerMessageBlocks(messages: ChatCompletionMessage[]): Promise<JQuery<HTMLElement>[]> {
+async function buildLoggerMessageBlocks(messages: ChatCompMessage[]): Promise<JQuery<HTMLElement>[]> {
     if (!messages.length) {
         return [];
     }
@@ -210,16 +233,16 @@ async function buildLoggerResponseBlocks(responses: string[], countTokens: boole
     return blocks;
 }
 
-async function buildLoggerToolMessageTitle(message: ToolMessage, index: number): Promise<string> {
+async function buildLoggerToolMessageTitle(message: ChatCompMessage, index: number): Promise<string> {
     const role = String(message.role ?? 'unknown');
     const markup = message.role === 'assistant' ? '🤖' : '🔧';
     const id = message.tool_call_id ? ` (id: ${message.tool_call_id})` : '';
-    const tokens = await getTokenCountAsync(message.content ?? JSON.stringify(message.tool_calls) ?? '');
+    const tokens = await getTokenCount(message);
     const base = `Tool Message #${index + 1} · ${markup}${role}${id} · 🧠${tokens} tokens`;
     return base;
 }
 
-function formatToolMessageContent(message: ToolMessage): string {
+function formatToolMessageContent(message: ChatCompMessage): string {
     const parts: string[] = [];
 
     if (message.reasoning_content) {
@@ -279,7 +302,7 @@ function buildLoggerStatus(entry: GenerateLogEntry): string {
 
 async function buildLoggerTitle(entry: GenerateLogEntry, index: number): Promise<string> {
     const fallback = entry.taskId ? `Task ${entry.taskId}` : `Log ${index + 1}`;
-    const tokens = await Promise.all(entry.messages.map(msg => getTokenCountAsync(msg.content ?? '')));
+    const tokens = await Promise.all(entry.messages.map(msg => getTokenCount(msg)));
     return `${fallback}: ${entry.type} · 🧠${_.sum(tokens)} tokens`;
 }
 

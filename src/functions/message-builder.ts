@@ -19,7 +19,7 @@ import { metadata_keys } from '@st/scripts/authors-note.js';
 import { world_info_depth } from '@st/scripts/world-info.js';
 import { inject_ids } from '@st/scripts/constants.js';
 import { settings } from '@/settings';
-import { GenerateOptionsLite, ContextRole, ToolMessage } from "@/utils/defines";
+import { GenerateOptionsLite, ContextRole, ChatCompMessage } from "@/utils/defines";
 import { Preset, RegEx, PresetPrompt } from "@/utils/defines";
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
 import { wi_anchor_position } from '@st/scripts/world-info.js';
@@ -37,15 +37,15 @@ interface ExtensionPrompts {
 
 // Exclude Specific Prompts
 export interface PromptFilter extends Record<string, any> {
-    main?: boolean | string | string[] | ChatCompletionMessage[];
-    personaDescription?: boolean | string | string[] | ChatCompletionMessage[];
-    charDescription?: boolean | string | string[] | ChatCompletionMessage[];
-    charPersonality?: boolean | string | string[] | ChatCompletionMessage[];
-    scenario?: boolean | string | string[] | ChatCompletionMessage[];
-    chatExamples?: boolean | string | string[] | ChatCompletionMessage[];
-    worldInfoBefore?: boolean | string | string[] | ChatCompletionMessage[];
-    worldInfoAfter?: boolean | string | string[] | ChatCompletionMessage[];
-    chatHistory?: boolean | string | string[] | ChatCompletionMessage[];
+    main?: boolean | string | string[] | ChatCompMessage[];
+    personaDescription?: boolean | string | string[] | ChatCompMessage[];
+    charDescription?: boolean | string | string[] | ChatCompMessage[];
+    charPersonality?: boolean | string | string[] | ChatCompMessage[];
+    scenario?: boolean | string | string[] | ChatCompMessage[];
+    chatExamples?: boolean | string | string[] | ChatCompMessage[];
+    worldInfoBefore?: boolean | string | string[] | ChatCompMessage[];
+    worldInfoAfter?: boolean | string | string[] | ChatCompMessage[];
+    chatHistory?: boolean | string | string[] | ChatCompMessage[];
     worldInfoDepth?: boolean;
     authorsNoteDepth?: boolean;
     presetDepth?: boolean;
@@ -83,7 +83,7 @@ export class MessageBuilder {
     private presetDepth: string[];
     private charDepth: string;
     private postProcessing: string;
-    public toolMessages: ToolMessage[]; // only for tool messages
+    public toolMessages: ChatCompMessage[]; // only for tool messages
 
     constructor(chat: ChatMessage[], preset?: Preset, postProcessing: string = 'none') {
         this.chat = chat;
@@ -104,7 +104,7 @@ export class MessageBuilder {
         this.postProcessing = postProcessing;
     }
 
-    async build(type: string = 'normal', dryRun: boolean = false, wiDepth = world_info_depth): Promise<ChatCompletionMessage[]> {
+    async build(type: string = 'normal', dryRun: boolean = false, wiDepth = world_info_depth): Promise<ChatCompMessage[]> {
         const worldinfoTrigger: string[] = this.chat.slice(-wiDepth).map(x => x.mes ?? '');
         const prompt = await PromptContext.create(worldinfoTrigger, type, dryRun, settings.apis[settings.currentApi]?.contextSize);
         const historyMessages = this.buildChatHistory();
@@ -115,7 +115,7 @@ export class MessageBuilder {
         return result;
     }
 
-    async buildFully(type: string = 'normal', options: GenerateOptionsLite = {}, dryRun: boolean = false): Promise<ChatCompletionMessage[]> {
+    async buildFully(type: string = 'normal', options: GenerateOptionsLite = {}, dryRun: boolean = false): Promise<ChatCompMessage[]> {
         // Prevent generation from shallow characters
         await unshallowCharacter(this_chid);
 
@@ -160,19 +160,18 @@ export class MessageBuilder {
         return messages;
     }
 
-    private buildMessages(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal'): ChatCompletionMessage[] {
+    private buildMessages(prompts: PromptContext, historyMessages: ChatCompMessage[], type: string = 'normal'): ChatCompMessage[] {
         if (!this.prompts.length) {
             const messages = [...historyMessages];
             const authorNoteRange = this.insertAuthorsNoteByMetadata(messages, null);
             this.insertWorldInfoAroundAuthorsNote(messages, prompts, authorNoteRange);
             this.assignOutletMacros(messages);
 
-            // @ts-expect-error: 2345
             messages.push(...this.toolMessages);
             return this.postprocessMessages(messages);
         }
 
-        const messages: ChatCompletionMessage[] = [];
+        const messages: ChatCompMessage[] = [];
         let mainPromptRange: { start: number, end: number } | null = null;
 
         for (const prompt of this.prompts) {
@@ -194,7 +193,7 @@ export class MessageBuilder {
                     continue;
                 }
 
-                let content: string | string[] | ChatCompletionMessage[] = '';
+                let content: string | string[] | ChatCompMessage[] = '';
                 if(filting === 'string' || Array.isArray(filting)) {
                     content = filting;
                 } else {
@@ -220,7 +219,7 @@ export class MessageBuilder {
         return this.postprocessMessages(messages);
     }
 
-    private appendPresetContent(messages: ChatCompletionMessage[], fallbackRole: ContextRole, content: string | string[] | ChatCompletionMessage[]) {
+    private appendPresetContent(messages: ChatCompMessage[], fallbackRole: ContextRole, content: string | string[] | ChatCompMessage[]) {
         if (typeof content === 'string') {
             const text = content.trim();
             if (text) {
@@ -251,7 +250,7 @@ export class MessageBuilder {
             return;
         }
 
-        for (const item of content as ChatCompletionMessage[]) {
+        for (const item of content as ChatCompMessage[]) {
             // @ts-expect-error: 2339
             if(!item.content?.trim() && !item.tool_calls?.length)
                 continue;
@@ -260,14 +259,13 @@ export class MessageBuilder {
             messages.push({
                 role,
                 content: item.content,
-                // @ts-expect-error: 2339
                 tool_calls: item.tool_calls,
             });
         }
     }
 
     private insertAuthorsNoteByMetadata(
-        messages: ChatCompletionMessage[],
+        messages: ChatCompMessage[],
         mainPromptRange: { start: number, end: number } | null,
     ): { start: number, end: number } | null {
         const prompt = String(chat_metadata[metadata_keys.prompt] ?? '').trim();
@@ -282,7 +280,7 @@ export class MessageBuilder {
         }
 
         const role = this.normalizeRole(chat_metadata[metadata_keys.role]);
-        const noteMessage: ChatCompletionMessage = {
+        const noteMessage: ChatCompMessage = {
             role,
             content: this.evaluateMacros(prompt),
         };
@@ -300,7 +298,7 @@ export class MessageBuilder {
     }
 
     private insertWorldInfoAroundAuthorsNote(
-        messages: ChatCompletionMessage[],
+        messages: ChatCompMessage[],
         prompts: PromptContext,
         authorNoteRange: { start: number, end: number } | null,
     ) {
@@ -316,8 +314,8 @@ export class MessageBuilder {
         }
 
         const noteRole = this.normalizeRole(messages[authorNoteRange.start]?.role ?? chat_metadata[metadata_keys.role]);
-        const beforeMessages = beforeEntries.map(content => ({ role: noteRole, content: this.evaluateMacros(this.applyRegex(content, { world: true })) } as ChatCompletionMessage));
-        const afterMessages = afterEntries.map(content => ({ role: noteRole, content: this.evaluateMacros(this.applyRegex(content, { world: true })) } as ChatCompletionMessage));
+        const beforeMessages = beforeEntries.map(content => ({ role: noteRole, content: this.evaluateMacros(this.applyRegex(content, { world: true })) } as ChatCompMessage));
+        const afterMessages = afterEntries.map(content => ({ role: noteRole, content: this.evaluateMacros(this.applyRegex(content, { world: true })) } as ChatCompMessage));
 
         if (beforeMessages.length) {
             messages.splice(authorNoteRange.start, 0, ...beforeMessages);
@@ -329,8 +327,8 @@ export class MessageBuilder {
         }
     }
 
-    private buildChatHistory(): ChatCompletionMessage[] {
-        const history: ChatCompletionMessage[] = this.chat.slice(-this.maxChatHistory).map((msg, idx) => ({
+    private buildChatHistory(): ChatCompMessage[] {
+        const history: ChatCompMessage[] = this.chat.slice(-this.maxChatHistory).map((msg, idx) => ({
             role: msg.is_user ? 'user' : msg.is_system ? 'system' : 'assistant',
             content: this.applyRegex(msg.mes ?? '', {
                 user: msg.is_user,
@@ -342,7 +340,7 @@ export class MessageBuilder {
         return history;
     }
 
-    private injectDepthPromptsToHistory(history: ChatCompletionMessage[], isContinue: boolean): ChatCompletionMessage[] {
+    private injectDepthPromptsToHistory(history: ChatCompMessage[], isContinue: boolean): ChatCompMessage[] {
         const depthBuckets = new Map<number, Map<ContextRole, string[]>>();
         let maxDepth = 0;
 
@@ -386,7 +384,7 @@ export class MessageBuilder {
                 continue;
             }
 
-            const roleMessages: ChatCompletionMessage[] = [];
+            const roleMessages: ChatCompMessage[] = [];
             for (const role of roleOrder) {
                 const lines = roleMap.get(role) ?? [];
                 const text = lines.join('\n').trim();
@@ -410,7 +408,7 @@ export class MessageBuilder {
         return reversedHistory.reverse();
     }
 
-    private rebuildDepthInjections(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal') {
+    private rebuildDepthInjections(prompts: PromptContext, historyMessages: ChatCompMessage[], type: string = 'normal') {
         this.removeDepthPrompts();
         this.flushWIInjections();
 
@@ -421,7 +419,7 @@ export class MessageBuilder {
         this.injectAuthorsNoteDepthPrompt(prompts);
     }
 
-    private injectPresetDepthPrompts(prompts: PromptContext, historyMessages: ChatCompletionMessage[], type: string = 'normal') {
+    private injectPresetDepthPrompts(prompts: PromptContext, historyMessages: ChatCompMessage[], type: string = 'normal') {
         if (!this.prompts.length) {
             return;
         }
@@ -477,7 +475,7 @@ export class MessageBuilder {
         for (const { preset } of inChatPrompts) {
             const depth = this.normalizeDepth(preset.injectionDepth, depth_prompt_depth_default);
 
-            let content: string | string[] | ChatCompletionMessage[] = '';
+            let content: string | string[] | ChatCompMessage[] = '';
             if (preset.internal) {
                 content = this.getInternalContent(preset, prompts, historyMessages);
             } else {
@@ -500,7 +498,7 @@ export class MessageBuilder {
                 continue;
             }
 
-            for (const item of content as ChatCompletionMessage[]) {
+            for (const item of content as ChatCompMessage[]) {
                 appendValue(String(item.content ?? ''), item.role, depth);
             }
         }
@@ -766,25 +764,23 @@ export class MessageBuilder {
         }
     }
 
-    private postprocessMessages(messages: ChatCompletionMessage[]): ChatCompletionMessage[] {
-        const mergeConsecutive = (input: ChatCompletionMessage[]): ChatCompletionMessage[] => {
-            const merged: ChatCompletionMessage[] = [];
+    private postprocessMessages(messages: ChatCompMessage[]): ChatCompMessage[] {
+        const mergeConsecutive = (input: ChatCompMessage[]): ChatCompMessage[] => {
+            const merged: ChatCompMessage[] = [];
 
             for (const item of input) {
-                // @ts-expect-error: 18046
                 if(item.tool_calls?.length || item.role === 'tool') {
                     merged.push(item);
                     continue;
                 }
 
                 const content = String(item.content ?? '').trim();
-                if (!item.content?.trim()) {
+                if (typeof item.content !== 'string' || !item.content?.trim()) {
                     continue;
                 }
 
                 const prev = merged[merged.length - 1];
                 const role = this.normalizeRole(item.role);
-                // @ts-expect-error: 2339
                 if (prev && prev.role === role && !prev.tool_calls?.length) {
                     prev.content = [String(prev.content ?? ''), content].filter(Boolean).join('\n\n');
                 } else {
@@ -799,10 +795,9 @@ export class MessageBuilder {
             return merged;
         };
 
-        const toAlternate = (input: ChatCompletionMessage[]): ChatCompletionMessage[] => {
+        const toAlternate = (input: ChatCompMessage[]): ChatCompMessage[] => {
             const merged = mergeConsecutive(input);
             const normalized = merged.map((item, index) => {
-                // @ts-expect-error: 18046
                 if(item.role === 'tool' || item.tool_calls?.length)
                     return item;
 
@@ -932,10 +927,18 @@ export class MessageBuilder {
         return '';
     }
 
-    private assignOutletMacros(history: ChatCompletionMessage[]) {
+    private assignOutletMacros(history: ChatCompMessage[]) {
         for(const message of history) {
-            if(message.content?.includes('{{outlet::')) {
-                message.content = message.content.replace(/\{\{outlet::(.+?)\}\}/gi, (_, key: string) => this.getOutletPrompt(key));
+            if(typeof message.content === 'string') {
+                if(message.content?.includes('{{outlet::')) {
+                    message.content = message.content.replace(/\{\{outlet::(.+?)\}\}/gi, (_, key: string) => this.getOutletPrompt(key));
+                }
+            } else if (message.content) {
+                for(const item of message.content) {
+                    if(item.type === 'text' && item.text) {
+                        item.text = item.text.replace(/\{\{outlet::(.+?)\}\}/gi, (_, key: string) => this.getOutletPrompt(key));
+                    }
+                }
             }
         }
     }
@@ -963,8 +966,8 @@ export class MessageBuilder {
     private getInternalContent(
         preset: PresetPrompt,
         prompts: PromptContext,
-        historyMessages: ChatCompletionMessage[]
-    ): string | ChatCompletionMessage[] | string[] {
+        historyMessages: ChatCompMessage[]
+    ): string | ChatCompMessage[] | string[] {
         switch (preset.internal) {
             case 'main':
                 // main prompt 优先使用预设的
@@ -984,8 +987,7 @@ export class MessageBuilder {
             case 'worldInfoAfter':
                 return this.applyRegex(prompts.worldInfoCharAfter, { world: true });
             case 'chatHistory':
-                // @ts-expect-error: 2345
-                return historyMessages.concat(this.toolMessages);
+                return historyMessages;
             case 'charNote':
                 return this.charDepth;
             case 'authorsNote':
@@ -1024,6 +1026,8 @@ export class MessageBuilder {
                 return this.chat[this.chat.length - 4]?.mes ?? '';
             case 'chatDepth4':
                 return this.chat[this.chat.length - 5]?.mes ?? '';
+            case 'toolCalls':
+                return this.toolMessages;
         }
 
         return '';

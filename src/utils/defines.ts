@@ -1,7 +1,6 @@
 import { ReasoningType } from "@st/scripts/reasoning.js";
 import { PromptFilter } from '@/functions/message-builder';
 import { KNOWN_DECORATORS } from "@/functions/worldinfo";
-import { TEMPLATE_FILTER_OPTIONS } from "@/settings";
 import { Context } from "@/features/context";
 
 type TextContent = {
@@ -315,19 +314,20 @@ export type ToolCalls = PartialToolCall[][];
 // 可选的 thought signature 映射，键为 tool call id
 export type ToolSignatures = Record<string, string>;
 
-export interface ChatMessage {
-    role: string;
-    reasoning_content?: string;
-    content?: string;
+export interface ChatCompMessage {
     name?: string;
-}
-
-export interface ToolMessage {
     role: string;
-    reasoning_content?: string; // for role=assistant
+    content?: string | ChatCompPart[];
+    reasoning_content?: string;
     tool_calls?: PartialToolCall[]; // for role=assistant
     tool_call_id?: string; // for role=tool
-    content?: string; // for role=tool
+}
+
+export interface ChatCompPart {
+    type: string;
+    text?: string;
+    image_url?: { url: string; };
+    file?: { file_data: string; filename?: string; }
 }
 
 export interface PresetPrompt {
@@ -616,3 +616,40 @@ export interface ToolDefinition {
         strict?: boolean;
     }
 }
+
+export const TEMPLATE_FILTER_OPTIONS = [
+    'main',
+    'personaDescription',
+    'charDescription',
+    'charPersonality',
+    'scenario',
+    'chatExamples',
+    'worldInfoBefore',
+    'worldInfoAfter',
+    'chatHistory',
+    'worldInfoDepth',
+    'authorsNoteDepth',
+    'presetDepth',
+    'charDepth',
+    'worldInfoOutlet',
+    'charNote',
+    'authorsNote',
+    'lastCharMessage',
+    'lastUserMessage',
+    'worldInfoDepth0',
+    'worldInfoDepth1',
+    'worldInfoDepth2',
+    'worldInfoDepth3',
+    'worldInfoDepth4',
+    'presetDepth0',
+    'presetDepth1',
+    'presetDepth2',
+    'presetDepth3',
+    'presetDepth4',
+    'chatDepth0',
+    'chatDepth1',
+    'chatDepth2',
+    'chatDepth3',
+    'chatDepth4',
+    'toolCalls',
+];

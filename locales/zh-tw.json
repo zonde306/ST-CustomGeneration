@@ -118,6 +118,7 @@
 	"cg_chatDepth2": "樓層深度@D2（僅預設）",
 	"cg_chatDepth3": "樓層深度@D3（僅預設）",
 	"cg_chatDepth4": "樓層深度@D4（僅預設）",
+	"cg_toolCalls": "工具呼叫",
 
 	"Character Note": "角色備註",
 	"Author's Note": "作者註釋",

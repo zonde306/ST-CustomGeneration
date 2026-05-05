@@ -3,7 +3,7 @@ import { extension_settings, renderExtensionTemplateAsync } from '@st/scripts/ex
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { generate as runGenerate, ApiConfig } from '@/functions/generate';
 import { KNOWN_DECORATORS } from '@/functions/worldinfo';
-import { PresetPrompt, RegEx, Template, Preset, Settings, ExportPayload, ListExportKind, ListExportItem, ListExportDialogState, ListExportPayload, ImportPayload, ApiSettings, ApiExportPayload, ApiImportPayload, ToolSettings } from '@/utils/defines';
+import { PresetPrompt, RegEx, Template, Preset, Settings, ExportPayload, ListExportKind, ListExportItem, ListExportDialogState, ListExportPayload, ImportPayload, ApiSettings, ApiExportPayload, ApiImportPayload, ToolSettings, TEMPLATE_FILTER_OPTIONS } from '@/utils/defines';
 import { defaultSettings, defaultTemplate, defaultPreset, defaultApiSettings, defaultApiName, defaultToolSettings, templatePath } from '@/utils/default-settings';
 import { yaml } from "@st/lib.js";
 import { copyText } from '@st/scripts/utils.js';
@@ -17,41 +17,6 @@ export const settings: Settings = clone(defaultSettings);
 const ALL_DECORATORS = KNOWN_DECORATORS;
 const DEFAULT_TEMPLATE_DECORATOR = ALL_DECORATORS[0] as TemplateDecorator;
 const PROMPT_TRIGGER_OPTIONS = ['normal', 'regenerate', 'swipe', 'continue', ...ALL_DECORATORS];
-export const TEMPLATE_FILTER_OPTIONS = [
-    'main',
-    'personaDescription',
-    'charDescription',
-    'charPersonality',
-    'scenario',
-    'chatExamples',
-    'worldInfoBefore',
-    'worldInfoAfter',
-    'chatHistory',
-    'worldInfoDepth',
-    'authorsNoteDepth',
-    'presetDepth',
-    'charDepth',
-    'worldInfoOutlet',
-    'charNote',
-    'authorsNote',
-    'lastCharMessage',
-    'lastUserMessage',
-    'worldInfoDepth0',
-    'worldInfoDepth1',
-    'worldInfoDepth2',
-    'worldInfoDepth3',
-    'worldInfoDepth4',
-    'presetDepth0',
-    'presetDepth1',
-    'presetDepth2',
-    'presetDepth3',
-    'presetDepth4',
-    'chatDepth0',
-    'chatDepth1',
-    'chatDepth2',
-    'chatDepth3',
-    'chatDepth4',
-];
 
 let selectedPromptIndex = 0;
 let selectedRegexIndex = 0;
