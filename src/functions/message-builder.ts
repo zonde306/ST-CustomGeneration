@@ -16,7 +16,6 @@ import {
     substituteParams,
 } from '@st/script.js';
 import { metadata_keys } from '@st/scripts/authors-note.js';
-import { world_info_depth } from '@st/scripts/world-info.js';
 import { inject_ids } from '@st/scripts/constants.js';
 import { settings } from '@/settings';
 import { GenerateOptionsLite, ContextRole, ChatCompMessage } from "@/utils/defines";
@@ -104,8 +103,8 @@ export class MessageBuilder {
         this.postProcessing = postProcessing;
     }
 
-    async build(type: string = 'normal', dryRun: boolean = false, wiDepth = world_info_depth): Promise<ChatCompMessage[]> {
-        const worldinfoTrigger: string[] = this.chat.slice(-wiDepth).map(x => x.mes ?? '');
+    async build(type: string = 'normal', dryRun: boolean = false): Promise<ChatCompMessage[]> {
+        const worldinfoTrigger: string[] = this.chat.map(x => x.mes ?? '');
         const prompt = await PromptContext.create(worldinfoTrigger, type, dryRun, settings.apis[settings.currentApi]?.contextSize);
         const historyMessages = this.buildChatHistory();
         this.rebuildDepthInjections(prompt, historyMessages, type);

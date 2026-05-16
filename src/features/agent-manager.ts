@@ -154,9 +154,8 @@ async function processMessage(
         return;
     }
 
-    const messages = env.chat.slice(-world_info_depth);
     const groups = await getSortedEntries(
-        messages.map(msg => msg.mes ?? ''),
+        env.chat.map(msg => msg.mes ?? ''),
         before,
     );
 
