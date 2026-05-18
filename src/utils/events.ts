@@ -13,4 +13,5 @@ export const eventTypes = {
     TOOL_CALLING: 'cg_tool_calling',
     AGENT_START: 'cg_agent_start',
     AGENT_END: 'cg_agent_end',
+    PROMPT_CREATED: 'cg_prompt_created',
 }

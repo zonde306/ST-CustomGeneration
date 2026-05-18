@@ -24,6 +24,7 @@ import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/re
 import { wi_anchor_position } from '@st/scripts/world-info.js';
 import { DynamicMacroValue } from '@st/scripts/macros/engine/MacroEnv.types.js';
 import { defaultPreset } from "@/utils/default-settings";
+import { eventTypes } from "@/utils/events";
 
 interface ExtensionPrompts {
     value: string,
@@ -107,9 +108,9 @@ export class MessageBuilder {
         const worldinfoTrigger: string[] = this.chat.map(x => x.mes ?? '');
         const prompt = await PromptContext.create(worldinfoTrigger, type, dryRun, settings.apis[settings.currentApi]?.contextSize);
         const historyMessages = this.buildChatHistory();
-        this.rebuildDepthInjections(prompt, historyMessages, type);
+        await this.rebuildDepthInjections(prompt, historyMessages, type);
         const historyInjectedMessages = this.injectDepthPromptsToHistory(historyMessages, type === 'continue');
-        const result = this.buildMessages(prompt, historyInjectedMessages, type);
+        const result = await this.buildMessages(prompt, historyInjectedMessages, type);
         this.extensionPrompts = {};
         return result;
     }
@@ -159,7 +160,11 @@ export class MessageBuilder {
         return messages;
     }
 
-    private buildMessages(prompts: PromptContext, historyMessages: ChatCompMessage[], type: string = 'normal'): ChatCompMessage[] {
+    private async buildMessages(
+        prompts: PromptContext,
+        historyMessages: ChatCompMessage[],
+        type: string = 'normal'
+    ): Promise<ChatCompMessage[]> {
         if (!this.prompts.length) {
             const messages = [...historyMessages];
             const authorNoteRange = this.insertAuthorsNoteByMetadata(messages, null);
@@ -196,7 +201,7 @@ export class MessageBuilder {
                 if(filting === 'string' || Array.isArray(filting)) {
                     content = filting;
                 } else {
-                    content = this.getInternalContent(prompt, prompts, historyMessages);
+                    content = await this.getInternalContent(prompt, prompts, historyMessages);
                 }
 
                 this.appendPresetContent(messages, prompt.role, content);
@@ -407,18 +412,26 @@ export class MessageBuilder {
         return reversedHistory.reverse();
     }
 
-    private rebuildDepthInjections(prompts: PromptContext, historyMessages: ChatCompMessage[], type: string = 'normal') {
+    private async rebuildDepthInjections(
+        prompts: PromptContext,
+        historyMessages: ChatCompMessage[],
+        type: string = 'normal'
+    ) {
         this.removeDepthPrompts();
         this.flushWIInjections();
 
-        this.injectPresetDepthPrompts(prompts, historyMessages, type);
+        await this.injectPresetDepthPrompts(prompts, historyMessages, type);
         this.injectCharacterDepthPrompt(prompts.charDepthPrompt);
         this.injectWorldInfoDepth(prompts.worldInfoDepth);
         this.injectOutletEntries(prompts.worldInfoOutletEntries);
         this.injectAuthorsNoteDepthPrompt(prompts);
     }
 
-    private injectPresetDepthPrompts(prompts: PromptContext, historyMessages: ChatCompMessage[], type: string = 'normal') {
+    private async injectPresetDepthPrompts(
+        prompts: PromptContext,
+        historyMessages: ChatCompMessage[],
+        type: string = 'normal'
+    ) {
         if (!this.prompts.length) {
             return;
         }
@@ -476,7 +489,7 @@ export class MessageBuilder {
 
             let content: string | string[] | ChatCompMessage[] = '';
             if (preset.internal) {
-                content = this.getInternalContent(preset, prompts, historyMessages);
+                content = await this.getInternalContent(preset, prompts, historyMessages);
             } else {
                 content = preset.prompt;
             }
@@ -962,73 +975,106 @@ export class MessageBuilder {
         );
     }
 
-    private getInternalContent(
+    private async getInternalContent(
         preset: PresetPrompt,
         prompts: PromptContext,
         historyMessages: ChatCompMessage[]
-    ): string | ChatCompMessage[] | string[] {
+    ): Promise<string | ChatCompMessage[] | string[]> {
+        let prompt : string | ChatCompMessage[] | string[] = '';
         switch (preset.internal) {
             case 'main':
                 // main prompt 优先使用预设的
-                return preset.prompt || prompts.mainPrompt;
+                prompt = preset.prompt || prompts.mainPrompt;
+                break;
             case 'personaDescription':
-                return prompts.personaDescription;
+                prompt = prompts.personaDescription;
+                break;
             case 'charDescription':
-                return prompts.charDescription;
+                prompt = prompts.charDescription;
+                break;
             case 'charPersonality':
-                return prompts.charPersonality;
+                prompt = prompts.charPersonality;
+                break;
             case 'scenario':
-                return prompts.scenario;
+                prompt = prompts.scenario;
+                break;
             case 'chatExamples':
-                return this.buildExampleMessages(prompts);
+                prompt = this.buildExampleMessages(prompts);
+                break;
             case 'worldInfoBefore':
-                return this.applyRegex(prompts.worldInfoCharBefore, { world: true });
+                prompt = this.applyRegex(prompts.worldInfoCharBefore, { world: true });
+                break;
             case 'worldInfoAfter':
-                return this.applyRegex(prompts.worldInfoCharAfter, { world: true });
+                prompt = this.applyRegex(prompts.worldInfoCharAfter, { world: true });
+                break;
             case 'chatHistory':
-                return historyMessages;
+                prompt = historyMessages;
+                break;
             case 'charNote':
-                return this.charDepth;
+                prompt = this.charDepth;
+                break;
             case 'authorsNote':
-                return this.authorsNoteDepth;
+                prompt = this.authorsNoteDepth;
+                break;
             case 'lastCharMessage':
-                return this.chat.findLast(mes => !mes.is_user && !mes.is_system)?.mes ?? '';
+                prompt = this.chat.findLast(mes => !mes.is_user && !mes.is_system)?.mes ?? '';
+                break;
             case 'lastUserMessage':
-                return this.chat.findLast(mes => mes.is_user)?.mes ?? '';
+                prompt = this.chat.findLast(mes => mes.is_user)?.mes ?? '';
+                break;
             case 'worldInfoDepth0':
-                return this.worldInfoDepth[0] ?? '';
+                prompt = this.worldInfoDepth[0] ?? '';
+                break;
             case 'worldInfoDepth1':
-                return this.worldInfoDepth[1] ?? '';
+                prompt = this.worldInfoDepth[1] ?? '';
+                break;
             case 'worldInfoDepth2':
-                return this.worldInfoDepth[2] ?? '';
+                prompt = this.worldInfoDepth[2] ?? '';
+                break;
             case 'worldInfoDepth3':
-                return this.worldInfoDepth[3] ?? '';
+                prompt = this.worldInfoDepth[3] ?? '';
+                break;
             case 'worldInfoDepth4':
-                return this.worldInfoDepth[4] ?? '';
+                prompt = this.worldInfoDepth[4] ?? '';
+                break;
             case 'presetDepth0':
-                return this.presetDepth[0] ?? '';
+                prompt = this.presetDepth[0] ?? '';
+                break;
             case 'presetDepth1':
-                return this.presetDepth[1] ?? '';
+                prompt = this.presetDepth[1] ?? '';
+                break;
             case 'presetDepth2':
-                return this.presetDepth[2] ?? '';
+                prompt = this.presetDepth[2] ?? '';
+                break;
             case 'presetDepth3':
-                return this.presetDepth[3] ?? '';
+                prompt = this.presetDepth[3] ?? '';
+                break;
             case 'presetDepth4':
-                return this.presetDepth[4] ?? '';
+                prompt = this.presetDepth[4] ?? '';
+                break;
             case 'chatDepth0':
-                return this.chat[this.chat.length - 1]?.mes ?? '';
+                prompt = this.chat[this.chat.length - 1]?.mes ?? '';
+                break;
             case 'chatDepth1':
-                return this.chat[this.chat.length - 2]?.mes ?? '';
+                prompt = this.chat[this.chat.length - 2]?.mes ?? '';
+                break;
             case 'chatDepth2':
-                return this.chat[this.chat.length - 3]?.mes ?? '';
+                prompt = this.chat[this.chat.length - 3]?.mes ?? '';
+                break;
             case 'chatDepth3':
-                return this.chat[this.chat.length - 4]?.mes ?? '';
+                prompt = this.chat[this.chat.length - 4]?.mes ?? '';
+                break;
             case 'chatDepth4':
-                return this.chat[this.chat.length - 5]?.mes ?? '';
+                prompt = this.chat[this.chat.length - 5]?.mes ?? '';
+                break;
             case 'toolCalls':
-                return this.toolMessages;
+                prompt = this.toolMessages;
+                break;
         }
 
-        return '';
+        const data = { prompt };
+        await eventSource.emit(eventTypes.PROMPT_CREATED, data);
+
+        return data.prompt;
     }
 }
