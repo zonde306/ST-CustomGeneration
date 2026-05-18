@@ -5,7 +5,7 @@ import { world_info_depth } from "@st/scripts/world-info.js";
 import { getActivatedEntries, DecoratorParser } from "@/functions/worldinfo";
 import { DataOverride } from "@/features/override";
 import { Context } from "@/features/context";
-import { generate } from "@/utils/retries"
+import { generate } from "@/utils/retries";
 import { WorldInfoEntry, WorldInfoLoaded } from "@/utils/defines";
 import { setup as setupReplace } from "@/features/agents/replace"
 import { setup as setupReplaceDiff } from "@/features/agents/replace-diff";

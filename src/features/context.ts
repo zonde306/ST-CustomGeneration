@@ -80,6 +80,9 @@ export interface GenerateOptionsLite {
      */
     toolMessages?: ChatCompMessage[];
 
+    /**
+     * Use the specified task ID, otherwise generate a random one.
+     */
     taskId?: number | string;
 }
 
@@ -180,6 +183,14 @@ export class Context {
         await eventSource.emit(eventTypes.MESSAGE_SEND, { messageId: this.chat.length - 1, message: this.chat[this.chat.length - 1], context: this });
     }
 
+    /**
+     * Accept LLM responses to create a message
+     * @param contents The response content can include multiple swipes.
+     * @param swipe Attach via swipe, otherwise create a new message.
+     * @param role The role is usually assistant.
+     * @param name Names are generally character names.
+     * @returns 
+     */
     private async recv(
         contents: string[],
         swipe: boolean = false,
@@ -592,6 +603,12 @@ export class Context {
         return data.response.swipes.find(mes => !!mes.trim()) ?? '';
     }
 
+    /**
+     * Convert the preset apiConfig to the general apiConfig format.
+     * @param type Generate type
+     * @param preset Preset name
+     * @returns 
+     */
     private buildApiConfig(type: string, preset: string): ApiConfig | undefined {
         const api = Object.values(settings.apis).find(x => x.linkedPreset === preset) ?? settings.apis[settings.currentApi] ?? {};
         const hasCustomApi = Boolean(api.baseUrl || api.apiKey || api.model);

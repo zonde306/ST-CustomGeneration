@@ -33,6 +33,7 @@ export const KNOWN_DECORATORS = [
     '@@preset',             // Process using the specified preset.
     '@@json_schema',        // Define a JSON Schema to validate variables.
     '@@zod_schema',        // Define a Zod Schema to validate variables.
+    '@@agent',              // Agent Router - register as an LLM-callable sub-agent tool
 ];
 
 /**

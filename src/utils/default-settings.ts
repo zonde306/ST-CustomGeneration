@@ -2308,6 +2308,34 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
+        "@@agent:": {
+            "decorator": "@@agent",
+            "tag": "",
+            "prompts": [
+                {
+                    name: t`Agent System`,
+                    "role": "system",
+                    "triggers": [],
+                    "prompt": "{{original}}",
+                    "injectionPosition": "relative",
+                    "injectionDepth": 0,
+                    "injectionOrder": 0,
+                    "enabled": true,
+                    "internal": "main",
+                    "maxDepth": 0
+                }
+            ],
+            "regex": "",
+            "findRegex": "",
+            "filters": [
+                "chatHistory",
+                "worldInfoBefore",
+                "worldInfoAfter",
+                "worldInfoDepth"
+            ],
+            "retryCount": 0,
+            "retryInterval": 0
+        },
     },
     tools: {},
 };

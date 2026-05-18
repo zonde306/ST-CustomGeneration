@@ -815,6 +815,7 @@ function syncToolsWithDefinitions(): void {
 
     // Remove obsolete tools
     for (const key of currentToolKeys) {
+        // TODO: Compatibility with agent router
         if (!definedToolKeys.includes(key)) {
             delete preset.tools[key];
         }
