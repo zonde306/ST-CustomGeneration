@@ -291,18 +291,18 @@ export interface WorldInfoLoaded {
 }
 
 export interface PartialToolCall {
-    id?: string;                     // OpenAI / Anthropic 工具调用 ID
-    type?: 'function';               // OpenAI 固定为 'function'
-    function?: {                     // OpenAI 格式
+    id?: string;                     // OpenAI / Anthropic tool call ID
+    type?: 'function';               // OpenAI fixed value 'function'
+    function?: {                     // OpenAI format
         name?: string;
-        arguments?: string;          // JSON 字符串
+        arguments?: string;          // JSON string
     };
-    signature?: string;              // 来自 toolSignatures 的 thought signature
-    thoughtSignature?: string;       // Gemini 特有
-    name?: string;                   // Anthropic / Cohere / Gemini 函数名
-    input?: any;                     // Anthropic 输入对象
-    args?: any;                      // Gemini 参数对象
-    [key: string]: any;              // 其他供应商扩展字段
+    signature?: string;              // thought signature from toolSignatures
+    thoughtSignature?: string;       // Gemini specific
+    name?: string;                   // Anthropic / Cohere / Gemini function name
+    input?: any;                     // Anthropic input object
+    args?: any;                      // Gemini args object
+    [key: string]: any;              // other provider extension fields
 }
 
 /**
@@ -311,7 +311,7 @@ export interface PartialToolCall {
  */
 export type ToolCalls = PartialToolCall[][];
 
-// 可选的 thought signature 映射，键为 tool call id
+// Optional thought signature mapping, keyed by tool call id
 export type ToolSignatures = Record<string, string>;
 
 export interface ChatCompMessage {

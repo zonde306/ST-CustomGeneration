@@ -318,7 +318,7 @@ function buildOverrideBlock(title: string, content: string, onEdit?: (newContent
     block.append(header, pre);
     buttonGroup.append(copyButton);
 
-    // 添加编辑按钮（如果提供了编辑回调）
+    // Add edit button (if edit callback provided)
     if (onEdit) {
         const expandButton = $('<button class="menu_button fa-solid fa-expand custom_generation_large_editor_button" type="button" title="Open in large editor" data-i18n="[title]Open in large editor"></button>');
         buttonGroup.append(expandButton);

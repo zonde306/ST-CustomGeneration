@@ -37,7 +37,7 @@ export class FunctionSandbox {
         const sandboxedFn = this.win.eval(`(${fnSource})`);
         const result = sandboxedFn.apply(thisData, args);
 
-        // 4. 处理异步结果
+        // Handle async results
         if (result && typeof result.then === 'function') {
             return await result;
         } else {
@@ -60,7 +60,7 @@ export class FunctionSandbox {
         const sandboxedFn = this.win.eval(`(async function(${args}) { ${code} })`);
         const result = sandboxedFn.apply(thisData, Array.from(Object.values(params)));
 
-        // 4. 处理异步结果
+        // Handle async results
         if (result && typeof result.then === 'function') {
             return await result;
         } else {

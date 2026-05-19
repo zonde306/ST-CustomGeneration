@@ -514,7 +514,7 @@ async function onGenerateAfter(data: GenerateAfter) {
     entry.error = data.error ?? null;
     entry.state = 'done';
 
-    // 清除可能残留的节流定时器
+    // Clear any lingering throttle timer
     const throttleState = streamUpdateThrottle.get(data.taskId);
     if (throttleState?.timer) {
         clearTimeout(throttleState.timer);
@@ -546,23 +546,23 @@ async function updateLoggerEntryUI(entry: GenerateLogEntry): Promise<void> {
         return;
     }
 
-    // 更新状态
+    // Update status
     const statusEl = container.find('.custom_generation_logger_status');
     if (statusEl.length) {
         statusEl.text(buildLoggerStatus(entry));
     }
 
-    // 更新 meta（响应数量变化）
+    // Update meta (response count changed)
     const metaEl = container.find('.custom_generation_logger_meta');
     if (metaEl.length) {
         metaEl.text(buildLoggerMeta(entry));
     }
 
-    // 增量更新 responses section，保持 accordion 展开状态
+    // Incrementally update responses section, preserving accordion expanded state
     const sectionBody = container.find('.custom_generation_logger_responses_section .custom_generation_logger_section_body');
 
     if (!sectionBody.length) {
-        // Section 尚未存在，首次创建
+        // Section does not exist yet, create for the first time
         const responseBlocks = await buildLoggerResponseBlocks(entry.responses, false);
         const newSection = buildLoggerSection('Responses', responseBlocks, 'custom_generation_logger_responses_section');
         container.find('.custom_generation_logger_body').append(newSection);
@@ -578,17 +578,17 @@ async function updateLoggerEntryUI(entry: GenerateLogEntry): Promise<void> {
 
     const responses = entry.responses;
 
-    // 更新已有 block 或新增缺失的 block
+    // Update existing blocks or add missing ones
     for (let i = 0; i < responses.length; i++) {
         const response = responses[i];
         const existingHeader = sectionBody.find(`.custom_generation_logger_block_header[data-index="${i}"]`);
 
         if (existingHeader.length) {
-            // 更新已有 block 的标题和内容
+            // Update existing block title and content
             const title = await buildLoggerResponseTitle(response, i, false);
             const titleEl = existingHeader.find('.custom_generation_logger_block_title');
             if (titleEl.length) {
-                // 保留 chevron 图标，替换文本和复制按钮
+                // Preserve chevron icon, replace text and copy button
                 const caret = titleEl.find('.custom_generation_logger_block_caret');
                 titleEl.empty().append(caret).append(document.createTextNode(title));
                 const copyButton = createCopyButton(String(response ?? ''));
@@ -603,7 +603,7 @@ async function updateLoggerEntryUI(entry: GenerateLogEntry): Promise<void> {
                 }
             }
         } else {
-            // 新增 block
+            // Add new block
             const title = await buildLoggerResponseTitle(response, i, false);
             const content = String(response ?? '');
             const newBlocks = buildLoggerAccordionBlock(title, content, 'custom_generation_logger_response', i);
@@ -611,7 +611,7 @@ async function updateLoggerEntryUI(entry: GenerateLogEntry): Promise<void> {
         }
     }
 
-    // 移除多余的 block（response 数量减少时）
+    // Remove excess blocks (when response count decreases)
     sectionBody.find('.custom_generation_logger_block_header').each((_i, el) => {
         const index = parseInt($(el).attr('data-index') ?? '', 10);
         if (!isNaN(index) && index >= responses.length) {
@@ -623,7 +623,7 @@ async function updateLoggerEntryUI(entry: GenerateLogEntry): Promise<void> {
         }
     });
 
-    // 通知 accordion 刷新，保持已有的展开/折叠状态
+    // Notify accordion to refresh, preserving existing expand/collapse state
     sectionBody.accordion('refresh');
 }
 
@@ -648,7 +648,7 @@ async function onGenerateStream(data: StreamChunk) {
     entry.responses[data.swipe] = content;
     entry.state = 'running';
 
-    // 仅在对话框可见时更新 UI，通过节流避免高频更新
+    // Only update UI when dialog is visible, throttle to avoid high-frequency updates
     const dialog = getDialog('#custom_generation_logger_dialog');
     if (!dialog || (!dialog.open && !dialog.hasAttribute('open'))) {
         return;

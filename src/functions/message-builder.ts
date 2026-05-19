@@ -628,7 +628,7 @@ export class MessageBuilder {
         const depth = this.normalizeDepth(chat_metadata[metadata_keys.depth], depth_prompt_depth_default);
         const role = this.normalizeExtensionRole(chat_metadata[metadata_keys.role]);
 
-        // 获取 Author's Note 相关的 World Info 条目
+        // Get Author's Note related World Info entries
         const beforeEntries = prompts.worldInfoAuthorNoteBefore
             .map(entry => String(entry ?? '').trim())
             .filter(Boolean);
@@ -636,17 +636,17 @@ export class MessageBuilder {
             .map(entry => String(entry ?? '').trim())
             .filter(Boolean);
 
-        // 构建 before 消息
+        // Build before messages
         const beforeMessages = beforeEntries.map(content => 
             this.evaluateMacros(this.applyRegex(content, { world: true }))
         ).filter(Boolean);
 
-        // 构建 after 消息
+        // Build after messages
         const afterMessages = afterEntries.map(content => 
             this.evaluateMacros(this.applyRegex(content, { world: true }))
         ).filter(Boolean);
 
-        // 将 before、author's note、after 按顺序合并
+        // Merge before, author's note, after in order
         const allMessages: string[] = [];
         
         if (beforeMessages.length) {
@@ -659,7 +659,7 @@ export class MessageBuilder {
             allMessages.push(...afterMessages);
         }
 
-        // 将合并后的内容作为一个整体注入
+        // Inject merged content as a whole
         const combinedContent = allMessages.join('\n');
 
         if(this.filters.authorsNoteDepth !== false) {
@@ -831,13 +831,13 @@ export class MessageBuilder {
             case 'none':
                 return messages;
             case 'merge':
-                // 合并连续相同的 role
+                // Merge consecutive identical roles
                 return mergeConsecutive(messages);
             case 'semi':
-                // 在 merge 的基础上强制 user 和 assistant 交替出现
+                // On top of merge, enforce alternating user and assistant
                 return toAlternate(messages);
             case 'strict': {
-                // 在 alternate 的基础上要求最后一个 role 必须是 user
+                // On top of alternate, require the last role to be user
                 const alternated = toAlternate(messages);
                 if (!alternated.length || alternated[alternated.length - 1].role === 'user' || alternated[alternated.length - 1].role === 'tool') {
                     return alternated;
@@ -858,7 +858,7 @@ export class MessageBuilder {
                 return mergeConsecutive(adjusted);
             }
             case 'single':
-                // 合并为单个 user 消息
+                // Merge into a single user message
                 return [{ role: 'user', content: messages.map(item => item.content).join('\n\n') }]
             default:
                 return messages;
@@ -983,7 +983,7 @@ export class MessageBuilder {
         let prompt : string | ChatCompMessage[] | string[] = '';
         switch (preset.internal) {
             case 'main':
-                // main prompt 优先使用预设的
+                // main prompt uses the preset value first
                 prompt = preset.prompt || prompts.mainPrompt;
                 break;
             case 'personaDescription':
@@ -1072,7 +1072,7 @@ export class MessageBuilder {
                 break;
         }
 
-        const data = { prompt };
+        const data = { prompt, type: preset.internal };
         await eventSource.emit(eventTypes.PROMPT_CREATED, data);
 
         return data.prompt;

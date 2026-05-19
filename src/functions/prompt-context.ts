@@ -46,35 +46,35 @@ export class PromptContext {
     }
 
     /**
-     * 角色描述
+     * Character description
      */
     get charDescription(): string {
         return this.fields.description;
     }
 
     /**
-     * 角色设定摘要
+     * Character personality summary
      */
     get charPersonality(): string {
         return this.fields.personality;
     }
 
     /**
-     * 情景
+     * Scenario
      */
     get scenario(): string {
         return this.fields.scenario;
     }
 
     /**
-     * 对话示例
+     * Chat examples
      */
     get chatExamples(): string {
         return this.fields.mesExamples;
     }
 
     /**
-     * 对话示例
+     * Chat example array
      */
     get chatExampleArray(): string[] {
         if (this.mesExamplesArray.length == 0 && this.fields.mesExamples.trim()) {
@@ -85,28 +85,28 @@ export class PromptContext {
     }
 
     /**
-     * 用户设定描述
+     * Persona description
      */
     get personaDescription(): string {
         return this.fields.persona;
     }
 
     /**
-     * 主要提示词
+     * Main prompt
      */
     get mainPrompt(): string {
         return this.fields.system;
     }
 
     /**
-     * 创作者的注释
+     * Creator notes
      */
     get creatorNotes(): string {
         return this.fields.creatorNotes;
     }
 
     /**
-     * 对话
+     * Chat history
      */
     get chatHistory(): { role: 'user' | 'system' | 'assistant', content: string, reasoning_content?: string }[] {
         // Marked as `is_system` are hidden.
@@ -120,14 +120,14 @@ export class PromptContext {
     }
 
     /**
-     * 角色备注
+     * Character depth prompt
      */
     get charDepthPrompt(): string {
         return this.fields.charDepthPrompt;
     }
 
     /**
-     * 后续历史指令
+     * Post-history instructions (jailbreak)
      */
     get charHistoryInstructions(): string {
         return this.fields.jailbreak;
@@ -141,7 +141,7 @@ export class PromptContext {
     }
 
     /**
-     * 角色定义之前
+     * World info before character definition
      */
     get worldInfoCharBefore(): string {
         if (!this.ready)
@@ -151,7 +151,7 @@ export class PromptContext {
     }
 
     /**
-     * 角色定义之后
+     * World info after character definition
      */
     get worldInfoCharAfter(): string {
         if (!this.ready)
@@ -161,7 +161,7 @@ export class PromptContext {
     }
 
     /**
-     * 示例消息之前/之后
+     * World info before/after example messages
      */
     get worldInfoExamples(): { position: typeof wi_anchor_position[keyof typeof wi_anchor_position], content: string }[] {
         if (!this.ready)
@@ -171,8 +171,8 @@ export class PromptContext {
     }
 
     /**
-     * 对话的特定深度
-     * 注入到 chatHistory 中
+     * World info at specific chat depths
+     * Injected into chatHistory
      */
     get worldInfoDepth(): { depth: number, entries: string[], role: string | number }[] {
         if (!this.ready)
@@ -182,8 +182,8 @@ export class PromptContext {
     }
 
     /**
-     * 锚点
-     * 由宏`{{outlet:名字}}`使用
+     * Outlet anchor entries
+     * Used by the macro `{{outlet:<name>}}`
      */
     get worldInfoOutletEntries(): Record<string, string[]> {
         if (!this.ready)
@@ -193,7 +193,7 @@ export class PromptContext {
     }
 
     /**
-     * 作者备注之前
+     * World info before Author's Note
      */
     get worldInfoAuthorNoteBefore(): string[] {
         if (!this.ready)
@@ -203,7 +203,7 @@ export class PromptContext {
     }
 
     /**
-     * 作者备注之后
+     * World info after Author's Note
      */
     get worldInfoAuthorNoteAfter(): string[] {
         if (!this.ready)

@@ -211,7 +211,7 @@ async function onAppReady() {
 
     $("#mes_stop").off("click", onGenerateCancelled).on("click", onGenerateCancelled);
     
-    const viewer = document.evaluate("//div[@id='extensionsMenu']//*[text()='提示词查看器']/..", document)?.iterateNext();
+    const viewer = document.evaluate("//div[@id='extensionsMenu']//*[text()='Prompt Itemization']/..", document)?.iterateNext();
     if(viewer) {
         $(viewer).off("click", onGenerateCancelled).on("click", onGenerateCancelled);
     }

@@ -10,19 +10,19 @@ import { generate } from "@/utils/retries";
 import { z } from 'zod';
 
 interface AgentEntry {
-    name: string;           // agent 名称，来自 @@agent <name>
-    description: string;    // tool 描述，来自 WI comment
-    content: string;        // agent 指令，来自 WI content（装饰器剥离后）
-    paramNames: string[];   // 自定义参数名列表，来自 @@agent <name> 后的参数
-    entry: WorldInfoEntry;  // 原始 WI 条目引用
-    preset?: string;        // 预设覆盖，来自 @@preset
+    name: string;           // agent name, from @@agent <name>
+    description: string;    // tool description, from WI comment
+    content: string;        // agent instructions, from WI content (after decorator stripping)
+    paramNames: string[];   // custom parameter name list, from params after @@agent <name>
+    entry: WorldInfoEntry;  // original WI entry reference
+    preset?: string;        // preset override, from @@preset
 }
 
 const NOT_ALLOWED_DECORATORS = ['@@agent'];
 
 let delayLoadTimer: number | null = null;
 
-/** 全局 Agent 注册表：toolName -> AgentEntry */
+/** Global Agent registry: toolName -> AgentEntry */
 const AGENT_REGISTRY = new Map<string, AgentEntry>();
 
 export async function setup() {
@@ -54,10 +54,10 @@ async function onWorldInfoUpdated() {
 }
 
 /**
- * 在 WI 条目被加载到 prompt 中时，过滤掉 @@agent 条目。
- * 这些条目不应该作为普通 WI 内容出现在 prompt 里。
+ * Filter out @@agent entries when WI entries are loaded into the prompt.
+ * These entries should not appear in the prompt as regular WI content.
  *
- * 参考 schema.ts 的 onWorldInfoLoaded 模式。
+ * Follows the onWorldInfoLoaded pattern from schema.ts.
  */
 function onWorldInfoLoaded(data: WorldInfoLoaded) {
     const filterFn = (entry: WorldInfoEntry) => {
@@ -92,8 +92,8 @@ function onWorldInfoLoaded(data: WorldInfoLoaded) {
 }
 
 /**
- * 主动扫描所有启用的 lorebook，收集所有 @@agent 条目，
- * 注册到 TOOL_DEFINITION 并同步 preset.tools 配置。
+ * Actively scan all enabled lorebooks, collect all @@agent entries,
+ * register them in TOOL_DEFINITION and sync preset.tools config.
  */
 async function loadAgents() {
     const preset = settings.presets[settings.currentPreset];
@@ -124,16 +124,16 @@ async function loadAgents() {
 
             const toolName = `agent_${agentEntry.name}`;
 
-            // 检查 agent 名称冲突
+            // Check for agent name conflict
             if (AGENT_REGISTRY.has(toolName)) {
                 console.warn(`Agent Router: agent "${agentEntry.name}" is already registered, skipping entry ${entry.world}/${entry.uid}`);
                 continue;
             }
 
-            // 构建参数 schema
+            // Build parameter schema
             const schema = buildParameterSchema(agentEntry.paramNames);
 
-            // 构建 Tool 定义
+            // Build Tool definition
             const tool: Tool = {
                 name: toolName,
                 description: agentEntry.description,
@@ -143,12 +143,12 @@ async function loadAgents() {
                 },
             };
 
-            // 注册到 TOOL_DEFINITION
+            // Register in TOOL_DEFINITION
             TOOL_DEFINITION.set(toolName, tool);
             AGENT_REGISTRY.set(toolName, agentEntry);
 
-            // 同步 preset.tools 配置（方案 A）
-            // 不包含 'agent' trigger，防止子生成时递归调用
+            // Sync preset.tools config (Plan A)
+            // Does not include 'agent' trigger to prevent recursive calls during sub-generations
             if (!preset.tools[toolName]) {
                 preset.tools[toolName] = {
                     enabled: true,
@@ -157,13 +157,13 @@ async function loadAgents() {
                     description: agentEntry.description,
                 };
             } else {
-                // 更新现有配置的 description（但保留用户设置）
-                // 确保 triggers 不包含 'agent'
+                // Update existing config description (but preserve user settings)
+                // Ensure triggers do not include 'agent'
                 const existing = preset.tools[toolName];
                 if (!existing.triggers || existing.triggers.length === 0) {
                     existing.triggers = ['normal', 'regenerate', 'swipe'];
                 } else {
-                    // 移除 'agent' trigger（如果存在）
+                    // Remove 'agent' trigger (if present)
                     existing.triggers = existing.triggers.filter(t => t !== 'agent');
                     if (existing.triggers.length === 0) {
                         existing.triggers = ['normal', 'regenerate', 'swipe'];
@@ -184,8 +184,8 @@ async function loadAgents() {
 }
 
 /**
- * 解析 WI 条目为 AgentEntry。
- * 从 @@agent <name> [param1] [param2]... 装饰器中提取信息。
+ * Parse a WI entry into an AgentEntry.
+ * Extracts information from the @@agent <name> [param1] [param2]... decorator.
  */
 function parseAgentEntry(entry: WorldInfoEntry): AgentEntry | null {
     const parsed = new DecoratorParser(entry);
@@ -200,7 +200,7 @@ function parseAgentEntry(entry: WorldInfoEntry): AgentEntry | null {
     const description = entry.comment || name;
     const content = entry.content || '';
 
-    // 查找 @@preset 装饰器
+    // Look up @@preset decorator
     let preset: string | undefined;
     if (parsed.parameters['@@preset'] && parsed.parameters['@@preset'].length > 0) {
         preset = parsed.parameters['@@preset'][0];
@@ -217,9 +217,9 @@ function parseAgentEntry(entry: WorldInfoEntry): AgentEntry | null {
 }
 
 /**
- * 根据参数名列表动态构建 Zod schema。
- * 有自定义参数时，每个参数为 z.string()；
- * 无自定义参数时，使用默认 task 参数。
+ * Dynamically build Zod schema based on parameter name list.
+ * With custom parameters, each is z.string();
+ * without custom parameters, use the default task parameter.
  */
 function buildParameterSchema(paramNames: string[]): z.ZodObject<any> {
     if (paramNames.length > 0) {
@@ -236,7 +236,7 @@ function buildParameterSchema(paramNames: string[]): z.ZodObject<any> {
 }
 
 /**
- * 注销所有已注册的 agent tools。
+ * Unregister all registered agent tools.
  */
 function unregisterAllAgents() {
     for (const [toolName] of AGENT_REGISTRY) {
@@ -246,21 +246,21 @@ function unregisterAllAgents() {
 }
 
 /**
- * 执行子生成。
- * LLM 传入的参数值作为 macro 注入到子 Context，
- * WI content 作为 {{original}} macro。
+ * Execute a sub-generation.
+ * LLM-provided parameter values are injected as macros into the sub-Context,
+ * WI content is available as the {{original}} macro.
  *
- * 使用自定义 generate type 'agent'：
- * - 防递归：agent tools 的 triggers 不包含 'agent'
- * - 控制提示词：用户可通过 preset 的 triggers 控制
+ * Uses a custom generate type 'agent':
+ * - Recursion prevention: agent tools' triggers do not include 'agent'
+ * - Prompt control: users can control via preset triggers
  */
 async function callAgent(agentEntry: AgentEntry, validatedData: Record<string, any>): Promise<string> {
     console.log(`Agent Router: calling agent "${agentEntry.name}" with params`, validatedData);
 
-    // 只读全局 context 获取 chat 和 chat_metadata，不直接修改全局 context
+    // Read-only global context to access chat and chat_metadata, do not mutate global context directly
     const globalCtx = (validatedData.context ?? Context.global()) as Context;
 
-    // 构建 macro 映射
+    // Build macro mapping
     const macros: Record<string, any> = {
         'lastUserMessage': () => substituteParams(globalCtx.chat.findLast(msg => msg.is_user && !msg.is_system)?.mes ?? ''),
         'lastCharMessage': () => substituteParams(globalCtx.chat.findLast(msg => !msg.is_user && !msg.is_system)?.mes ?? ''),
@@ -274,27 +274,27 @@ async function callAgent(agentEntry: AgentEntry, validatedData: Record<string, a
         macros['task'] = validatedData.task;
     }
 
-    // 使用 TemplateHandler 查找匹配的模板
+    // Use TemplateHandler to find matching template
     const template = TemplateHandler.find('@@agent', agentEntry.name);
 
-    // 创建独立的子 Context，避免污染全局 Context
-    // 参考 agent-manager.ts:505-506 的模式
+    // Create an independent sub-Context to avoid polluting the global Context
+    // Follows the pattern from agent-manager.ts:505-506
     const chatHistory = template
         ? await template.buildChatHistory(globalCtx.chat)
         : [ { mes: agentEntry.content } ];
     const ctx = new Context({ chat: chatHistory, chat_metadata: globalCtx.chat_metadata });
 
-    // 设置 macroOverride
+    // Set macroOverride
     ctx.macroOverride = {
         original: agentEntry.content,
         macros,
     };
 
-    // 应用模板的 filters（禁用不需要的 prompt 部分）
+    // Apply template filters (disable unwanted prompt sections)
     if (template) {
         ctx.filters = template.filters;
     } else {
-        // 默认 filters：子生成不需要完整上下文
+        // Default filters: sub-generation does not need full context
         ctx.filters = {
             chatHistory: false,
             worldInfoBefore: false,
@@ -303,13 +303,13 @@ async function callAgent(agentEntry: AgentEntry, validatedData: Record<string, a
         };
     }
 
-    // 支持 @@preset 覆盖
+    // Support @@preset override
     if (agentEntry.preset) {
         ctx.presetOverride = agentEntry.preset;
     }
 
     try {
-        // 使用 'agent' type 执行子生成，dontCreate 防止创建消息
+        // Use 'agent' type for sub-generation, dontCreate prevents message creation
         const result = await generate(
             ctx,
             'agent',
