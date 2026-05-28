@@ -11,6 +11,7 @@ import { TOOL_DEFINITION } from '@/features/tool-manager';
 import { z } from 'zod';
 import { openLargeEditor } from '@/utils/large-editor';
 import { t } from '@st/scripts/i18n.js';
+import { convertFromVanilla } from '@/utils/preset-converter';
 
 export const settings: Settings = clone(defaultSettings);
 
@@ -3067,6 +3068,11 @@ function parseImportPayload(raw: unknown): {
 } {
     if (!isRecord(raw)) {
         throw new Error('Invalid JSON payload.');
+    }
+
+    if (raw.chat_completion_source) {
+        const { api, preset } = convertFromVanilla(raw);
+        return { presets: [ preset ], apiConnection: api, currentPreset: 0 };
     }
 
     const payload = raw as ImportPayload;
