@@ -3061,7 +3061,7 @@ function confirmExport(): void {
     downloadExportPayload(payload);
 }
 
-function parseImportPayload(raw: unknown): {
+function parseImportPayload(raw: unknown, name?: string): {
     presets: Preset[];
     currentPreset: number;
     apiConnection: ImportPayload['apiConnection'] | null;
@@ -3072,6 +3072,10 @@ function parseImportPayload(raw: unknown): {
 
     if (raw.chat_completion_source) {
         const { api, preset } = convertFromVanilla(raw);
+        if (name) {
+            preset.name = name;
+            api.linkedPreset = name;
+        }
         return { presets: [ preset ], apiConnection: api, currentPreset: 0 };
     }
 
@@ -3115,7 +3119,7 @@ async function importPresetsFromFile(file: File): Promise<void> {
         throw new Error('Invalid JSON file.');
     }
 
-    const normalized = parseImportPayload(parsed);
+    const normalized = parseImportPayload(parsed, file.name.replace('.json', ''));
 
     const api = getCurrentApi();
     const previousApiKey = api.apiKey;
