@@ -1,4 +1,3 @@
-import { Tool } from './context';
 import { z } from 'zod';
 import { settings } from '@/settings';
 import { setup as setupButtons } from '@/features/tools/buttons';
@@ -11,6 +10,14 @@ import { setup as setupVarSet } from '@/features/tools/variable-set';
 import { setup as setupVarGet } from '@/features/tools/variable-get';
 import { setup as setupWISet } from '@/features/tools/worldinfo-set';
 import { setup as setupAgentRouter } from '@/features/tools/agent-router';
+import { setup as setupCalculate } from '@/features/tools/calculate';
+
+export interface Tool {
+    name: string;
+    description: string;
+    parameters: z.ZodObject;
+    'function': (params: any) => Promise<string>;
+}
 
 export const TOOL_DEFINITION = new Map<string, Tool>();
 
@@ -25,6 +32,7 @@ export async function setup() {
     await setupVarGet();
     await setupWISet();
     await setupAgentRouter();
+    await setupCalculate();
 }
 
 /**

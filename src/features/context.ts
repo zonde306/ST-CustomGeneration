@@ -19,7 +19,7 @@ import { eventTypes } from '@/utils/events';
 import { Preset, ChatCompMessage } from '@/utils/defines';
 import { defaultPreset } from '@/utils/default-settings';
 import { AsyncMutex } from '@/utils/mutex';
-import { getAvailableTools, getTool } from '@/features/tool-manager';
+import { getAvailableTools, getTool, Tool } from '@/features/tool-manager';
 import { z } from 'zod';
 import { yaml } from "@st/lib.js";
 
@@ -84,13 +84,6 @@ export interface GenerateOptionsLite {
      * Use the specified task ID, otherwise generate a random one.
      */
     taskId?: number | string;
-}
-
-export interface Tool {
-    name: string;
-    description: string;
-    parameters: z.ZodObject;
-    'function': (params: any) => Promise<string>;
 }
 
 let taskIdCounter = 0;
