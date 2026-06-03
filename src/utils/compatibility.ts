@@ -1,10 +1,10 @@
-import { ApiSettings, Preset, TEMPLATE_FILTER_OPTIONS } from "@/utils/defines";
+import { ApiSettings, Preset, TEMPLATE_FILTER_OPTIONS, RegEx } from "@/utils/defines";
 import { defaultPreset } from "@/utils/default-settings";
 import { yaml } from "@st/lib.js";
 import { regex_placement } from "@st/scripts/extensions/regex/engine.js";
 import { INJECTION_POSITION } from "@st/scripts/PromptManager.js";
 
-export function convertFromVanilla(data: Record<string, any>): { api: ApiSettings, preset: Preset } {
+export function convertPreset(data: Record<string, any>): { api: ApiSettings, preset: Preset } {
     const source = data.chat_completion_source;
     const api: ApiSettings = {
         baseUrl: data[`${source}_url`] ?? '',
@@ -61,39 +61,31 @@ export function convertFromVanilla(data: Record<string, any>): { api: ApiSetting
 
     if (data.extensions.regex_scripts?.length) {
         for (const regex of data.extensions.regex_scripts) {
-            preset.regexs.push({
-                name: regex.scriptName,
-                regex: regex.findRegex,
-                enabled: !regex.disabled,
-                replace: regex.replaceString,
-                userInput: regex.placement.includes(regex_placement.USER_INPUT),
-                aiOutput: regex.placement.includes(regex_placement.AI_OUTPUT),
-                worldInfo: regex.placement.includes(regex_placement.WORLD_INFO),
-                minDepth: regex.minDepth,
-                maxDepth: regex.maxDepth,
-                ephemerality: !regex.markdownOnly && !regex.promptOnly,
-                request: regex.promptOnly || (!regex.markdownOnly && !regex.promptOnly),
-                response: regex.markdownOnly || (!regex.markdownOnly && !regex.promptOnly),
-            });
+            preset.regexs.push(convertRegex(regex));
         }
     } else if (data.extensions.SPreset?.RegexBinding?.regexes?.length) {
         for (const regex of data.extensions.SPreset.RegexBinding.regexes) {
-            preset.regexs.push({
-                name: regex.scriptName,
-                regex: regex.findRegex,
-                enabled: !regex.disabled,
-                replace: regex.replaceString,
-                userInput: regex.placement.includes(regex_placement.USER_INPUT),
-                aiOutput: regex.placement.includes(regex_placement.AI_OUTPUT),
-                worldInfo: regex.placement.includes(regex_placement.WORLD_INFO),
-                minDepth: regex.minDepth,
-                maxDepth: regex.maxDepth,
-                ephemerality: !regex.markdownOnly && !regex.promptOnly,
-                request: regex.promptOnly || (!regex.markdownOnly && !regex.promptOnly),
-                response: regex.markdownOnly || (!regex.markdownOnly && !regex.promptOnly),
-            });
+            preset.regexs.push(convertRegex(regex));
         }
     }
 
     return { api, preset };
 }
+
+export function convertRegex(data: Record<string, any>): RegEx {
+    return {
+        name: data.scriptName,
+        regex: data.findRegex,
+        enabled: !data.disabled,
+        replace: data.replaceString,
+        userInput: data.placement.includes(regex_placement.USER_INPUT),
+        aiOutput: data.placement.includes(regex_placement.AI_OUTPUT),
+        worldInfo: data.placement.includes(regex_placement.WORLD_INFO),
+        minDepth: data.minDepth,
+        maxDepth: data.maxDepth,
+        ephemerality: !data.markdownOnly && !data.promptOnly,
+        request: data.promptOnly || (!data.markdownOnly && !data.promptOnly),
+        response: data.markdownOnly || (!data.markdownOnly && !data.promptOnly),
+    };
+}
+

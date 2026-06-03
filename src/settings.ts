@@ -11,7 +11,7 @@ import { TOOL_DEFINITION } from '@/features/tool-manager';
 import { z } from 'zod';
 import { openLargeEditor } from '@/utils/large-editor';
 import { t } from '@st/scripts/i18n.js';
-import { convertFromVanilla } from '@/utils/preset-converter';
+import { convertPreset, convertRegex } from '@/utils/compatibility';
 
 export const settings: Settings = clone(defaultSettings);
 
@@ -388,6 +388,13 @@ function normalizeListExportTool(raw: unknown): ToolSettings {
 function normalizeListExportPayload(raw: unknown): { kind: ListExportKind; items: Array<PresetPrompt | RegEx | Template | ToolSettings> } {
     if (!isRecord(raw)) {
         throw new Error('Invalid JSON payload.');
+    }
+
+    if (raw.findRegex) {
+        return {
+            kind: 'regex',
+            items: [ convertRegex(raw) ],
+        };
     }
 
     const kind = String(raw.kind ?? '').trim();
@@ -1543,7 +1550,7 @@ async function importListFromFile(kind: ListExportKind, file: File): Promise<voi
             preset.tools[toolKey] = toolSettings;
         }
         selectedToolIndex = clamp(toolKeys.length - 1, 0, Math.max(0, toolKeys.length - 1));
-    } else {
+    } else if (kind === 'template') {
         const templateList = normalized.items as Template[];
         const existingTemplateKeys = Object.keys(preset.templates);
         const templateMap = buildTemplateMap(templateList, existingTemplateKeys);
@@ -3071,7 +3078,7 @@ function parseImportPayload(raw: unknown, name?: string): {
     }
 
     if (raw.chat_completion_source) {
-        const { api, preset } = convertFromVanilla(raw);
+        const { api, preset } = convertPreset(raw);
         if (name) {
             preset.name = name;
             api.linkedPreset = name;
