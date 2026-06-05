@@ -6,7 +6,7 @@ import { WorldInfoEntry } from "@/utils/defines";
 import { TemplateHandler } from "@/functions/template";
 import { DecoratorParser } from "@/functions/worldinfo";
 import { Context } from "@/features/context";
-import { WorldInfoEntryWithDecorator } from "@/features/agent-manager";
+import { WorldInfoEntryWithDecorator } from "@/features/trigger-manager";
 
 interface AgnetData {
     entry: WorldInfoEntry;
@@ -47,7 +47,7 @@ function getAgentColor(uid: number): string {
 
 async function onAgentsStart(data: AgentsData) {
     const node = $(`<div agentsindicator="${data.messageId}"></div>`);
-    node.append(await renderExtensionTemplateAsync(templatePath, 'agent-indicator'));
+    node.append(await renderExtensionTemplateAsync(templatePath, 'work-indicator'));
     $(`[mesid=${data.messageId}] > .mes_block`).append(node);
     // Initialize jQuery UI accordion
     const accordion = node.find('.custom_generation_agents_accordion');

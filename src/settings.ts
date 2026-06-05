@@ -3260,7 +3260,7 @@ async function ensureModalTemplatesInjected(): Promise<void> {
     }
 
     if (!$('#custom_generation_template_dialog').length) {
-        $('#custom_generation_settings').append(await renderExtensionTemplateAsync(templatePath, 'template-modal'));
+        $('#custom_generation_settings').append(await renderExtensionTemplateAsync(templatePath, 'trigger-modal'));
     }
 
     if (!$('#custom_generation_tool_dialog').length) {

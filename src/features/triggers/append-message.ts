@@ -1,10 +1,9 @@
-import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/agent-manager";
-import { evaluate, isEjsAvailable } from "@/utils/ejs";
+import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/trigger-manager";
 
 /**
- * The generated result is first processed by EJS, and then appended to the end of the message.
+ * Add the generated result to the end of the message.
  */
-const WI_DECORATOR = '@@append_output_ejs';
+const WI_DECORATOR = '@@append_output';
 
 export async function setup() {
     WI_DECORATOR_MAPPING.set(WI_DECORATOR, { processor, checker });
@@ -12,19 +11,14 @@ export async function setup() {
 }
 
 async function checker(_: DecoratorProcessData) {
-    return isEjsAvailable();
+    return true;
 }
 
 async function processor(data: DecoratorProcessData) {
-    if(data.content.trim().length < 1)
-        return true;
-
-    const content = '\n' + await evaluate(data.content, {
-        ...data.args,
-    });
+    const content = '\n' + data.content;
     if(content.trim().length < 1)
         return true;
-
+    
     if(data.env.chat[data.messageId]?.mes) {
         data.env.chat[data.messageId].mes += content;
         if(data.env.chat[data.messageId].swipes?.[data.swipeId]) {

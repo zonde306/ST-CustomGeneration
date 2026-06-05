@@ -7,16 +7,16 @@ import { DataOverride } from "@/features/override";
 import { Context } from "@/features/context";
 import { generate } from "@/utils/retries";
 import { WorldInfoEntry, WorldInfoLoaded } from "@/utils/defines";
-import { setup as setupReplace } from "@/features/agents/replace"
-import { setup as setupReplaceDiff } from "@/features/agents/replace-diff";
-import { setup as setupVarJson } from "@/features/agents/variable-json";
-import { setup as setupVarYaml } from "@/features/agents/variable-yaml";
-import { setup as setupVarJsonPatch } from "@/features/agents/variable-json-patch";
-import { setup as setupEjsEvaluate } from "@/features/agents/ejs-evaluate";
-import { setup as setupReplaceEjs } from "@/features/agents/ejs-replace";
-import { setup as setupReplaceSearch } from "@/features/agents/replace-search";
-import { setup as setupAppendMessage } from "@/features/agents/append-message";
-import { setup as setupAppendEjs } from "@/features/agents/ejs-append";
+import { setup as setupReplace } from "@/features/triggers/replace"
+import { setup as setupReplaceDiff } from "@/features/triggers/replace-diff";
+import { setup as setupVarJson } from "@/features/triggers/variable-json";
+import { setup as setupVarYaml } from "@/features/triggers/variable-yaml";
+import { setup as setupVarJsonPatch } from "@/features/triggers/variable-json-patch";
+import { setup as setupEjsEvaluate } from "@/features/triggers/ejs-evaluate";
+import { setup as setupReplaceEjs } from "@/features/triggers/ejs-replace";
+import { setup as setupReplaceSearch } from "@/features/triggers/replace-search";
+import { setup as setupAppendMessage } from "@/features/triggers/append-message";
+import { setup as setupAppendEjs } from "@/features/triggers/ejs-append";
 import { eventTypes } from "@/utils/events";
 import { execute as batchExecute } from "@/utils/concurrency-limiter";
 import { settings } from "@/settings";
@@ -99,7 +99,7 @@ export async function setup() {
 /**
  * Execute after generate processing
  */
-export async function runAfterAgents(lockButton: boolean = true) {
+export async function runAfterTriggers(lockButton: boolean = true) {
     if(delayGenerationTimer != null) {
         // Cancel previous delay generation
         window.clearInterval(delayGenerationTimer);
@@ -204,7 +204,7 @@ async function onAppReady() {
         `);
 
         $('#customGenerateAfter').on('click', () => {
-            runAfterAgents();
+            runAfterTriggers();
             toastr.info('After Generate Starting');
         });
     }
@@ -452,7 +452,7 @@ async function onMessageReceived(messageId: number, type: string) {
                 return;
             }
 
-            runAfterAgents(!document.body.dataset.generating);
+            runAfterTriggers(!document.body.dataset.generating);
             state = GenStage.None;
         }, 1000);
     }
