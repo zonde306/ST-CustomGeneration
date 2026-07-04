@@ -617,6 +617,13 @@ export interface ToolDefinition {
     }
 }
 
+export interface Skill {
+    name: string;
+    description: string;
+    body: string;
+    entry: WorldInfoEntry;
+}
+
 export const TEMPLATE_FILTER_OPTIONS = [
     'main',
     'personaDescription',
@@ -652,4 +659,6 @@ export const TEMPLATE_FILTER_OPTIONS = [
     'chatDepth3',
     'chatDepth4',
     'toolCalls',
+    'skillDefinitions',
+    'skillBodies',
 ];

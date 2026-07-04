@@ -11,6 +11,7 @@ import { setup as setupVarGet } from '@/features/tools/variable-get';
 import { setup as setupWISet } from '@/features/tools/worldinfo-set';
 import { setup as setupAgentRouter } from '@/features/tools/agent-router';
 import { setup as setupCalculate } from '@/features/tools/calculate';
+import { setup as setupSkillLoader } from '@/features/tools/skill-loader';
 
 export interface Tool {
     name: string;
@@ -33,6 +34,7 @@ export async function setup() {
     await setupWISet();
     await setupAgentRouter();
     await setupCalculate();
+    await setupSkillLoader();
 }
 
 /**

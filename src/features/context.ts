@@ -22,6 +22,8 @@ import { AsyncMutex } from '@/utils/mutex';
 import { getAvailableTools, getTool, Tool } from '@/features/tool-manager';
 import { z } from 'zod';
 import { yaml } from "@st/lib.js";
+import { SkillScanner } from '@/features/skill-scanner';
+import { getActivatedEntries, loadWorldInfoEntries } from '@/functions/worldinfo';
 
 const locker = new AsyncMutex();
 
@@ -97,6 +99,7 @@ export class Context {
     public macroOverride: MacroOverride;
     public filters: PromptFilter;
     public tools: Map<string, Tool>;
+    public skillScanner: SkillScanner;
 
     constructor({ chat, chat_metadata }: { chat: ChatMessageEx[], chat_metadata: ChatMetadataEx }) {
         this.chat = chat;
@@ -107,6 +110,7 @@ export class Context {
         this.macroOverride = {};
         this.filters = {};
         this.tools = new Map();
+        this.skillScanner = new SkillScanner();
     }
 
     /**
@@ -359,6 +363,8 @@ export class Context {
         builder.filters = this.filters;
         builder.macroOverride = this.macroOverride;
         builder.toolMessages = options.toolMessages ?? [];
+        
+        const worldinfoTrigger: string[] = this.chat.map(x => x.mes ?? '');
 
         // To avoid conflicts caused by concurrent read and write operations of chat_metadata in worldinfo.
         const messages = await locker.invoke(async() => {
@@ -379,13 +385,23 @@ export class Context {
             chat_metadata.timedWorldInfo = this.chat_metadata.timedWorldInfo;
 
             try {
+                // Load all world info entries and initial activated ones for skills
+                const allEntries = await loadWorldInfoEntries();
+                const initialActivatedEntries = await getActivatedEntries(worldinfoTrigger, type, true);
+                
+                // Initialize the skill scanner
+                this.skillScanner.initialize(allEntries, initialActivatedEntries);
+                builder.skillScanner = this.skillScanner;
+                
                 return await builder.build(type, dryRun);
             } finally {
                 eventSource.removeListener(event_types.WORLDINFO_ENTRIES_LOADED, handler);
                 eventSource.removeListener(event_types.WORLDINFO_SCAN_DONE, handler);
                 eventSource.removeListener(event_types.WORLD_INFO_ACTIVATED, handler);
-                this.chat_metadata.timedWorldInfo = chat_metadata.timedWorldInfo;
-                chat_metadata.timedWorldInfo = timedWorldInfo; // restore timedWorldInfo
+
+                // restore timedWorldInfo
+                this.chat_metadata.timedWorldInfo = timedWorldInfo;
+                chat_metadata.timedWorldInfo = timedWorldInfo;
             }
         });
 

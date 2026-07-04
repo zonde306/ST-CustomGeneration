@@ -18,13 +18,14 @@ import {
 import { metadata_keys } from '@st/scripts/authors-note.js';
 import { inject_ids } from '@st/scripts/constants.js';
 import { settings } from '@/settings';
-import { GenerateOptionsLite, ContextRole, ChatCompMessage } from "@/utils/defines";
+import { GenerateOptionsLite, ContextRole, ChatCompMessage, Skill } from "@/utils/defines";
 import { Preset, RegEx, PresetPrompt } from "@/utils/defines";
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
 import { wi_anchor_position } from '@st/scripts/world-info.js';
 import { DynamicMacroValue } from '@st/scripts/macros/engine/MacroEnv.types.js';
 import { defaultPreset } from "@/utils/default-settings";
 import { eventTypes } from "@/utils/events";
+import { SkillScanner } from '@/features/skill-scanner';
 
 interface ExtensionPrompts {
     value: string,
@@ -51,6 +52,8 @@ export interface PromptFilter extends Record<string, any> {
     presetDepth?: boolean;
     charDepth?: boolean;
     worldInfoOutlet?: boolean;
+    skillDefinitions?: boolean | string | string[] | ChatCompMessage[];
+    skillBodies?: boolean | string | string[] | ChatCompMessage[];
 }
 
 // Replace or Customize Macros
@@ -84,6 +87,7 @@ export class MessageBuilder {
     private charDepth: string;
     private postProcessing: string;
     public toolMessages: ChatCompMessage[]; // only for tool messages
+    public skillScanner: SkillScanner | null = null;
 
     constructor(chat: ChatMessage[], preset?: Preset, postProcessing: string = 'none') {
         this.chat = chat;
@@ -1069,6 +1073,18 @@ export class MessageBuilder {
                 break;
             case 'toolCalls':
                 prompt = this.toolMessages;
+                break;
+            case 'skillDefinitions':
+                if (this.skillScanner) {
+                    const skills = this.skillScanner.getActivatedSkills();
+                    prompt = skills.map(s => `${s.name}: ${s.description}`).join('\n');
+                }
+                break;
+            case 'skillBodies':
+                if (this.skillScanner) {
+                    const skills = this.skillScanner.getActivatedSkills();
+                    prompt = skills.map(s => s.body).filter(Boolean).join('\n\n');
+                }
                 break;
         }
 

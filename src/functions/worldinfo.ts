@@ -34,6 +34,7 @@ export const KNOWN_DECORATORS = [
     '@@json_schema',        // Define a JSON Schema to validate variables.
     '@@zod_schema',        // Define a Zod Schema to validate variables.
     '@@agent',              // Agent Router - register as an LLM-callable sub-agent tool
+    '@@skill',              // Skill system - define a skill
 ];
 
 /**
