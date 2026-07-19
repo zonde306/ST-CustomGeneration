@@ -1,0 +1,120 @@
+import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/trigger-manager";
+import { updateMessageBlock } from "@st/script.js";
+import { event_types, eventSource } from "@st/scripts/events.js";
+
+/**
+ * The generated results are parsed into a format similar to a Git conflict, and then the original WorldInfo content is searched and replaced.
+ */
+const WI_DECORATOR = '@@message_search';
+
+export async function setup() {
+    WI_DECORATOR_MAPPING.set(WI_DECORATOR, { processor, checker });
+    WI_DECORATOR_BEFORE_MAPPING.set(`${WI_DECORATOR}_before`, { processor, checker });
+}
+
+async function checker(data: DecoratorProcessData) {
+    // Unable to search and replace empty content
+    const content = data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content || data.content;
+    if(content.includes('<%')) {
+        console.warn(`Content to replace for ${data.entry.world}/${data.entry.uid}-${data.entry.comment} includes EJS code`);
+        return false;
+    }
+
+    if(content.trim().length)
+        return true;
+
+    console.warn(`No content to replace for ${data.entry.world}/${data.entry.uid}-${data.entry.comment}`);
+    return false;
+}
+
+async function processor(data: DecoratorProcessData) {
+    if(data.content.trim().length < 1)
+        return true;
+
+    const message = data.env.chat[data.messageId];
+    const original = message.swipes?.[data.swipeId];
+    if (!original?.trim()) {
+        console.warn(`No content to replace for ${data.messageId} #${data.swipeId}`);
+        return true;
+    }
+
+    let result = gitConflictStyle(data.content, original);
+    if(result === false)
+        result = jsonStyle(data.content, original);
+
+    if(result) {
+        message.swipes![data.swipeId] = result;
+        if (message.swipe_id === data.swipeId) {
+            message.mes = result;
+
+            updateMessageBlock(data.messageId, message);
+            if (message.is_user)
+                await eventSource.emit(event_types.USER_MESSAGE_RENDERED, data.messageId);
+            else if (!message.is_system)
+                await eventSource.emit(event_types.CHARACTER_MESSAGE_RENDERED, data.messageId, 'after_replace');
+        }
+        
+        console.debug(`chat message ${data.messageId} #${data.swipeId} replace to: ${result}`);
+    } else {
+        console.error(`chat message ${data.messageId} #${data.swipeId} replace failed`);
+        return false;
+    }
+    
+    return true;
+}
+
+function gitConflictStyle(search: string, target: string): string | false {
+    const pattern = /<<<<<<< SEARCH\r?\n([\S\s]+?)\r?\n=======\r?\n([\S\s]+?)\r?\n>>>>>>> REPLACE/gi;
+    let match = undefined;
+    while((match = pattern.exec(search)) !== null) {
+        const [, search, replace] = match;
+        console.debug(`Search '${search}' and replace '${replace}'`);
+
+        if(!target.includes(search)) {
+            throw new Error(`Search '${search}' not found in target '${target}'`);
+        }
+
+        target = target.replace(search, replace);
+    }
+
+    if(match === undefined)
+        return false;
+
+    return target;
+}
+
+function jsonStyle(search: string, target: string): string | false {
+    const edits = JSON.parse(search);
+    if(!Array.isArray(edits)) {
+        if(edits.search && edits.replace) {
+            console.debug(`Search '${edits.search}' and replace '${edits.replace}'`);
+
+            if(!target.includes(edits.search)) {
+                throw new Error(`Search '${edits.search}' not found in target '${target}'`);
+            }
+
+            return target.replace(edits.search, edits.replace);
+        }
+
+        return false;
+    }
+
+    let changed = false;
+    for(const edit of edits) {
+        if(edit.search && edit.replace) {
+            console.debug(`Search '${edit.search}' and replace '${edit.replace}'`);
+
+            if(!target.includes(edit.search)) {
+                throw new Error(`Search '${edit.search}' not found in target '${target}'`);
+            }
+            
+            target = target.replace(edit.search, edit.replace);
+            changed = true;
+        }
+    }
+
+    if(!changed)
+        return false;
+
+    return target;
+}

@@ -35,6 +35,8 @@ export const KNOWN_DECORATORS = [
     '@@zod_schema',        // Define a Zod Schema to validate variables.
     '@@agent',              // Agent Router - register as an LLM-callable sub-agent tool
     '@@skill',              // Skill system - define a skill
+    '@@message_search',
+    '@@message_search_before',
 ];
 
 /**
