@@ -15,7 +15,7 @@ import { convertPreset, convertRegex } from '@/utils/compatibility';
 
 export const settings: Settings = clone(defaultSettings);
 
-const ALL_DECORATORS = KNOWN_DECORATORS;
+const ALL_DECORATORS = Array.from(KNOWN_DECORATORS);
 const DEFAULT_TEMPLATE_DECORATOR = ALL_DECORATORS[0] as TemplateDecorator;
 const PROMPT_TRIGGER_OPTIONS = ['normal', 'regenerate', 'swipe', 'continue', ...ALL_DECORATORS];
 

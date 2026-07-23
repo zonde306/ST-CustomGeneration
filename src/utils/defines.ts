@@ -330,6 +330,8 @@ export interface ChatCompPart {
     file?: { file_data: string; filename?: string; }
 }
 
+type SetElementType<T> = T extends Set<infer U> ? U : never;
+
 export interface PresetPrompt {
     // A name for this prompt. (displayed in the UI)
     name: string;
@@ -338,7 +340,7 @@ export interface PresetPrompt {
     role: 'user' | 'assistant' | 'system';
 
     // Filter to specific generation types. empty means all.
-    triggers: (typeof KNOWN_DECORATORS[number] | string)[];
+    triggers: (SetElementType<typeof KNOWN_DECORATORS> | string)[];
 
     // content (User-defined only)
     prompt: string;
@@ -401,7 +403,7 @@ export interface RegEx {
 
 export interface Template {
     // e.g: @@record, must in KNOWN_DECORATORS lists
-    decorator: typeof KNOWN_DECORATORS[number];
+    decorator: SetElementType<typeof KNOWN_DECORATORS> | string;
 
     // can be empty, used by (@@<decorator> <tag>)
     tag: string;
@@ -517,7 +519,7 @@ export interface ToolSettings {
     enabled: boolean;
 
     // Filter to specific generation types. empty means all.
-    triggers: (typeof KNOWN_DECORATORS[number] | string)[];
+    triggers: (SetElementType<typeof KNOWN_DECORATORS> | string)[];
 
     // Description of each parameter
     parameters: Record<string, string>;
