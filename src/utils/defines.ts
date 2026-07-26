@@ -362,6 +362,10 @@ export interface PresetPrompt {
 
     // How many messages to retain (chatHistory only)
     maxDepth: number;
+
+    // Include this prompt's content in the World Info activation scan.
+    // Only resolvable-before-scan prompts are supported, see SCANNABLE_INTERNALS.
+    scan?: boolean;
 }
 
 export interface RegEx {
@@ -663,4 +667,19 @@ export const TEMPLATE_FILTER_OPTIONS = [
     'toolCalls',
     'skillDefinitions',
     'skillBodies',
+];
+
+/**
+ * Internal prompts whose content can be resolved before the World Info scan runs,
+ * so they may be used as extra activation text. All other internals are derived
+ * from the scan result and would create a circular dependency.
+ */
+export const SCANNABLE_INTERNALS: readonly (typeof TEMPLATE_FILTER_OPTIONS[number])[] = [
+    'lastCharMessage',
+    'lastUserMessage',
+    'chatDepth0',
+    'chatDepth1',
+    'chatDepth2',
+    'chatDepth3',
+    'chatDepth4',
 ];

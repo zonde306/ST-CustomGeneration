@@ -1,5 +1,4 @@
 import { settings } from "@/settings";
-import { MessageBuilder } from "@/functions/message-builder";
 import { PromptFilter } from "@/functions/message-builder";
 import { Template, PresetPrompt } from "@/utils/defines";
 import { parseRegexString } from "@/utils/stringutl";
@@ -119,23 +118,12 @@ export class TemplateHandler {
         };
     }
 
-    /**
-     * The `Chat History` prompt content is constructed without macro processing.
-     * @param chat The current chat history may need to be filtered first.
-     * @param type The generation type defaults to using the current decorator.
-     * @returns Chat History List
-     */
-    async buildChatHistory(chat: ChatMessage[] = [], type: string = ''): Promise<ChatMessage[]> {
-        const builder = new MessageBuilder(chat);
-        builder.regexs = [];
-        builder.evaluateMacro = false;
-        builder.prompts = this.template.prompts;
-        const messages = await builder.build(type || this.template.decorator, false);
-        return messages.map(msg => ({ is_user: msg.role === 'user', is_system: msg.role === 'system', mes: msg.content as string }));
-    }
-
     get prompts(): PresetPrompt[] {
         return this.template.prompts;
+    }
+
+    get decorator(): string {
+        return this.template.decorator;
     }
 
     get filters(): PromptFilter {

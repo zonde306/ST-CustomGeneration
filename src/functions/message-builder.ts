@@ -18,14 +18,15 @@ import {
 import { metadata_keys } from '@st/scripts/authors-note.js';
 import { inject_ids } from '@st/scripts/constants.js';
 import { settings } from '@/settings';
-import { GenerateOptionsLite, ContextRole, ChatCompMessage, Skill } from "@/utils/defines";
-import { Preset, RegEx, PresetPrompt } from "@/utils/defines";
+import { GenerateOptionsLite, ContextRole, ChatCompMessage } from "@/utils/defines";
+import { Preset, RegEx, PresetPrompt, SCANNABLE_INTERNALS } from "@/utils/defines";
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
 import { wi_anchor_position } from '@st/scripts/world-info.js';
 import { DynamicMacroValue } from '@st/scripts/macros/engine/MacroEnv.types.js';
 import { defaultPreset } from "@/utils/default-settings";
 import { eventTypes } from "@/utils/events";
 import { SkillScanner } from '@/features/skill-scanner';
+import { world_info_depth } from "@st/scripts/world-info.js";
 
 interface ExtensionPrompts {
     value: string,
@@ -81,6 +82,18 @@ export class MessageBuilder {
     public prompts: PresetPrompt[];
     public evaluateMacro: boolean;
     public maxChatHistory: number;
+    /**
+     * Trigger template prompts. When set, they are expanded in place of the
+     * preset's `chatHistory` slot, so trigger generations reuse this build pass
+     * instead of pre-building a pseudo chat history. The template's own
+     * `chatHistory` slot receives the real (depth-injected) chat history.
+     */
+    public historyPrompts: PresetPrompt[] | null = null;
+    /**
+     * Trigger type used to match `historyPrompts` triggers, e.g. the template's
+     * decorator. Falls back to the build type when unset.
+     */
+    public historyPromptsType: string | null = null;
     private worldInfoDepth: string[];
     private authorsNoteDepth: string;
     private presetDepth: string[];
@@ -109,11 +122,22 @@ export class MessageBuilder {
     }
 
     async build(type: string = 'normal', dryRun: boolean = false): Promise<ChatCompMessage[]> {
-        const worldinfoTrigger: string[] = this.chat.map(x => x.mes ?? '');
+        const historyType = this.historyPromptsType ?? type;
+        const worldinfoTrigger: string[] = this.chat.slice(-world_info_depth).map(x => x.mes ?? '');
+        worldinfoTrigger.push(...this.collectScanPrompts(type));
+        if (this.historyPrompts) {
+            worldinfoTrigger.push(...this.collectScanPrompts(historyType, this.historyPrompts));
+        }
         const prompt = await PromptContext.create(worldinfoTrigger, type, dryRun, settings.apis[settings.currentApi]?.contextSize);
         const historyMessages = this.buildChatHistory();
         await this.rebuildDepthInjections(prompt, historyMessages, type);
-        const historyInjectedMessages = this.injectDepthPromptsToHistory(historyMessages, type === 'continue');
+        let historyInjectedMessages = this.injectDepthPromptsToHistory(historyMessages, type === 'continue');
+        if (this.historyPrompts) {
+            // Replace the history with the expanded template prompts; runs after the
+            // depth injections so internals like worldInfoDepthN/charNote are populated,
+            // and the template's `chatHistory` slot receives the injected real history.
+            historyInjectedMessages = await this.expandHistoryPrompts(prompt, historyInjectedMessages, historyType);
+        }
         const result = await this.buildMessages(prompt, historyInjectedMessages, type);
         this.extensionPrompts = {};
         return result;
@@ -335,6 +359,61 @@ export class MessageBuilder {
         }
     }
 
+    /**
+     * Collects extra World Info activation text from prompts marked with `scan`.
+     * Only prompts whose content is resolvable before the scan are supported,
+     * anything derived from the scan result is skipped to avoid a circular dependency.
+     */
+    private collectScanPrompts(type: string, prompts: PresetPrompt[] = this.prompts): string[] {
+        const texts: string[] = [];
+
+        for (const prompt of prompts) {
+            if (!prompt.scan || !prompt.enabled) {
+                continue;
+            }
+
+            if (prompt.triggers.length > 0 && !prompt.triggers.includes(type)) {
+                continue;
+            }
+
+            if (prompt.internal && !SCANNABLE_INTERNALS.includes(prompt.internal)) {
+                console.debug(`Prompt ${prompt.name} cannot be scanned: ${prompt.internal} depends on the World Info scan result`);
+                continue;
+            }
+
+            const content = prompt.internal
+                ? this.getScannableInternalContent(prompt.internal)
+                : this.evaluateMacros(prompt.prompt);
+
+            if (content.trim()) {
+                texts.push(content);
+            }
+        }
+
+        return texts;
+    }
+
+    private getScannableInternalContent(internal: NonNullable<PresetPrompt['internal']>): string {
+        switch (internal) {
+            case 'lastCharMessage':
+                return this.chat.findLast(mes => !mes.is_user && !mes.is_system)?.mes ?? '';
+            case 'lastUserMessage':
+                return this.chat.findLast(mes => mes.is_user)?.mes ?? '';
+            case 'chatDepth0':
+                return this.chat[this.chat.length - 1]?.mes ?? '';
+            case 'chatDepth1':
+                return this.chat[this.chat.length - 2]?.mes ?? '';
+            case 'chatDepth2':
+                return this.chat[this.chat.length - 3]?.mes ?? '';
+            case 'chatDepth3':
+                return this.chat[this.chat.length - 4]?.mes ?? '';
+            case 'chatDepth4':
+                return this.chat[this.chat.length - 5]?.mes ?? '';
+            default:
+                return '';
+        }
+    }
+
     private buildChatHistory(): ChatCompMessage[] {
         const history: ChatCompMessage[] = this.chat.slice(-this.maxChatHistory).map((msg, idx) => ({
             role: msg.is_user ? 'user' : msg.is_system ? 'system' : 'assistant',
@@ -346,6 +425,76 @@ export class MessageBuilder {
         }));
 
         return history;
+    }
+
+    /**
+     * Expands trigger template prompts into a message list that replaces the
+     * real chat history. The template's own `chatHistory` slot receives the
+     * real (depth-injected) history, so `@@decorator` generations run through
+     * the same build pass as normal generations.
+     */
+    private async expandHistoryPrompts(
+        prompts: PromptContext,
+        realHistory: ChatCompMessage[],
+        type: string,
+    ): Promise<ChatCompMessage[]> {
+        const active = (this.historyPrompts ?? []).filter((prompt) => {
+            if (!prompt.enabled) {
+                console.debug(`Template prompt ${prompt.name} is not enabled`);
+                return false;
+            }
+
+            if (prompt.triggers.length > 0 && !prompt.triggers.includes(type)) {
+                console.debug(`Template prompt ${prompt.name} is not triggered by ${type}`);
+                return false;
+            }
+
+            return true;
+        });
+
+        // In-chat template prompts inject into the real history at depth,
+        // so they end up inside the template's `chatHistory` slot.
+        const history = [...realHistory];
+        for (const prompt of active) {
+            if (prompt.injectionPosition !== 'inChat') {
+                continue;
+            }
+
+            const content = prompt.internal
+                ? await this.getInternalContent(prompt, prompts, history)
+                : prompt.prompt;
+
+            const injected: ChatCompMessage[] = [];
+            this.appendPresetContent(injected, prompt.role, content);
+            if (!injected.length) {
+                continue;
+            }
+
+            const depth = this.normalizeDepth(prompt.injectionDepth, 0);
+            history.splice(Math.max(0, history.length - depth), 0, ...injected);
+        }
+
+        const messages: ChatCompMessage[] = [];
+        for (const prompt of active) {
+            if (prompt.injectionPosition === 'inChat') {
+                continue;
+            }
+
+            // The prompt's maxDepth limits how much real history its chatHistory slot receives.
+            let slotHistory = history;
+            if (prompt.internal === 'chatHistory') {
+                const limit = this.normalizeDepth(prompt.maxDepth, history.length);
+                slotHistory = limit > 0 ? history.slice(-limit) : [];
+            }
+
+            const content = prompt.internal
+                ? await this.getInternalContent(prompt, prompts, slotHistory)
+                : prompt.prompt;
+
+            this.appendPresetContent(messages, prompt.role, content);
+        }
+
+        return messages;
     }
 
     private injectDepthPromptsToHistory(history: ChatCompMessage[], isContinue: boolean): ChatCompMessage[] {

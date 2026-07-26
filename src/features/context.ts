@@ -13,7 +13,7 @@ import {
 import { settings } from '@/settings';
 import { generate as runGenerate, ApiConfig, Response as GenResponse, StreamResponse as GenStreamResponse } from '@/functions/generate';
 import { MessageBuilder, PromptFilter, MacroOverride } from '@/functions/message-builder';
-import { ContextRole, ToolCalls, ToolDefinition } from '@/utils/defines'
+import { ContextRole, PresetPrompt, ToolCalls, ToolDefinition } from '@/utils/defines'
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
 import { eventTypes } from '@/utils/events';
 import { Preset, ChatCompMessage } from '@/utils/defines';
@@ -100,6 +100,13 @@ export class Context {
     public filters: PromptFilter;
     public tools: Map<string, Tool>;
     public skillScanner: SkillScanner;
+    /**
+     * Trigger template prompts. When set, the builder expands them in place of
+     * the preset's `chatHistory` slot instead of using the real chat history.
+     */
+    public historyPrompts: PresetPrompt[] | null;
+    /** Trigger type used to match `historyPrompts` triggers, e.g. the template decorator. */
+    public historyPromptsType: string | null;
 
     constructor({ chat, chat_metadata }: { chat: ChatMessageEx[], chat_metadata: ChatMetadataEx }) {
         this.chat = chat;
@@ -111,6 +118,8 @@ export class Context {
         this.filters = {};
         this.tools = new Map();
         this.skillScanner = new SkillScanner();
+        this.historyPrompts = null;
+        this.historyPromptsType = null;
     }
 
     /**
@@ -133,6 +142,8 @@ export class Context {
         context.apiOverride = value.apiOverride ?? {};
         context.macroOverride = value.macroOverride ?? {};
         context.filters = value.filters ?? {};
+        context.historyPrompts = value.historyPrompts ?? null;
+        context.historyPromptsType = value.historyPromptsType ?? null;
         return context;
     }
 
@@ -147,6 +158,8 @@ export class Context {
             apiOverride: this.apiOverride,
             macroOverride: this.macroOverride,
             filters: this.filters,
+            historyPrompts: this.historyPrompts,
+            historyPromptsType: this.historyPromptsType,
         };
     }
 
@@ -363,6 +376,8 @@ export class Context {
         builder.filters = this.filters;
         builder.macroOverride = this.macroOverride;
         builder.toolMessages = options.toolMessages ?? [];
+        builder.historyPrompts = this.historyPrompts;
+        builder.historyPromptsType = this.historyPromptsType;
         
         const worldinfoTrigger: string[] = this.chat.map(x => x.mes ?? '');
 

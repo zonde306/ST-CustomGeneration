@@ -1,5 +1,5 @@
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
-import { PresetPrompt, TEMPLATE_FILTER_OPTIONS } from '@/utils/defines';
+import { PresetPrompt, SCANNABLE_INTERNALS, TEMPLATE_FILTER_OPTIONS } from '@/utils/defines';
 import { clamp, clone, isRecord, parseNumber } from '@/utils/values';
 import {
     bindFileImport,
@@ -53,6 +53,7 @@ const EDITOR_CONTROLS = [
     '#custom_generation_prompt_triggers',
     '#custom_generation_prompt_internal',
     '#custom_generation_prompt_enable',
+    '#custom_generation_prompt_scan',
     '#custom_generation_prompt_content',
     '#custom_generation_prompt_delete',
     '#custom_generation_prompt_save_as',
@@ -69,6 +70,7 @@ const NEW_PROMPT_DEFAULTS: Partial<PresetPrompt> = {
     injectionDepth: DEFAULT_DEPTH,
     injectionOrder: DEFAULT_WEIGHT,
     maxDepth: 999,
+    scan: false,
 };
 
 let selectedIndex = 0;
@@ -241,6 +243,12 @@ function updateInternalControls(internal: PresetPrompt['internal']): void {
     $('#custom_generation_prompt_chat_history_controls').toggle(isChatHistory);
     $('#custom_generation_prompt_max_depth').prop('disabled', !isChatHistory);
     $('#custom_generation_prompt_content').prop('disabled', internal !== null && internal !== 'main');
+
+    const scannable = internal === null || SCANNABLE_INTERNALS.includes(internal);
+    $('#custom_generation_prompt_scan').prop('disabled', !scannable);
+    if (!scannable) {
+        $('#custom_generation_prompt_scan').prop('checked', false);
+    }
 }
 
 function fillInternalOptions(): void {
@@ -271,6 +279,7 @@ function renderPromptEditor(): void {
             $('#custom_generation_prompt_injection_order').val(DEFAULT_WEIGHT);
             $('#custom_generation_prompt_max_depth').val(999);
             $('#custom_generation_prompt_internal').val('');
+            $('#custom_generation_prompt_scan').prop('checked', false);
             updateInjectionControlsVisibility('relative');
             updateInternalControls(null);
             setSelectValues('#custom_generation_prompt_triggers', []);
@@ -289,6 +298,7 @@ function renderPromptEditor(): void {
         $('#custom_generation_prompt_injection_order').val(prompt.injectionOrder);
         $('#custom_generation_prompt_max_depth').val(prompt.maxDepth);
         $('#custom_generation_prompt_internal').val(String(prompt.internal ?? ''));
+        $('#custom_generation_prompt_scan').prop('checked', prompt.scan === true);
         updateInjectionControlsVisibility(prompt.injectionPosition);
         updateInternalControls(prompt.internal);
         setSelectValues('#custom_generation_prompt_triggers', prompt.triggers);
@@ -311,6 +321,7 @@ function readPromptEditor(fallbackName: string): PresetPrompt {
         injectionDepth: parseNumber($('#custom_generation_prompt_injection_depth').val(), DEFAULT_DEPTH, 0, 9999, true),
         injectionOrder: parseNumber($('#custom_generation_prompt_injection_order').val(), DEFAULT_WEIGHT, -1_000_000, 1_000_000, true),
         maxDepth: parseNumber($('#custom_generation_prompt_max_depth').val(), 999, 0, 9999, true),
+        scan: Boolean($('#custom_generation_prompt_scan').prop('checked')),
     }, fallbackName);
 }
 

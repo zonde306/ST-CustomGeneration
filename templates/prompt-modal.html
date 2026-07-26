@@ -79,6 +79,15 @@
                 </label>
             </div>
             <div class="completion_prompt_manager_popup_entry_form_control">
+                <label class="checkbox_label" for="custom_generation_prompt_scan">
+                    <input id="custom_generation_prompt_scan" type="checkbox" />
+                    <span data-i18n="cg_prompt_scan">Scannable by World Info</span>
+                </label>
+                <small class="text_muted" data-i18n="cg_prompt_scan_help">
+                    Include this prompt's content when scanning for World Info activation, in addition to the last N messages.
+                </small>
+            </div>
+            <div class="completion_prompt_manager_popup_entry_form_control">
                 <label for="custom_generation_prompt_content">
                     <span data-i18n="Prompt">Prompt</span>
                     <i class="custom_generation_large_editor_button fa-solid fa-expand menu_button" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_prompt_content" style="margin-left:8px;cursor:pointer;opacity:0.7;"></i>

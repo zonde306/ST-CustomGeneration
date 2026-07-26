@@ -502,8 +502,10 @@ async function runCustomGenerations(
         }
 
         let current = substituteParams(override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent);
-        const chatHistory = await template.buildChatHistory(env.chat);
-        const ctx = new Context({ chat: chatHistory, chat_metadata: env.chat_metadata });
+        // Shallow copy so sub-generation cannot append messages to the real chat.
+        const ctx = new Context({ chat: env.chat.slice(), chat_metadata: env.chat_metadata });
+        ctx.historyPrompts = template.prompts;
+        ctx.historyPromptsType = template.decorator;
         ctx.macroOverride.original = parsed.cleanContent;
         ctx.macroOverride.macros = {
             'lastUserMessage': () => substituteParams(messages.findLast(msg => msg.is_user)?.mes ?? ''),

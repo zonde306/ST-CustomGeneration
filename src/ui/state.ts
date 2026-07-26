@@ -89,6 +89,7 @@ export function normalizePrompt(input: Partial<PresetPrompt>, fallbackName: stri
         injectionDepth: parseNumber(input.injectionDepth, DEFAULT_DEPTH, 0, 9999, true),
         injectionOrder: parseNumber(input.injectionOrder, DEFAULT_WEIGHT, -1_000_000, 1_000_000, true),
         maxDepth: parseNumber(input.maxDepth, 999, 0, 9999, true),
+        scan: Boolean(input.scan),
     };
 }
 

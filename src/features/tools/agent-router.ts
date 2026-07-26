@@ -279,10 +279,16 @@ async function callAgent(agentEntry: AgentEntry, validatedData: Record<string, a
 
     // Create an independent sub-Context to avoid polluting the global Context
     // Follows the pattern from agent-manager.ts:505-506
-    const chatHistory = template
-        ? await template.buildChatHistory(globalCtx.chat)
-        : [ { mes: agentEntry.content } ];
-    const ctx = new Context({ chat: chatHistory, chat_metadata: globalCtx.chat_metadata });
+    // Shallow copy so sub-generation cannot append messages to the real chat.
+    const ctx = new Context({
+        chat: template ? globalCtx.chat.slice() : [ { mes: agentEntry.content } ],
+        chat_metadata: globalCtx.chat_metadata,
+    });
+    if (template) {
+        // Expand the template prompts in place of the chat history slot.
+        ctx.historyPrompts = template.prompts;
+        ctx.historyPromptsType = template.decorator;
+    }
 
     // Set macroOverride
     ctx.macroOverride = {
