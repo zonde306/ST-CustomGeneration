@@ -2376,4 +2376,5 @@ export const defaultSettings: Settings = {
         [defaultPreset.name]: defaultPreset,
     },
     currentPreset: defaultPreset.name,
+    interceptGenerate: false,
 };

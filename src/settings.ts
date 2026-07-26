@@ -6,7 +6,7 @@ import { defaultSettings, templatePath } from '@/utils/default-settings';
 import { openLargeEditor } from '@/utils/large-editor';
 import { clone } from '@/utils/values';
 import { bindDrawerToggle, initSelect2Multi, setDrawerExpanded } from '@/ui/common';
-import { PROMPT_TRIGGER_OPTIONS, ensureSettingsIntegrity, resetSectionStates, settings, updateSettingsUI } from '@/ui/state';
+import { PROMPT_TRIGGER_OPTIONS, ensureSettingsIntegrity, registerSection, resetSectionStates, saveSettings, settings, updateSettingsUI } from '@/ui/state';
 import { setupListExportDialog } from '@/ui/list-export';
 import { setupConnectionSection } from '@/ui/connection';
 import { setupPresetSection } from '@/ui/preset';
@@ -82,6 +82,24 @@ function bindLargeEditorButtons(): void {
 }
 
 /**
+ * "Replace default generation" (generate_interceptor takeover) checkbox
+ */
+function setupInterceptSection(): void {
+    const checkbox = $('#custom_generation_intercept');
+
+    checkbox.on('change', () => {
+        settings.interceptGenerate = checkbox.prop('checked') === true;
+        saveSettings();
+    });
+
+    registerSection({
+        render: () => {
+            checkbox.prop('checked', Boolean(settings.interceptGenerate));
+        },
+    });
+}
+
+/**
  * Setup settings UI
  */
 export async function setupSettings(): Promise<void> {
@@ -96,6 +114,7 @@ export async function setupSettings(): Promise<void> {
         bindDrawerToggle(drawer.toggle, drawer.body, drawer.icon);
     }
 
+    setupInterceptSection();
     setupListExportDialog();
     setupConnectionSection();
     setupPresetSection();

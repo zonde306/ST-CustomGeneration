@@ -516,6 +516,9 @@ export interface Settings {
 
     // default preset (current active preset)
     currentPreset: string;
+
+    // Take over ST's native Generate() via generate_interceptor
+    interceptGenerate: boolean;
 }
 
 export interface ToolSettings {

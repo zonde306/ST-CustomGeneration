@@ -1,6 +1,8 @@
 {
 	"Chat history max depth": "聊天记录最大深度",
 	"Custom generation settings": "自定义生成",
+	"Replace default generation": "替代默认生成",
+	"cg_intercept_help": "接管 ST 的发送/重新生成/滑动/继续，改用自定义生成。静默生成（/gen、总结等）仍走原生管道。",
 	"Advanced Parameters": "高级参数",
 	"Create preset": "创建预设",
 	"No scripts": "没有脚本",

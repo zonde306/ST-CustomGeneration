@@ -1,6 +1,7 @@
 {
 	"display_name": "Custom Generation",
 	"loading_order": 1,
+	"generate_interceptor": "CustomGeneration_interceptor",
 	"requires": [],
 	"optional": [],
 	"js": "dist/index.js",

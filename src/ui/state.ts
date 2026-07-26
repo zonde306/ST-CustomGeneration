@@ -531,6 +531,7 @@ function syncToolsWithDefinitions(): void {
 // ============================================
 
 export function ensureSettingsIntegrity(): void {
+    settings.interceptGenerate = Boolean(settings.interceptGenerate);
     settings.apis = normalizeApiMap(settings.apis);
     if (Object.keys(settings.apis).length === 0) {
         settings.apis = {

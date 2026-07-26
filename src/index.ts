@@ -6,6 +6,8 @@ import { setup as setupEmbedCard } from "@/embed-card";
 import { eventTypes } from "@/utils/events";
 import { setup as setupTriggers, runAfterTriggers, isGenerating } from "@/features/trigger-manager";
 import { setup as setupOverrides, DataOverride } from "@/features/override";
+import { setup as setupGlobalContext, GlobalContext } from "@/features/global-context";
+import { setup as setupInterceptor } from "@/features/interceptor";
 import { setup as setupLogger } from "@/features/generate-logger";
 import { setup as setupTools } from "@/features/tool-manager";
 import { setup as setupSchema } from "@/features/schema";
@@ -15,6 +17,8 @@ import { search as testSearch } from "@/features/tools/worldinfo-search";
 // jQuery
 $(async () => {
     await setupSettings();
+    setupGlobalContext();
+    await setupInterceptor();
     await setupEmbedCard();
     await setupTriggers();
     await setupOverrides();
@@ -26,6 +30,7 @@ $(async () => {
     // @ts-expect-error: 7017
     globalThis.CustomGeneration = {
         Context,
+        GlobalContext,
         DataOverride,
         PromptContext,
         MessageBuilder,

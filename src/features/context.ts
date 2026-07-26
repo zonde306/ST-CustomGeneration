@@ -86,9 +86,32 @@ export interface GenerateOptionsLite {
      * Use the specified task ID, otherwise generate a random one.
      */
     taskId?: number | string;
+
+    /**
+     * Skip emitting GENERATION_STARTED / GENERATION_AFTER_COMMANDS.
+     * Used when ST's native Generate() has already emitted them (interceptor takeover).
+     */
+    skipStartEvents?: boolean;
+
+    /**
+     * For `continue`: the last chat message is a real message, not a temporary
+     * instruction appended by the caller, so don't remove it after generation.
+     */
+    noTempMessage?: boolean;
 }
 
 let taskIdCounter = 0;
+
+/**
+ * Factory used by `Context.global()`.
+ * `GlobalContext` registers itself here so global contexts get full
+ * ST rendering/persistence without `Context` depending on it.
+ */
+let globalContextFactory: (() => Context) | null = null;
+
+export function registerGlobalContextFactory(factory: () => Context): void {
+    globalContextFactory = factory;
+}
 
 export class Context {
     public chat: ChatMessageEx[];
@@ -127,6 +150,9 @@ export class Context {
      * @returns Context
      */
     static global(): Context {
+        if(globalContextFactory)
+            return globalContextFactory();
+
         const ctx = new Context({ chat, chat_metadata });
         ctx.chat = chat;
         ctx.chat_metadata = chat_metadata;
@@ -201,7 +227,7 @@ export class Context {
      * @param name Names are generally character names.
      * @returns 
      */
-    private async recv(
+    protected async recv(
         contents: string[],
         swipe: boolean = false,
         role: ContextRole = 'assistant',
@@ -227,22 +253,28 @@ export class Context {
             variables.push({});
         }
 
-        if(swipe && this.lastMessage) {
-            if(this.lastMessage.swipes)
-                this.lastMessage.swipes = this.lastMessage.swipes.concat(swipes);
-            else
-                this.lastMessage.swipes = [ this.lastMessage.mes ?? '' ].concat(swipes);
-            this.lastMessage.mes = swipes[0];
+        // Operate on the real chat entry; `this.lastMessage` returns a copy.
+        const last = this.chat[this.chat.length - 1];
+        if(swipe && last) {
+            // First index of the newly appended swipes
+            const newSwipeId = last.swipes?.length ?? 1;
 
-            if(this.lastMessage.swipe_info)
-                this.lastMessage.swipe_info = this.lastMessage.swipe_info.concat(swipe_info);
+            if(last.swipes)
+                last.swipes = last.swipes.concat(swipes);
             else
-                this.lastMessage.swipe_info = ([ { send_date: new Date(), extra: {}, } ] as SwipeInfo[]).concat(swipe_info);
+                last.swipes = [ last.mes ?? '' ].concat(swipes);
+            last.mes = swipes[0];
+            last.swipe_id = newSwipeId;
 
-            if(this.lastMessage.variables)
-                this.lastMessage.variables = this.lastMessage.variables.concat(variables);
+            if(last.swipe_info)
+                last.swipe_info = last.swipe_info.concat(swipe_info);
             else
-                this.lastMessage.variables = [ {} ].concat(variables);
+                last.swipe_info = ([ { send_date: new Date(), extra: {}, } ] as SwipeInfo[]).concat(swipe_info);
+
+            if(last.variables)
+                last.variables = last.variables.concat(variables);
+            else
+                last.variables = [ {} ].concat(variables);
         } else {
             this.chat.push({
                 is_user: role === 'user',
@@ -259,6 +291,34 @@ export class Context {
 
         await eventSource.emit(eventTypes.MESSAGE_RECEIVED, { messageId: this.chat.length - 1, message: this.chat[this.chat.length - 1], context: this });
         return swipes;
+    }
+
+    /**
+     * Append a continuation to the last message.
+     * `GlobalContext` overrides this to also update the DOM and persist.
+     */
+    protected async applyContinuation(swipes: string[]): Promise<void> {
+        const last = this.chat[this.chat.length - 1];
+        if(!last || !swipes[0])
+            return;
+
+        if(last.mes)
+            last.mes += swipes[0];
+
+        const swipeId = last.swipe_id ?? 0;
+        if(last.swipes && last.swipes[swipeId] != null)
+            last.swipes[swipeId] += swipes[0];
+    }
+
+    /**
+     * Post-generation hook. `GlobalContext` overrides this to restore
+     * ST UI state in addition to emitting GENERATION_ENDED.
+     */
+    protected async onGenerationEnded(type: string): Promise<void> {
+        if(this.isGlobal) {
+            // Since there's no need to manage the generate button, just send it directly.
+            await eventSource.emit(event_types.GENERATION_ENDED, this.chat.length, type);
+        }
     }
 
     /**
@@ -346,11 +406,13 @@ export class Context {
         // for event handlers
         options.context = this;
 
-        // Occurs every time, even if the generation is aborted due to slash commands execution
-        await eventSource.emit(event_types.GENERATION_STARTED, type, options, dryRun);
+        if(!options.skipStartEvents) {
+            // Occurs every time, even if the generation is aborted due to slash commands execution
+            await eventSource.emit(event_types.GENERATION_STARTED, type, options, dryRun);
 
-        // Occurs only if the generation is not aborted due to slash commands execution
-        await eventSource.emit(event_types.GENERATION_AFTER_COMMANDS, type, options, dryRun);
+            // Occurs only if the generation is not aborted due to slash commands execution
+            await eventSource.emit(event_types.GENERATION_AFTER_COMMANDS, type, options, dryRun);
+        }
 
         if (type === 'regenerate' && !dryRun && this.chat.length > 0 &&
             !this.lastMessage?.is_user && !this.lastMessage?.is_system
@@ -372,14 +434,19 @@ export class Context {
         }
 
         const api = this.getCurrentApi(preset.name);
-        const builder = new MessageBuilder(this.chat, preset, api.promptPostProcessing);
+        // For swipe, the last message is the one being replaced; exclude it
+        // from the prompt like ST's native pipeline does (coreChat.pop()).
+        const promptChat = type === 'swipe' && !this.chat[this.chat.length - 1]?.is_user
+            ? this.chat.slice(0, -1)
+            : this.chat;
+        const builder = new MessageBuilder(promptChat, preset, api.promptPostProcessing);
         builder.filters = this.filters;
         builder.macroOverride = this.macroOverride;
         builder.toolMessages = options.toolMessages ?? [];
         builder.historyPrompts = this.historyPrompts;
         builder.historyPromptsType = this.historyPromptsType;
         
-        const worldinfoTrigger: string[] = this.chat.map(x => x.mes ?? '');
+        const worldinfoTrigger: string[] = promptChat.map(x => x.mes ?? '');
 
         // To avoid conflicts caused by concurrent read and write operations of chat_metadata in worldinfo.
         const messages = await locker.invoke(async() => {
@@ -487,7 +554,7 @@ export class Context {
             throw error;
         }
 
-        if(type === 'continue') {
+        if(type === 'continue' && !options.noTempMessage) {
             // remove the temporary message
             this.chat.length = this.chat.length - 1;
         }
@@ -551,12 +618,7 @@ export class Context {
                 if(!options.dontCreate) {
                     if(type === 'continue') {
                         swipes = swipes.map(mes => this.applyRegex(mes, { user: false, assistant: true, request: false, response: true }));
-                        if(this.lastMessage?.mes) {
-                            this.lastMessage.mes += swipes[0];
-                        }
-                        if(this.lastMessage?.swipes?.[this.lastMessage.swipe_id ?? 0]) {
-                            this.lastMessage.swipes[this.lastMessage.swipe_id ?? 0] += swipes[0];
-                        }
+                        await this.applyContinuation(swipes);
                     } else {
                         swipes = await this.recv(swipes, type === 'swipe');
                     }
@@ -564,10 +626,7 @@ export class Context {
 
                 await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, response: { swipes, reasoning: [reasoning], toolCalls }, context: this, streaming: true, apiConfig });
 
-                if(this.isGlobal) {
-                    // Since there's no need to manage the generate button, just send it directly.
-                    await eventSource.emit(event_types.GENERATION_ENDED, this.chat.length, type);
-                }
+                await this.onGenerationEnded(type);
             }
 
             return stream.call(this, genResult as AsyncGenerator<GenStreamResponse>);
@@ -598,12 +657,7 @@ export class Context {
             if(!options.dontCreate) {
                 if(type === 'continue') {
                     swipes = swipes.map(mes => this.applyRegex(mes, { user: false, assistant: true, request: false, response: true, preset }));
-                    if(this.lastMessage?.mes) {
-                        this.lastMessage.mes += swipes[0];
-                    }
-                    if(this.lastMessage?.swipes?.[this.lastMessage.swipe_id ?? 0]) {
-                        this.lastMessage.swipes[this.lastMessage.swipe_id ?? 0] += swipes[0];
-                    }
+                    await this.applyContinuation(swipes);
                 } else {
                     swipes = await this.recv(swipes, type === 'swipe');
                 }
@@ -618,10 +672,7 @@ export class Context {
         const data = { type, options, taskId, error: null, response, context: this, streaming: false, apiConfig };
         await eventSource.emit(eventTypes.GENERATE_AFTER, data);
 
-        if(this.isGlobal) {
-            // Since there's no need to manage the generate button, just send it directly.
-            await eventSource.emit(event_types.GENERATION_ENDED, this.chat.length, type);
-        }
+        await this.onGenerationEnded(type);
 
         if(options.allResponses) {
             return data.response;
@@ -686,7 +737,7 @@ export class Context {
         return controller;
     }
 
-    private applyRegex(content: string, { user, assistant, request, response, preset } = {} as { user?: boolean, assistant?: boolean, request?: boolean, response?: boolean, preset?: Preset }): string {
+    protected applyRegex(content: string, { user, assistant, request, response, preset } = {} as { user?: boolean, assistant?: boolean, request?: boolean, response?: boolean, preset?: Preset }): string {
         for(const regex of preset?.regexs ?? this.currentPreset.regexs) {
             if(!regex.enabled || !regex.ephemerality)
                 continue;
