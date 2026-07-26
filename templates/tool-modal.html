@@ -1,139 +1,68 @@
-<dialog id="custom_generation_tool_dialog">
-    <form class="completion_prompt_manager_popup_entry_form flex-container flexFlowColumn" method="dialog" onsubmit="return false;">
-        <div class="completion_prompt_manager_popup_header">
-            <label for="custom_generation_tool_name">
-                <span data-i18n="Tool Editor">Tool Editor</span>
-            </label>
+<dialog id="custom_generation_tool_dialog" class="cg-dialog cg-dialog--sm">
+    <div class="cg-dialog__panel">
+        <div class="cg-dialog__header">
+            <div class="cg-dialog__titlegroup">
+                <i class="cg-dialog__icon fa-solid fa-screwdriver-wrench"></i>
+                <h3 class="cg-dialog__title" data-i18n="Tool Editor">Tool Editor</h3>
+            </div>
+            <form method="dialog" class="cg-dialog__closeform">
+                <button class="cg-dialog__close fa-solid fa-xmark" type="submit" title="Close" data-i18n="[title]Close"></button>
+            </form>
         </div>
-        <div class="custom_generation_modal_body">
-            <div class="completion_prompt_manager_popup_entry_form_control">
-                <label for="custom_generation_tool_name">
+
+        <div class="cg-dialog__body">
+            <div class="cg-field">
+                <label class="cg-field__label" for="custom_generation_tool_name">
                     <span data-i18n="Name">Name</span>
                 </label>
-                <div id="custom_generation_tool_name" class="text_pole" style="min-height: 1.5em; padding: 3px 5px; background: var(--black30a); cursor: not-allowed;"></div>
-                <small class="text_muted" data-i18n="cg_tool_name_help">
+                <div id="custom_generation_tool_name" class="cg-readonly cg-mono"></div>
+                <small class="cg-hint" data-i18n="cg_tool_name_help">
                     Tool name is defined in code and cannot be changed.
                 </small>
             </div>
-            <div class="completion_prompt_manager_popup_entry_form_control">
-                <label class="checkbox_label" for="custom_generation_tool_enabled">
-                    <input id="custom_generation_tool_enabled" type="checkbox" />
-                    <span data-i18n="Enabled">Enabled</span>
-                </label>
-            </div>
-            <div class="completion_prompt_manager_popup_entry_form_control">
-                <label for="custom_generation_tool_triggers">
+
+            <label class="cg-check" for="custom_generation_tool_enabled">
+                <input id="custom_generation_tool_enabled" type="checkbox" />
+                <span data-i18n="Enabled">Enabled</span>
+            </label>
+
+            <div class="cg-field">
+                <label class="cg-field__label" for="custom_generation_tool_triggers">
                     <span data-i18n="Triggers (comma separated)">Triggers (comma separated)</span>
                 </label>
                 <select id="custom_generation_tool_triggers" class="text_pole" multiple="multiple" data-placeholder="normal, @@record"></select>
-                <small class="text_muted" data-i18n="cg_tool_triggers_help">
+                <small class="cg-hint" data-i18n="cg_tool_triggers_help">
                     Select which generation types this tool should be available for.
                 </small>
             </div>
-            <div class="completion_prompt_manager_popup_entry_form_control">
-                <label for="custom_generation_tool_description">
+
+            <div class="cg-field">
+                <label class="cg-field__label" for="custom_generation_tool_description">
                     <span data-i18n="Description">Description</span>
-                    <i class="custom_generation_large_editor_button fa-solid fa-expand menu_button" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_tool_description" style="margin-left:8px;cursor:pointer;opacity:0.7;"></i>
+                    <span class="cg-spacer"></span>
+                    <i class="custom_generation_large_editor_button fa-solid fa-expand" title="Open in large editor" data-i18n="[title]Open in large editor" data-target="custom_generation_tool_description"></i>
                 </label>
-                <textarea id="custom_generation_tool_description" class="text_pole" rows="3" placeholder="Tool description for the AI model"></textarea>
-                <small class="text_muted" data-i18n="cg_tool_description_help">
+                <textarea id="custom_generation_tool_description" class="text_pole" rows="4" placeholder="Tool description for the AI model"></textarea>
+                <small class="cg-hint" data-i18n="cg_tool_description_help">
                     The description that will be sent to the AI model to explain what this tool does.
                 </small>
             </div>
-            <div class="completion_prompt_manager_popup_entry_form_control">
-                <label>
-                    <span data-i18n="Parameters">Parameters</span>
-                </label>
-                <div id="custom_generation_tool_parameters_container" class="flex-container flexFlowColumn">
-                    <!-- Parameters will be dynamically generated here -->
-                </div>
-                <small class="text_muted" data-i18n="cg_tool_parameters_help">
-                    Parameter descriptions that will be sent to the AI model.
-                </small>
+
+            <div class="cg-section-title">
+                <i class="fa-solid fa-sliders"></i>
+                <span data-i18n="Parameters">Parameters</span>
+            </div>
+            <div id="custom_generation_tool_parameters_container"></div>
+            <small class="cg-hint" data-i18n="cg_tool_parameters_help">
+                Parameter descriptions that will be sent to the AI model.
+            </small>
+        </div>
+
+        <div class="cg-dialog__footer">
+            <div class="cg-dialog__footer-actions">
+                <button id="custom_generation_tool_cancel" class="cg-btn" type="button" data-i18n="Cancel">Cancel</button>
+                <button id="custom_generation_tool_save" class="cg-btn cg-btn--primary" type="button" data-i18n="Save">Save</button>
             </div>
         </div>
-        <div class="custom_generation_modal_footer flex-container justifySpaceBetween marginTop5">
-            <div></div>
-            <div class="flex-container">
-                <button id="custom_generation_tool_cancel" class="custom_generation_button" type="button" data-i18n="Cancel">Cancel</button>
-                <button id="custom_generation_tool_save" class="custom_generation_button" type="button" data-i18n="Save">Save</button>
-            </div>
-        </div>
-    </form>
-    <style>
-        #custom_generation_tool_dialog {
-            padding: 0;
-            box-sizing: border-box;
-            border: 1.5px solid var(--SmartThemeBorderColor);
-            border-radius: 16px;
-            background-color: var(--SmartThemeBlurTintColor);
-        }
-
-        #custom_generation_tool_dialog[open] {
-            max-height: min(86vh, 600px);
-            overflow: hidden;
-        }
-
-        #custom_generation_tool_dialog .completion_prompt_manager_popup_entry_form {
-            width: min(520px, 92vw);
-            max-width: 92vw;
-            max-height: min(calc(86vh - 24px), 560px);
-            margin: 5px;
-            box-sizing: border-box;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #custom_generation_tool_dialog .custom_generation_modal_body {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
-            min-height: 0;
-        }
-
-        #custom_generation_tool_dialog .custom_generation_modal_footer {
-            flex-shrink: 0;
-            padding-top: 8px;
-            border-top: 1px solid var(--SmartThemeBorderColor);
-            margin-top: 8px;
-        }
-
-        #custom_generation_tool_dialog .flex-container,
-        #custom_generation_tool_dialog .completion_prompt_manager_popup_entry_form_control,
-        #custom_generation_tool_dialog .flex-container > .flex1,
-        #custom_generation_tool_dialog .select2-container,
-        #custom_generation_tool_dialog input,
-        #custom_generation_tool_dialog select,
-        #custom_generation_tool_dialog textarea {
-            min-width: 0;
-            max-width: 100%;
-            box-sizing: border-box;
-        }
-
-        #custom_generation_tool_dialog .custom_generation_button {
-            min-width: 72px;
-            white-space: nowrap;
-        }
-
-        #custom_generation_tool_parameters_container .tool-parameter-row {
-            display: flex;
-            flex-direction: column;
-            margin-bottom: 8px;
-        }
-
-        #custom_generation_tool_parameters_container .tool-parameter-label {
-            font-size: 0.9em;
-            color: var(--grey70);
-            margin-bottom: 2px;
-        }
-
-        #custom_generation_tool_parameters_container .tool-parameter-input {
-            width: 100%;
-        }
-
-        .custom_generation_large_editor_button {
-            float: inline-end;
-        }
-    </style>
+    </div>
 </dialog>

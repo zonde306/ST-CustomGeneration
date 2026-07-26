@@ -1,127 +1,25 @@
-<dialog id="custom_generation_embed_card_dialog">
-    <form class="completion_prompt_manager_popup_entry_form flex-container flexFlowColumn" method="dialog" onsubmit="return false;">
-        <div class="completion_prompt_manager_popup_header">
-            <label for="custom_generation_embed_card_list">
-                <span data-i18n="Linked Card Presets">Linked Card Presets</span>
-            </label>
+<dialog id="custom_generation_embed_card_dialog" class="cg-dialog">
+    <div class="cg-dialog__panel">
+        <div class="cg-dialog__header">
+            <div class="cg-dialog__titlegroup">
+                <i class="cg-dialog__icon fa-solid fa-link"></i>
+                <h3 class="cg-dialog__title" data-i18n="Linked Card Presets">Linked Card Presets</h3>
+            </div>
+            <form method="dialog" class="cg-dialog__closeform">
+                <button class="cg-dialog__close fa-solid fa-xmark" type="submit" title="Close" data-i18n="[title]Close"></button>
+            </form>
         </div>
-        <div class="completion_prompt_manager_popup_entry_form_control">
-            <small class="text_muted" data-i18n="Embed card presets help">Select presets to link to this character card. Linked presets can be imported later.</small>
+
+        <div class="cg-dialog__body">
+            <small class="cg-hint" data-i18n="Embed card presets help">Select presets to link to this character card. Linked presets can be imported later.</small>
+            <div id="custom_generation_embed_card_list" class="cg-list cg-list--scroll" no-items-text="No presets" data-i18n="[no-items-text]No presets"></div>
         </div>
-        <div id="custom_generation_embed_card_list" class="flex-container flexFlowColumn" no-items-text="No presets" data-i18n="[no-items-text]No presets"></div>
-        <div class="flex-container justifySpaceBetween marginTop5">
-            <div></div>
-            <div class="flex-container">
-                <button id="custom_generation_embed_card_cancel" class="custom_generation_button" type="button" data-i18n="Cancel">Cancel</button>
-                <button id="custom_generation_embed_card_save" class="custom_generation_button" type="button" data-i18n="Save">Save</button>
+
+        <div class="cg-dialog__footer">
+            <div class="cg-dialog__footer-actions">
+                <button id="custom_generation_embed_card_cancel" class="cg-btn" type="button" data-i18n="Cancel">Cancel</button>
+                <button id="custom_generation_embed_card_save" class="cg-btn cg-btn--primary" type="button" data-i18n="Save">Save</button>
             </div>
         </div>
-    </form>
-    <style>
-        #custom_generation_embed_card_dialog {
-            padding: 0;
-            box-sizing: border-box;
-            border: 1.5px solid var(--SmartThemeBorderColor);
-            border-radius: 16px;
-            background-color: var(--SmartThemeBlurTintColor);
-        }
-
-        #custom_generation_embed_card_dialog[open] {
-            max-height: min(86vh, 760px);
-            overflow: hidden;
-        }
-
-        #custom_generation_embed_card_dialog .completion_prompt_manager_popup_entry_form {
-            width: min(640px, 92vw);
-            max-width: 92vw;
-            max-height: min(calc(86vh - 24px), 720px);
-            margin: 5px;
-            box-sizing: border-box;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-
-        #custom_generation_embed_card_dialog .flex-container,
-        #custom_generation_embed_card_dialog .completion_prompt_manager_popup_entry_form_control,
-        #custom_generation_embed_card_dialog .flex-container > *,
-        #custom_generation_embed_card_dialog small,
-        #custom_generation_embed_card_dialog button {
-            min-width: 0;
-            max-width: 100%;
-            box-sizing: border-box;
-        }
-
-        #custom_generation_embed_card_list {
-            width: 100%;
-            max-width: 100%;
-            align-items: stretch;
-            gap: 6px;
-            max-height: min(calc(86vh - 180px), 560px);
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding-right: 4px;
-            box-sizing: border-box;
-        }
-
-        #custom_generation_embed_card_list > * {
-            width: 100%;
-            max-width: 100%;
-            box-sizing: border-box;
-            flex-shrink: 0;
-        }
-
-        .cg_embed_card_row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border: 1px solid var(--SmartThemeBorderColor);
-            border-radius: 10px;
-            padding: 4px 8px;
-            min-width: 0;
-        }
-
-        .cg_embed_card_name {
-            min-width: 0;
-            flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .cg_embed_card_badge {
-            font-size: 0.85em;
-            opacity: 0.8;
-            flex-shrink: 0;
-        }
-
-        .custom_generation_button {
-            color: var(--SmartThemeBodyColor);
-            background-color: var(--SmartThemeBlurTintColor);
-            border: 1px solid var(--SmartThemeBorderColor);
-            border-radius: 10px;
-            padding: 6px 12px;
-            cursor: pointer;
-            margin: 4px 2px;
-            transition: background-color var(--animation-duration-2x), border-color var(--animation-duration-2x), color var(--animation-duration-2x);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            text-align: center;
-            min-width: 72px;
-            width: auto;
-            text-decoration: none;
-            max-width: 100%;
-            font-weight: 500;
-            letter-spacing: 0.01em;
-        }
-
-        .custom_generation_button:hover,
-        .custom_generation_button:active,
-        .custom_generation_button:focus-visible {
-            background-color: var(--white30a);
-            border-color: var(--SmartThemeQuoteColor);
-            color: var(--SmartThemeQuoteColor);
-        }
-    </style>
+    </div>
 </dialog>

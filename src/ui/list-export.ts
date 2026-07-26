@@ -34,7 +34,7 @@ export function openListExportDialog(kind: ListExportKind, items: ListExportItem
     const container = $('#custom_generation_list_export_items');
     container.empty();
     items.forEach((item) => {
-        const row = $('<label class="checkbox_label"></label>');
+        const row = $('<label class="cg-check"></label>');
         const checkbox = $('<input type="checkbox" />').prop('checked', item.checked);
         checkbox.on('change', () => {
             item.checked = Boolean(checkbox.prop('checked'));

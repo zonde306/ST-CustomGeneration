@@ -1,144 +1,99 @@
-<dialog id="custom_generation_regex_dialog">
-    <form class="completion_prompt_manager_popup_entry_form flex-container flexFlowColumn" method="dialog" onsubmit="return false;">
-        <div class="completion_prompt_manager_popup_header">
-            <label for="custom_generation_regex_regex">
-                <span data-i18n="Regex Editor">Regex Editor</span>
-            </label>
+<dialog id="custom_generation_regex_dialog" class="cg-dialog cg-dialog--lg">
+    <div class="cg-dialog__panel">
+        <div class="cg-dialog__header">
+            <div class="cg-dialog__titlegroup">
+                <i class="cg-dialog__icon fa-solid fa-code"></i>
+                <h3 class="cg-dialog__title" data-i18n="Regex Editor">Regex Editor</h3>
+            </div>
+            <form method="dialog" class="cg-dialog__closeform">
+                <button class="cg-dialog__close fa-solid fa-xmark" type="submit" title="Close" data-i18n="[title]Close"></button>
+            </form>
         </div>
-        <div class="custom_generation_modal_body">
-            <div class="completion_prompt_manager_popup_entry_form_control">
-                <label for="custom_generation_regex_name">
+
+        <div class="cg-dialog__body">
+            <div class="cg-field">
+                <label class="cg-field__label" for="custom_generation_regex_name">
                     <span data-i18n="Script Name">Script Name</span>
                 </label>
                 <input id="custom_generation_regex_name" class="text_pole" type="text" />
             </div>
-            <div class="completion_prompt_manager_popup_entry_form_control">
-                <label for="custom_generation_regex_regex">
+
+            <div class="cg-field">
+                <label class="cg-field__label" for="custom_generation_regex_regex">
                     <span data-i18n="Find Regex">Find Regex</span>
                 </label>
-                <input id="custom_generation_regex_regex" class="text_pole" type="text" />
+                <input id="custom_generation_regex_regex" class="text_pole cg-mono" type="text" />
             </div>
-            <div class="completion_prompt_manager_popup_entry_form_control">
-                <label for="custom_generation_regex_replace">
+
+            <div class="cg-field">
+                <label class="cg-field__label" for="custom_generation_regex_replace">
                     <span data-i18n="Replace With">Replace With</span>
                 </label>
-                <textarea id="custom_generation_regex_replace" class="text_pole textarea_compact" rows="4"></textarea>
+                <textarea id="custom_generation_regex_replace" class="text_pole cg-mono" rows="5"></textarea>
             </div>
-            <div class="flex-container flex-multiline-around">
-                <label class="checkbox_label flex1" for="custom_generation_regex_user_input">
+
+            <div class="cg-section-title">
+                <i class="fa-solid fa-filter"></i>
+                <span data-i18n="Affects">Affects</span>
+            </div>
+            <div class="cg-checkgrid">
+                <label class="cg-check" for="custom_generation_regex_user_input">
                     <input id="custom_generation_regex_user_input" type="checkbox" />
                     <span data-i18n="ext_regex_user_input">User Input</span>
                 </label>
-                <label class="checkbox_label flex1" for="custom_generation_regex_ai_output">
+                <label class="cg-check" for="custom_generation_regex_ai_output">
                     <input id="custom_generation_regex_ai_output" type="checkbox" />
                     <span data-i18n="ext_regex_ai_output">AI Output</span>
                 </label>
-                <label class="checkbox_label flex1" for="custom_generation_regex_world_info">
+                <label class="cg-check" for="custom_generation_regex_world_info">
                     <input id="custom_generation_regex_world_info" type="checkbox" />
                     <span data-i18n="World Info">World Info</span>
                 </label>
-            </div>
-            <div class="flex-container">
-                <label class="checkbox_label flex1" for="custom_generation_regex_request">
+                <label class="cg-check" for="custom_generation_regex_request">
                     <input id="custom_generation_regex_request" type="checkbox" />
                     <span data-i18n="During generation">During generation</span>
                 </label>
-                <label class="checkbox_label flex1" for="custom_generation_regex_response">
+                <label class="cg-check" for="custom_generation_regex_response">
                     <input id="custom_generation_regex_response" type="checkbox" />
                     <span data-i18n="During response">During response</span>
                 </label>
-                <label class="checkbox_label flex1" for="custom_generation_regex_ephemerality">
+                <label class="cg-check" for="custom_generation_regex_ephemerality">
                     <input id="custom_generation_regex_ephemerality" type="checkbox" />
                     <span data-i18n="Ephemerality">Ephemerality</span>
                 </label>
-                <label class="checkbox_label flex1" for="custom_generation_regex_enable">
+                <label class="cg-check" for="custom_generation_regex_enable">
                     <input id="custom_generation_regex_enable" type="checkbox" />
                     <span data-i18n="Enabled">Enabled</span>
                 </label>
             </div>
-            <div class="flex-container">
-                <div class="completion_prompt_manager_popup_entry_form_control flex1">
-                    <label for="custom_generation_regex_min_depth">
+
+            <div class="cg-section-title">
+                <i class="fa-solid fa-layer-group"></i>
+                <span data-i18n="Depth">Depth</span>
+            </div>
+            <div class="cg-row">
+                <div class="cg-field">
+                    <label class="cg-field__label" for="custom_generation_regex_min_depth">
                         <span data-i18n="Min Depth">Min Depth</span>
                     </label>
                     <input id="custom_generation_regex_min_depth" class="text_pole" type="number" min="-1" max="9999" placeholder="Unlimited" data-i18n="[placeholder]ext_regex_min_depth_placeholder" />
                 </div>
-                <div class="completion_prompt_manager_popup_entry_form_control flex1">
-                    <label for="custom_generation_regex_max_depth">
+                <div class="cg-field">
+                    <label class="cg-field__label" for="custom_generation_regex_max_depth">
                         <span data-i18n="Max Depth">Max Depth</span>
                     </label>
                     <input id="custom_generation_regex_max_depth" class="text_pole" type="number" min="0" max="9999" placeholder="Unlimited" data-i18n="[placeholder]ext_regex_min_depth_placeholder" />
                 </div>
             </div>
         </div>
-        <div class="custom_generation_modal_footer flex-container justifySpaceBetween marginTop5">
-            <a id="custom_generation_regex_delete" class="custom_generation_button fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></a>
-            <div class="flex-container">
-                <button id="custom_generation_regex_cancel" class="custom_generation_button" type="button" data-i18n="Cancel">Cancel</button>
-                <button id="custom_generation_regex_save_as" class="custom_generation_button" type="button" style="display: none;" data-i18n="Save As">Save As</button>
-                <button id="custom_generation_regex_save" class="custom_generation_button" type="button" data-i18n="Save">Save</button>
+
+        <div class="cg-dialog__footer">
+            <a id="custom_generation_regex_delete" class="cg-btn cg-btn--danger cg-btn--icon fa-solid fa-trash" title="Delete" data-i18n="[title]Delete"></a>
+            <div class="cg-dialog__footer-actions">
+                <button id="custom_generation_regex_cancel" class="cg-btn" type="button" data-i18n="Cancel">Cancel</button>
+                <button id="custom_generation_regex_save_as" class="cg-btn" type="button" style="display: none;" data-i18n="Save As">Save As</button>
+                <button id="custom_generation_regex_save" class="cg-btn cg-btn--primary" type="button" data-i18n="Save">Save</button>
             </div>
         </div>
-    </form>
-    <style>
-        #custom_generation_regex_dialog {
-            padding: 0;
-            box-sizing: border-box;
-            border: 1.5px solid var(--SmartThemeBorderColor);
-            border-radius: 16px;
-            background-color: var(--SmartThemeBlurTintColor);
-        }
-
-        #custom_generation_regex_dialog[open] {
-            max-height: min(86vh, 760px);
-            overflow: hidden;
-        }
-
-        #custom_generation_regex_dialog .completion_prompt_manager_popup_entry_form {
-            width: min(920px, 92vw);
-            max-width: 92vw;
-            max-height: min(calc(86vh - 24px), 720px);
-            margin: 5px;
-            box-sizing: border-box;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #custom_generation_regex_dialog .custom_generation_modal_body {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
-            min-height: 0;
-        }
-
-        #custom_generation_regex_dialog .custom_generation_modal_footer {
-            flex-shrink: 0;
-            padding-top: 8px;
-            border-top: 1px solid var(--SmartThemeBorderColor);
-            margin-top: 8px;
-        }
-
-        #custom_generation_regex_dialog .flex-container,
-        #custom_generation_regex_dialog .checkbox_label,
-        #custom_generation_regex_dialog .completion_prompt_manager_popup_entry_form_control,
-        #custom_generation_regex_dialog .flex-container > .flex1,
-        #custom_generation_regex_dialog textarea,
-        #custom_generation_regex_dialog input,
-        #custom_generation_regex_dialog select {
-            min-width: 0;
-            max-width: 100%;
-            box-sizing: border-box;
-        }
-
-        #custom_generation_regex_replace {
-            max-height: min(36vh, 300px);
-            resize: vertical;
-        }
-
-        .flex-multiline-around {
-            flex-wrap: wrap;
-            justify-content: space-around;
-        }
-    </style>
+    </div>
 </dialog>
