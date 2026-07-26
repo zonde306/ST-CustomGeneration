@@ -28,6 +28,9 @@ import { eventTypes } from "@/utils/events";
 import { SkillScanner } from '@/features/skill-scanner';
 import { world_info_depth } from "@st/scripts/world-info.js";
 
+/** Guards against outlet entries referencing each other in a cycle. */
+const MAX_OUTLET_NESTING = 3;
+
 interface ExtensionPrompts {
     value: string,
     position: number,
@@ -1086,22 +1089,35 @@ export class MessageBuilder {
     }
 
     getOutletPrompt(key: string): string {
-        const value = this.extensionPrompts[inject_ids.CUSTOM_WI_OUTLET(key)]?.value;
+        const value = this.extensionPrompts[inject_ids.CUSTOM_WI_OUTLET(key.trim())]?.value;
         if(value)
             return this.evaluateMacros(value);
         return '';
     }
 
+    /**
+     * Resolves `{{outlet::key}}` against this builder's own injections.
+     * Must run before `substituteParams`, because ST's own outlet macro reads the
+     * global `extension_prompts`, which this builder never writes to.
+     */
+    resolveOutlets(content: string, depth: number = 0): string {
+        if(depth > MAX_OUTLET_NESTING || !content.includes('{{outlet::'))
+            return content;
+
+        return content.replace(/\{\{outlet::(.+?)\}\}/gi, (_, key: string) => this.resolveOutlets(
+            this.extensionPrompts[inject_ids.CUSTOM_WI_OUTLET(key.trim())]?.value ?? '',
+            depth + 1,
+        ));
+    }
+
     private assignOutletMacros(history: ChatCompMessage[]) {
         for(const message of history) {
             if(typeof message.content === 'string') {
-                if(message.content?.includes('{{outlet::')) {
-                    message.content = message.content.replace(/\{\{outlet::(.+?)\}\}/gi, (_, key: string) => this.getOutletPrompt(key));
-                }
+                message.content = this.resolveOutlets(message.content);
             } else if (message.content) {
                 for(const item of message.content) {
                     if(item.type === 'text' && item.text) {
-                        item.text = item.text.replace(/\{\{outlet::(.+?)\}\}/gi, (_, key: string) => this.getOutletPrompt(key));
+                        item.text = this.resolveOutlets(item.text);
                     }
                 }
             }
@@ -1113,7 +1129,7 @@ export class MessageBuilder {
             return content;
 
         return substituteParams(
-            content,
+            this.resolveOutlets(content),
             {
                 name1Override: this.macroOverride.user,
                 name2Override: this.macroOverride.char,

@@ -420,7 +420,7 @@ export class Context {
             }
         });
 
-        const evalMacro = _.partial(substituteParams, _, {
+        const substitute = _.partial(substituteParams, _, {
             name1Override: this.macroOverride.user,
             name2Override: this.macroOverride.char,
             original: this.macroOverride.original,
@@ -431,6 +431,9 @@ export class Context {
                 ...(this.macroOverride.macros ?? {}),
             },
         });
+        // Outlets must be resolved against the builder's own injections, ST's outlet
+        // macro would read the global extension_prompts instead.
+        const evalMacro = (content: string) => substitute(builder.resolveOutlets(content));
 
         for(const message of messages) {
             if(typeof message.content === 'string') {
