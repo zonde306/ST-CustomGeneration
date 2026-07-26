@@ -12,8 +12,39 @@ import { withUiUpdate } from '@/ui/common';
 export const settings: Settings = clone(defaultSettings);
 
 export const ALL_DECORATORS = Array.from(KNOWN_DECORATORS);
-export const DEFAULT_TRIGGER_DECORATOR = ALL_DECORATORS[0] as Template['decorator'];
-export const PROMPT_TRIGGER_OPTIONS = ['normal', 'regenerate', 'swipe', 'continue', ...ALL_DECORATORS];
+export const DEFAULT_TRIGGER_DECORATOR = ALL_DECORATORS[0] as Template['binding'];
+/** Profile kinds selectable in the template editor. */
+export const PROFILE_KIND_OPTIONS = ['trigger', 'agent'];
+export const PROMPT_TRIGGER_OPTIONS = [
+    'normal', 'regenerate', 'swipe', 'continue',
+    'agent',
+    ...ALL_DECORATORS.map(decorator => `trigger:${decorator}`),
+];
+
+/**
+ * Migrate a legacy `PresetPrompt.triggers` / `ToolSettings.triggers` value to
+ * the namespaced form: bare decorators become `trigger:@@x`, `@@agent` becomes
+ * the kind-level `agent`. Generation types (normal/swipe/...) are unchanged.
+ */
+export function migrateTriggerValue(value: string): string {
+    if (value === '@@agent') {
+        return 'agent';
+    }
+
+    if (value.startsWith('@@')) {
+        return `trigger:${value}`;
+    }
+
+    return value;
+}
+
+function generateProfileId(): string {
+    try {
+        return crypto.randomUUID();
+    } catch {
+        return `profile-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+}
 
 export type TriggerEntry = { key: string; template: Template };
 export type ToolEntry = { key: string; settings: ToolSettings };
@@ -80,7 +111,7 @@ export function normalizePrompt(input: Partial<PresetPrompt>, fallbackName: stri
         name: sanitizeName(String(input.name ?? ''), fallbackName),
         role: input.role === 'assistant' || input.role === 'user' ? input.role : 'system',
         triggers: Array.isArray(input.triggers)
-            ? input.triggers.map(x => String(x).trim()).filter(Boolean)
+            ? input.triggers.map(x => migrateTriggerValue(String(x).trim())).filter(Boolean)
             : [],
         prompt: String(input.prompt ?? ''),
         injectionPosition: input.injectionPosition === 'inChat' ? 'inChat' : 'relative',
@@ -131,13 +162,35 @@ function normalizeTriggerPrompts(raw: unknown): PresetPrompt[] {
 }
 
 export function normalizeTrigger(input: Partial<Template>): Template {
-    const decoratorRaw = String(input.decorator ?? DEFAULT_TRIGGER_DECORATOR);
     const legacyContent = (input as { content?: unknown }).content;
+    // Legacy field: `decorator` was the binding key before kind/binding existed.
+    const legacyDecorator = String((input as { decorator?: unknown }).decorator ?? '');
+
+    let kind = String(input.kind ?? '').trim();
+    let binding = String(input.binding ?? legacyDecorator ?? '').trim();
+
+    if (!kind) {
+        // Versioned migration: '@@agent' profiles become kind 'agent' (binding = agent name from tag),
+        // everything else was a WI trigger.
+        if (binding === '@@agent') {
+            kind = 'agent';
+            binding = String(input.tag ?? '').trim();
+            input = { ...input, tag: '' };
+        } else {
+            kind = 'trigger';
+        }
+    }
+
+    if (kind === 'trigger') {
+        binding = ALL_DECORATORS.includes(binding as Template['binding'])
+            ? binding
+            : DEFAULT_TRIGGER_DECORATOR;
+    }
 
     return {
-        decorator: ALL_DECORATORS.includes(decoratorRaw as Template['decorator'])
-            ? decoratorRaw as Template['decorator']
-            : DEFAULT_TRIGGER_DECORATOR,
+        id: String(input.id ?? '').trim() || generateProfileId(),
+        kind,
+        binding,
         tag: String(input.tag ?? ''),
         prompts: normalizeTriggerPrompts((input as { prompts?: unknown }).prompts ?? legacyContent),
         regex: String(input.regex ?? ''),
@@ -159,7 +212,7 @@ export function normalizeToolSettings(raw: unknown): ToolSettings {
     return {
         enabled: Boolean(toolSetting.enabled),
         triggers: Array.isArray(toolSetting.triggers)
-            ? toolSetting.triggers.map(x => String(x).trim()).filter(Boolean)
+            ? toolSetting.triggers.map(x => migrateTriggerValue(String(x).trim())).filter(Boolean)
             : [],
         parameters: isRecord(toolSetting.parameters)
             ? Object.fromEntries(Object.entries(toolSetting.parameters).map(([key, value]) => [key, String(value ?? '')]))
@@ -399,7 +452,7 @@ function uniqueKey(baseName: string, fallback: string, existing: Set<string>): s
 // ============================================
 
 export function buildTriggerMatchKey(trigger: Template): string {
-    return `${trigger.decorator}:${String(trigger.tag ?? '')}`;
+    return `${trigger.kind}:${trigger.binding}:${String(trigger.tag ?? '')}`;
 }
 
 export function getTriggerKey(trigger: Template, existingKeys: Iterable<string> = [], preferredKey: string | null = null): string {

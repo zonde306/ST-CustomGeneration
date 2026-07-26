@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { settings } from '@/settings';
+import { matchesTriggerType } from '@/utils/defines';
 import { setup as setupButtons } from '@/features/tools/buttons';
 import { setup as setupInput } from '@/features/tools/input';
 import { setup as setupConfirm } from '@/features/tools/confirmation';
@@ -51,7 +52,7 @@ export function getAvailableTools(type: string, presetName?: string): Tool[] {
 
     return Array.from(TOOL_DEFINITION.values().filter(t => preset.tools[t.name]?.enabled && (
         !preset.tools[t.name].triggers.length ||
-        preset.tools[t.name].triggers.includes(type)
+        matchesTriggerType(preset.tools[t.name].triggers, type)
     )).map(t => {
         const overrides = Object.entries(preset.tools[t.name].parameters).map(([key, value]) => {
             const def = t.parameters.shape[key] as z.ZodType;

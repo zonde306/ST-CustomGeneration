@@ -5,7 +5,7 @@ import { evaluate } from '@/utils/ejs';
 import { substituteParams } from '@st/script.js';
 import { WorldInfoEntry } from '@/utils/defines';
 import { Context } from '@/features/context';
-import { DataOverride } from '@/features/override';
+import { ChatDataStore, DATA_NAMESPACES, worldInfoKey } from '@/features/chat-data-store';
 
 /**
  * Retrieve the full content of specific World Info / Lorebook entries.
@@ -39,8 +39,8 @@ async function call(params: any): Promise<string> {
 
     async function mapping(entry: WorldInfoEntry) {
         const parsed = new DecoratorParser(entry);
-        const override = new DataOverride(args.context);
-        const content = override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent;
+        const store = new ChatDataStore(args.context);
+        const content = store.get(DATA_NAMESPACES.WORLDINFO, worldInfoKey(entry.world, entry.uid))?.content ?? parsed.cleanContent;
         return {
             world: entry.world,
             uid: entry.uid,

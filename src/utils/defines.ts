@@ -405,14 +405,26 @@ export interface RegEx {
     response: boolean;
 }
 
-export interface Template {
-    // e.g: @@record, must in KNOWN_DECORATORS lists
-    decorator: SetElementType<typeof KNOWN_DECORATORS> | string;
+/**
+ * Generic sub-generation configuration package (formerly `Template`).
+ * Identity is the triple `kind + binding + tag`.
+ */
+export interface GenerationProfile {
+    // Stable unique id (auto-generated on normalize).
+    id: string;
+
+    // Caller domain: 'trigger' | 'agent' | future 'memory' | 'summary' ...
+    kind: string;
+
+    // Binding key within the kind:
+    // - kind 'trigger': decorator name (must be in KNOWN_DECORATORS), e.g. '@@replace'
+    // - kind 'agent': agent name (empty = default for all agents)
+    binding: SetElementType<typeof KNOWN_DECORATORS> | string;
 
     // can be empty, used by (@@<decorator> <tag>)
     tag: string;
 
-    // template prompts
+    // profile prompts
     prompts: PresetPrompt[];
 
     // Generate a result that matches the regex, and pass Capture Group 1.
@@ -431,6 +443,36 @@ export interface Template {
 
     // Retry interval (ms)
     retryInterval: number;
+}
+
+/** @deprecated Use {@link GenerationProfile}. */
+export type Template = GenerationProfile;
+
+/** Well-known profile kinds. Callers may define new ones (e.g. 'memory', 'summary'). */
+export const PROFILE_KINDS = {
+    TRIGGER: 'trigger',
+    AGENT: 'agent',
+} as const;
+
+/**
+ * The namespaced generation-type value of a profile, used to match
+ * `PresetPrompt.triggers` / `ToolSettings.triggers`, e.g. 'trigger:@@replace'.
+ */
+export function profileTypeValue(profile: Pick<GenerationProfile, 'kind' | 'binding'>): string {
+    return `${profile.kind}:${profile.binding}`;
+}
+
+/**
+ * Match a prompt/tool trigger list against a generation type.
+ * Exact match, or kind-level match for namespaced types
+ * (a bare 'agent' entry matches 'agent:router').
+ */
+export function matchesTriggerType(triggers: string[], type: string): boolean {
+    if (triggers.includes(type))
+        return true;
+
+    const colon = type.indexOf(':');
+    return colon > 0 && triggers.includes(type.slice(0, colon));
 }
 
 export interface Preset {

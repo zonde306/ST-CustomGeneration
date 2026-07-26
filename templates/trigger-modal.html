@@ -13,10 +13,22 @@
         <div class="cg-dialog__body">
             <div class="cg-row">
                 <div class="cg-field">
+                    <label class="cg-field__label" for="custom_generation_template_kind">
+                        <span data-i18n="Kind">Kind</span>
+                    </label>
+                    <select id="custom_generation_template_kind" class="text_pole"></select>
+                </div>
+                <div class="cg-field" id="custom_generation_template_decorator_field">
                     <label class="cg-field__label" for="custom_generation_template_decorator">
                         <span data-i18n="Decorator">Decorator</span>
                     </label>
                     <select id="custom_generation_template_decorator" class="text_pole"></select>
+                </div>
+                <div class="cg-field" id="custom_generation_template_binding_field" style="display: none;">
+                    <label class="cg-field__label" for="custom_generation_template_binding">
+                        <span data-i18n="Binding">Binding</span>
+                    </label>
+                    <input id="custom_generation_template_binding" class="text_pole" type="text" placeholder="agent name (empty = all agents)" />
                 </div>
                 <div class="cg-field">
                     <label class="cg-field__label" for="custom_generation_template_tag">

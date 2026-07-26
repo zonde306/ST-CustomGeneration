@@ -18,7 +18,7 @@ import {
 import { metadata_keys } from '@st/scripts/authors-note.js';
 import { inject_ids } from '@st/scripts/constants.js';
 import { settings } from '@/settings';
-import { GenerateOptionsLite, ContextRole, ChatCompMessage } from "@/utils/defines";
+import { GenerateOptionsLite, ContextRole, ChatCompMessage, matchesTriggerType } from "@/utils/defines";
 import { Preset, RegEx, PresetPrompt, SCANNABLE_INTERNALS } from "@/utils/defines";
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
 import { wi_anchor_position } from '@st/scripts/world-info.js';
@@ -214,7 +214,7 @@ export class MessageBuilder {
                 console.debug(`Preset ${prompt.name} is not enabled or injectionPosition is inChat`);
                 continue;
             }
-            if(prompt.triggers.length > 0 && !prompt.triggers.includes(type)) {
+            if(prompt.triggers.length > 0 && !matchesTriggerType(prompt.triggers, type)) {
                 console.debug(`Preset ${prompt.name} is not triggered by ${type}`);
                 continue;
             }
@@ -375,7 +375,7 @@ export class MessageBuilder {
                 continue;
             }
 
-            if (prompt.triggers.length > 0 && !prompt.triggers.includes(type)) {
+            if (prompt.triggers.length > 0 && !matchesTriggerType(prompt.triggers, type)) {
                 continue;
             }
 
@@ -447,7 +447,7 @@ export class MessageBuilder {
                 return false;
             }
 
-            if (prompt.triggers.length > 0 && !prompt.triggers.includes(type)) {
+            if (prompt.triggers.length > 0 && !matchesTriggerType(prompt.triggers, type)) {
                 console.debug(`Template prompt ${prompt.name} is not triggered by ${type}`);
                 return false;
             }
@@ -593,7 +593,7 @@ export class MessageBuilder {
         }
 
         const inChatPrompts = this.prompts
-            .filter(p => p.triggers.length < 1 || p.triggers.includes(type))
+            .filter(p => p.triggers.length < 1 || matchesTriggerType(p.triggers, type))
             .map((preset, index) => ({ preset, index }))
             .filter(({ preset }) => preset.enabled && preset.injectionPosition === 'inChat')
             .sort((a, b) => {

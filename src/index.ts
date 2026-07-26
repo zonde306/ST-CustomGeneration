@@ -6,6 +6,7 @@ import { setup as setupEmbedCard } from "@/embed-card";
 import { eventTypes } from "@/utils/events";
 import { setup as setupTriggers, runAfterTriggers, isGenerating } from "@/features/trigger-manager";
 import { setup as setupOverrides, DataOverride } from "@/features/override";
+import { ChatDataStore } from "@/features/chat-data-store";
 import { setup as setupGlobalContext, GlobalContext } from "@/features/global-context";
 import { setup as setupInterceptor } from "@/features/interceptor";
 import { setup as setupLogger } from "@/features/generate-logger";
@@ -31,7 +32,9 @@ $(async () => {
     globalThis.CustomGeneration = {
         Context,
         GlobalContext,
+        /** @deprecated Use ChatDataStore instead. */
         DataOverride,
+        ChatDataStore,
         PromptContext,
         MessageBuilder,
         get globalContext() {

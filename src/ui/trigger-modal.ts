@@ -23,6 +23,7 @@ import {
 import {
     ALL_DECORATORS,
     DEFAULT_TRIGGER_DECORATOR,
+    PROFILE_KIND_OPTIONS,
     TriggerEntry,
     buildTriggerMap,
     buildTriggerMatchKey,
@@ -41,7 +42,9 @@ import { PromptEditorTarget, closePromptEditor, openPromptCreator, renderPromptL
 const DIALOG = '#custom_generation_template_dialog';
 
 const FIELD_CONTROLS = [
+    '#custom_generation_template_kind',
     '#custom_generation_template_decorator',
+    '#custom_generation_template_binding',
     '#custom_generation_template_tag',
     '#custom_generation_template_filters',
     '#custom_generation_template_regex',
@@ -59,7 +62,7 @@ const EDITOR_CONTROLS = [
 ];
 
 /** Fields kept in a draft so unsaved edits survive UI refreshes. */
-type TriggerDraft = Pick<Template, 'decorator' | 'tag' | 'filters' | 'regex' | 'findRegex' | 'retryCount' | 'retryInterval'>;
+type TriggerDraft = Pick<Template, 'kind' | 'binding' | 'tag' | 'filters' | 'regex' | 'findRegex' | 'retryCount' | 'retryInterval'>;
 
 const CREATING_KEY = '__creating__';
 
@@ -85,7 +88,8 @@ function getTriggerTagLabel(trigger: Template): string {
 
 function buildTriggerDisplayName(trigger: Template): string {
     const label = getTriggerTagLabel(trigger);
-    return `${trigger.decorator} ${label.includes(' ') ? `"${label}"` : label}`;
+    const binding = trigger.kind === 'trigger' ? trigger.binding : `${trigger.kind}:${trigger.binding}`;
+    return `${binding} ${label.includes(' ') ? `"${label}"` : label}`.trim();
 }
 
 function triggerMatchKeyExists(triggers: Record<string, Template>, trigger: Template, excludeKey: string | null = null): boolean {
@@ -120,7 +124,7 @@ function buildTriggerRow(entry: TriggerEntry, index: number): JQuery {
         event.stopPropagation();
         const tag = getTriggerTagLabel(entry.template);
         const suffix = tag.includes(' ') ? ` "${tag}"` : tag ? ` ${tag}` : '';
-        copyText(`${entry.template.decorator}${suffix}`).then(() => toastr.success('Copied to clipboard'));
+        copyText(`${entry.template.binding}${suffix}`).then(() => toastr.success('Copied to clipboard'));
     });
 
     editButton.on('click', (event: JQuery.TriggeredEvent) => {
@@ -151,7 +155,7 @@ function buildTriggerRow(entry: TriggerEntry, index: number): JQuery {
 }
 
 function getTriggerDeleteConfirmationText(trigger: Template): string {
-    return `Delete template ${trigger.decorator} / ${getTriggerTagLabel(trigger)}?`;
+    return `Delete template ${buildTriggerDisplayName(trigger)}?`;
 }
 
 function renderTriggerList(): void {
@@ -196,8 +200,12 @@ function getEditingTrigger(): Template | null {
 }
 
 function readEditorDraft(): TriggerDraft {
+    const kind = String($('#custom_generation_template_kind').val() ?? 'trigger');
     return {
-        decorator: String($('#custom_generation_template_decorator').val() ?? DEFAULT_TRIGGER_DECORATOR),
+        kind,
+        binding: kind === 'trigger'
+            ? String($('#custom_generation_template_decorator').val() ?? DEFAULT_TRIGGER_DECORATOR)
+            : String($('#custom_generation_template_binding').val() ?? ''),
         tag: String($('#custom_generation_template_tag').val() ?? ''),
         filters: getSelectValues('#custom_generation_template_filters') as Template['filters'],
         regex: String($('#custom_generation_template_regex').val() ?? ''),
@@ -207,8 +215,21 @@ function readEditorDraft(): TriggerDraft {
     };
 }
 
+/** Show the decorator dropdown only for the trigger kind, the free binding input otherwise. */
+function updateKindFieldVisibility(kind: string): void {
+    $('#custom_generation_template_decorator_field').toggle(kind === 'trigger');
+    $('#custom_generation_template_binding_field').toggle(kind !== 'trigger');
+}
+
 function applyEditorDraft(draft: TriggerDraft): void {
-    $('#custom_generation_template_decorator').val(draft.decorator);
+    $('#custom_generation_template_kind').val(draft.kind);
+    if (draft.kind === 'trigger') {
+        $('#custom_generation_template_decorator').val(draft.binding);
+        $('#custom_generation_template_binding').val('');
+    } else {
+        $('#custom_generation_template_binding').val(draft.binding);
+    }
+    updateKindFieldVisibility(draft.kind);
     $('#custom_generation_template_tag').val(draft.tag);
     setSelectValues('#custom_generation_template_filters', draft.filters);
     $('#custom_generation_template_regex').val(draft.regex);
@@ -258,7 +279,8 @@ function renderTriggerEditor(): void {
             setControlsDisabled(EDITOR_CONTROLS, true);
             resetEditorDraft();
             applyEditorDraft({
-                decorator: DEFAULT_TRIGGER_DECORATOR,
+                kind: 'trigger',
+                binding: DEFAULT_TRIGGER_DECORATOR,
                 tag: '',
                 filters: [],
                 regex: '',
@@ -291,6 +313,7 @@ function renderTriggerEditor(): void {
 function readTriggerEditor(): Template {
     return normalizeTrigger({
         ...readEditorDraft(),
+        id: getEditingTrigger()?.id,
         prompts: getEditingTrigger()?.prompts ?? [],
     });
 }
@@ -356,6 +379,9 @@ function saveTriggerEditor(saveAs: boolean): void {
             return;
         }
 
+        // Save As creates a new profile; give it its own id.
+        nextTrigger.id = '';
+        Object.assign(nextTrigger, normalizeTrigger(nextTrigger));
         append();
         return;
     }
@@ -434,17 +460,26 @@ async function importTriggersFromFile(file: File): Promise<void> {
 
 export function fillDecoratorOptions(): void {
     const select = $('#custom_generation_template_decorator');
-    if (!select.length || select.children().length > 0) {
-        return;
+    if (select.length && select.children().length === 0) {
+        for (const decorator of ALL_DECORATORS) {
+            select.append(`<option value="${decorator}" data-i18n="cg_${decorator.substring(2)}">${decorator.substring(2)}</option>`);
+        }
     }
 
-    for (const decorator of ALL_DECORATORS) {
-        select.append(`<option value="${decorator}" data-i18n="cg_${decorator.substring(2)}">${decorator.substring(2)}</option>`);
+    const kindSelect = $('#custom_generation_template_kind');
+    if (kindSelect.length && kindSelect.children().length === 0) {
+        for (const kind of PROFILE_KIND_OPTIONS) {
+            kindSelect.append(`<option value="${kind}" data-i18n="cg_kind_${kind}">${kind}</option>`);
+        }
     }
 }
 
 export function setupTriggerSection(): void {
     fillDecoratorOptions();
+
+    $('#custom_generation_template_kind').on('change', () => {
+        updateKindFieldVisibility(String($('#custom_generation_template_kind').val() ?? 'trigger'));
+    });
 
     $('#custom_generation_add_template').on('click', () => {
         resetEditorDraft();

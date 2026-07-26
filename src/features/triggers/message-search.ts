@@ -1,4 +1,4 @@
-import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/trigger-manager";
+import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData, getEntryOverride } from "@/features/trigger-manager";
 import { updateMessageBlock } from "@st/script.js";
 import { event_types, eventSource } from "@st/scripts/events.js";
 
@@ -14,7 +14,7 @@ export async function setup() {
 
 async function checker(data: DecoratorProcessData) {
     // Unable to search and replace empty content
-    const content = data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content || data.content;
+    const content = getEntryOverride(data) || data.content;
     if(content.includes('<%')) {
         console.warn(`Content to replace for ${data.entry.world}/${data.entry.uid}-${data.entry.comment} includes EJS code`);
         return false;

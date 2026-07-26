@@ -1,11 +1,11 @@
-import { TemplateHandler } from "@/functions/template";
+import { ProfileStore } from "@/functions/template";
 import { substituteParams, messageFormatting, appendMediaToMessage, addCopyToCodeBlocks, name2, saveChatDebounced, activateSendButtons, deactivateSendButtons, isGenerating as isMainGenerating } from "@st/script.js";
 import { eventSource, event_types } from "@st/scripts/events.js";
 import { world_info_depth } from "@st/scripts/world-info.js";
 import { getActivatedEntries, DecoratorParser } from "@/functions/worldinfo";
-import { DataOverride } from "@/features/override";
+import { ChatDataStore, DATA_NAMESPACES, worldInfoKey } from "@/features/chat-data-store";
 import { Context } from "@/features/context";
-import { generate } from "@/utils/retries";
+import { GenerationRunner } from "@/features/generation-runner";
 import { WorldInfoEntry, WorldInfoLoaded } from "@/utils/defines";
 import { setup as setupReplace } from "@/features/triggers/replace"
 import { setup as setupReplaceDiff } from "@/features/triggers/replace-diff";
@@ -17,8 +17,8 @@ import { setup as setupReplaceEjs } from "@/features/triggers/ejs-replace";
 import { setup as setupReplaceSearch } from "@/features/triggers/replace-search";
 import { setup as setupAppendMessage } from "@/features/triggers/append-message";
 import { setup as setupAppendEjs } from "@/features/triggers/ejs-append";
+import { setup as setupMessageSearch } from "@/features/triggers/message-search";
 import { eventTypes } from "@/utils/events";
-import { execute as batchExecute } from "@/utils/concurrency-limiter";
 import { settings } from "@/settings";
 import { callGenericPopup, POPUP_TYPE } from "@st/scripts/popup.js";
 
@@ -26,12 +26,33 @@ export interface DecoratorProcessData {
     entry: WorldInfoEntry;
     content: string;
     args: Record<string, any>;
-    override: DataOverride;
+    store: ChatDataStore;
     decorator: DecoratorParser;
     env: Context;
     messageId: number;
     swipeId: number;
     current: string;
+}
+
+/** Read the WI override for the entry referenced by process data. */
+export function getEntryOverride(data: DecoratorProcessData): string | null {
+    return data.store.get(
+        DATA_NAMESPACES.WORLDINFO,
+        worldInfoKey(data.entry.world, data.entry.uid),
+        { messageId: data.messageId, swipeId: data.swipeId },
+    )?.content ?? null;
+}
+
+/** Write the WI override for the entry referenced by process data. */
+export function setEntryOverride(data: DecoratorProcessData, source: string, content: string): void {
+    data.store.set(
+        DATA_NAMESPACES.WORLDINFO,
+        worldInfoKey(data.entry.world, data.entry.uid),
+        source,
+        content,
+        data.messageId,
+        data.swipeId,
+    );
 }
 
 interface DecoratorProcessor {
@@ -94,6 +115,7 @@ export async function setup() {
     await setupReplaceSearch();
     await setupAppendMessage();
     await setupAppendEjs();
+    await setupMessageSearch();
 }
 
 /**
@@ -127,6 +149,7 @@ async function processMessage(
         abortController?.abort();
         toastr.warning(`Aborting previous ${before ? 'before' : 'after'}-generate`);
         await eventSource.emit(eventTypes.AGENTS_END, { type: '', reason: 'regenerate' });
+        await eventSource.emit(eventTypes.RUN_BATCH_END, { kind: 'trigger', reason: 'regenerate' });
         abortController = null;
     }
 
@@ -169,12 +192,18 @@ async function processMessage(
     if(!before && lockButton)
         deactivateSendButtons();
 
+    // Legacy WI-payload events, kept for third-party listeners.
     await eventSource.emit(eventTypes.AGENTS_START, { abortController, context: env, entries: groups, messageId, swipeId, type: before ? 'before' : 'after' });
 
-    for(const entries of Object.values(groups)) {
-        // Process each batch
-        await runCustomGenerations(entries, env, messageId);
-    }
+    await GenerationRunner.withBatch(
+        { batchId: `trigger:${before ? 'before' : 'after'}:${messageId}`, kind: 'trigger', messageId, abortController },
+        async () => {
+            for(const entries of Object.values(groups)) {
+                // Process each batch
+                await runCustomGenerations(entries, env, messageId);
+            }
+        },
+    );
 
     await eventSource.emit(eventTypes.AGENTS_END, { entries: groups, context: env, messageId, swipeId, type: before ? 'before' : 'after', reason: 'done' });
 
@@ -299,6 +328,7 @@ async function stopActiveTasks(ask: boolean = false) {
         }
 
         await eventSource.emit(eventTypes.AGENTS_END, { type: '', reason: 'canceled' });
+        await eventSource.emit(eventTypes.RUN_BATCH_END, { kind: 'trigger', reason: 'canceled' });
         activateSendButtons();
     }
 }
@@ -478,14 +508,14 @@ async function runCustomGenerations(
     // TODO: Since different APIs have different concurrency limits, we should set limits for them separately.
     const maxConcurrency = settings.apis[settings.currentApi].maxConcurrency;
 
-    const override = new DataOverride(env);
-    
+    const store = new ChatDataStore(env);
+
     // It should be wrapped as a separate function, but that seems a bit difficult.
     for(const ent of entries) {
         const { entry, decorator, parsed, processor } = ent;
 
         const tag = parsed.parameters[decorator]?.[0] ?? '';
-        const template = TemplateHandler.find(decorator, tag);
+        const template = ProfileStore.find('trigger', decorator, tag);
         if(template === null) {
             console.error(`Failed to find template for ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}`);
             continue;
@@ -501,36 +531,29 @@ async function runCustomGenerations(
             continue;
         }
 
-        let current = substituteParams(override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent);
-        // Shallow copy so sub-generation cannot append messages to the real chat.
-        const ctx = new Context({ chat: env.chat.slice(), chat_metadata: env.chat_metadata });
-        ctx.historyPrompts = template.prompts;
-        ctx.historyPromptsType = template.decorator;
-        ctx.macroOverride.original = parsed.cleanContent;
-        ctx.macroOverride.macros = {
-            'lastUserMessage': () => substituteParams(messages.findLast(msg => msg.is_user)?.mes ?? ''),
-            'lastCharMessage': () => substituteParams(messages.findLast(msg => !msg.is_user && !msg.is_system)?.mes ?? ''),
-            'message': substituteParams(testing.content ?? ''),
-            'original': substituteParams(parsed.cleanContent),
-            'current': () => current,
-            'lastError': '',
-            ...testing.arguments ?? {},
-        };
-
-        // Reduce Attention Depletion
-        ctx.filters = template.filters;
-
-        // Handle preset override
-        if(parsed.decorators.includes('@@preset')) {
-            ctx.presetOverride = parsed.parameters['@@preset']?.[0];
-        }
+        // `{{current}}` is a WI-trigger concept: the latest override content of this entry.
+        let current = substituteParams(store.get(DATA_NAMESPACES.WORLDINFO, worldInfoKey(entry.world, entry.uid))?.content ?? parsed.cleanContent);
+        const ctx = GenerationRunner.buildContext(template, env, {
+            original: parsed.cleanContent,
+            macros: {
+                'lastUserMessage': () => substituteParams(messages.findLast(msg => msg.is_user)?.mes ?? ''),
+                'lastCharMessage': () => substituteParams(messages.findLast(msg => !msg.is_user && !msg.is_system)?.mes ?? ''),
+                'message': substituteParams(testing.content ?? ''),
+                'original': substituteParams(parsed.cleanContent),
+                'current': () => current,
+                'lastError': '',
+                ...testing.arguments ?? {},
+            },
+            // Handle preset override
+            presetOverride: parsed.decorators.includes('@@preset') ? parsed.parameters['@@preset']?.[0] : undefined,
+        });
 
         try {
             const checked = await processor.checker({
                 entry,
                 content: testing.content || parsed.cleanContent,
                 args: testing.arguments ?? {},
-                override,
+                store,
                 decorator: parsed,
                 env,
                 messageId,
@@ -555,44 +578,35 @@ async function runCustomGenerations(
         // A concurrency limiter should be added to it.
         tasks.push(async() => {
             console.log(`After Generate: ${entry.world}/${entry.uid}-${entry.comment} - ${decorator}`);
-            await eventSource.emit(eventTypes.AGENT_START, { entry, template, decorator: parsed, context: env, messageId, swipeId, current });
-            return await generate(
-                ctx,
-                decorator,
-                {
-                    validator: async(response) => {
-                        response = Array.isArray(response) ? response : [ response ];
-
-                        // Multiple responses
-                        for(const content of response) {
-                            const processed = template.process(content);
-                            if(processed.success) {
-                                if (await processor.processor({
-                                    entry,
-                                    content: processed.content ?? content,
-                                    args: processed.arguments ?? {},
-                                    override,
-                                    decorator: parsed,
-                                    env,
-                                    messageId,
-                                    swipeId,
-                                    current,
-                                })) {
-                                    return true;
-                                }
-                            }
-                        }
-
-                        // retry
-                        return false;
-                    },
-                    dontCreate: true,
-                    abortController: abortController ?? undefined,
+            return await GenerationRunner.run(template, ctx, {
+                runId: `wi:${entry.world}/${entry.uid}`,
+                kind: 'trigger',
+                label: entry.comment?.trim() || String(entry.uid),
+                messageId,
+                swipeId,
+                abortController: abortController ?? undefined,
+                // Legacy compatibility: keep emitting cg_agent_start/end with the old WI payload.
+                onStart: async () => {
+                    await eventSource.emit(eventTypes.AGENT_START, { entry, template, decorator: parsed, context: env, messageId, swipeId, current });
                 },
-                false,
-                template.retries,
-                template.interval,
-            ).catch((e: Error) => {
+                onEnd: async () => {
+                    await eventSource.emit(eventTypes.AGENT_END, { entry, template, decorator: parsed, context: env, messageId, swipeId, current });
+                },
+                validator: async (processed) => {
+                    // Caller persistence: processor writes to the ChatDataStore; false triggers a retry.
+                    return await processor.processor({
+                        entry,
+                        content: processed.content ?? '',
+                        args: processed.arguments ?? {},
+                        store,
+                        decorator: parsed,
+                        env,
+                        messageId,
+                        swipeId,
+                        current,
+                    });
+                },
+            }).catch((e: Error) => {
                 if(abortController?.signal.aborted === false) {
                     activeTasks -= 1;
                     if(!e.message.includes('canceled')) {
@@ -606,14 +620,12 @@ async function runCustomGenerations(
                     console.log(`Task completed: ${decorator} at ${entry.world}/${entry.uid}-${entry.comment}, ${activeTasks} tasks remaining`);
                 }
                 return r;
-            }).finally(() => {
-                eventSource.emit(eventTypes.AGENT_END, { entry, template, decorator: parsed, context: env, messageId, swipeId, current });
             });
         });
     }
 
     // Waiting for batch completion
-    let collected = batchExecute(tasks, maxConcurrency);
+    let collected = GenerationRunner.runTasks(tasks, maxConcurrency);
 
     if(tasks.length) {
         collected = collected.then(async(results) => {

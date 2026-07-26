@@ -7,7 +7,9 @@ export const defaultApiName = t`Default`;
 export const templatePath = 'third-party/ST-CustomGeneration/templates';
 
 export const defaultTemplate: Template = {
-    decorator: '@@record',
+    id: '',
+    kind: 'trigger',
+    binding: '@@replace',
     tag: '',
     prompts: [
         {
@@ -348,8 +350,10 @@ export const defaultPreset: Preset = {
     ],
     regexs: [],
     templates: {
-        "@@replace:": {
-            "decorator": "@@replace",
+        "trigger:@@replace:": {
+            "id": "default-replace",
+            "kind": "trigger",
+            "binding": "@@replace",
             "tag": "",
             "prompts": [
                 {
@@ -544,8 +548,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@replace_diff:": {
-            "decorator": "@@replace_diff",
+        "trigger:@@replace_diff:": {
+            "id": "default-replace_diff",
+            "kind": "trigger",
+            "binding": "@@replace_diff",
             "tag": "",
             "prompts": [
                 {
@@ -740,8 +746,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@replace_search:": {
-            "decorator": "@@replace_search",
+        "trigger:@@replace_search:": {
+            "id": "default-replace_search",
+            "kind": "trigger",
+            "binding": "@@replace_search",
             "tag": "",
             "prompts": [
                 {
@@ -936,8 +944,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@variables_json:": {
-            "decorator": "@@variables_json",
+        "trigger:@@variables_json:": {
+            "id": "default-variables_json",
+            "kind": "trigger",
+            "binding": "@@variables_json",
             "tag": "",
             "prompts": [
                 {
@@ -1132,8 +1142,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@variables_yaml:": {
-            "decorator": "@@variables_yaml",
+        "trigger:@@variables_yaml:": {
+            "id": "default-variables_yaml",
+            "kind": "trigger",
+            "binding": "@@variables_yaml",
             "tag": "",
             "prompts": [
                 {
@@ -1328,8 +1340,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@variables_jsonpatch:": {
-            "decorator": "@@variables_jsonpatch",
+        "trigger:@@variables_jsonpatch:": {
+            "id": "default-variables_jsonpatch",
+            "kind": "trigger",
+            "binding": "@@variables_jsonpatch",
             "tag": "",
             "prompts": [
                 {
@@ -1524,8 +1538,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@evaluate_ejs:": {
-            "decorator": "@@evaluate_ejs",
+        "trigger:@@evaluate_ejs:": {
+            "id": "default-evaluate_ejs",
+            "kind": "trigger",
+            "binding": "@@evaluate_ejs",
             "tag": "",
             "prompts": [
                 {
@@ -1720,8 +1736,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@replace_ejs:": {
-            "decorator": "@@replace_ejs",
+        "trigger:@@replace_ejs:": {
+            "id": "default-replace_ejs",
+            "kind": "trigger",
+            "binding": "@@replace_ejs",
             "tag": "",
             "prompts": [
                 {
@@ -1916,8 +1934,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@append_output:": {
-            "decorator": "@@append_output",
+        "trigger:@@append_output:": {
+            "id": "default-append_output",
+            "kind": "trigger",
+            "binding": "@@append_output",
             "tag": "",
             "prompts": [
                 {
@@ -2112,8 +2132,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@append_output_ejs:": {
-            "decorator": "@@append_output_ejs",
+        "trigger:@@append_output_ejs:": {
+            "id": "default-append_output_ejs",
+            "kind": "trigger",
+            "binding": "@@append_output_ejs",
             "tag": "",
             "prompts": [
                 {
@@ -2308,8 +2330,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@agent:": {
-            "decorator": "@@agent",
+        "agent::": {
+            "id": "default-agent",
+            "kind": "agent",
+            "binding": "",
             "tag": "",
             "prompts": [
                 {

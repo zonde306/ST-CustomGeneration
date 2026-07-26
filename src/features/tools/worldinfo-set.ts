@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { TOOL_DEFINITION } from "@/features/tool-manager";
 import { getWorldInfoEntry } from '@/functions/worldinfo';
 import { Context } from '@/features/context';
-import { DataOverride } from '@/features/override';
+import { ChatDataStore, DATA_NAMESPACES, worldInfoKey } from '@/features/chat-data-store';
 
 /**
  * Temporarily override the content of a specific World Info / Lorebook entry for the current chat.
@@ -44,8 +44,8 @@ async function call(params: any): Promise<string> {
         });
     }
 
-    const override = new DataOverride(args.context);
-    override.setOverride(args.world, entry.uid, 'tool_call', args.content);
+    const store = new ChatDataStore(args.context);
+    store.set(DATA_NAMESPACES.WORLDINFO, worldInfoKey(args.world, entry.uid), 'tool_call', args.content);
 
     return JSON.stringify({
         ok: true,

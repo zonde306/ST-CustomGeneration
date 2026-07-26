@@ -1,34 +1,56 @@
 import { eventSource, event_types } from "@st/scripts/events.js";
-import { renderExtensionTemplateAsync } from '@st/scripts/extensions.js';
 import { chat, chat_metadata, name1, name2 } from "@st/script.js";
 import { WorldInfoLoaded } from "@/utils/defines";
-import { copyText } from "@st/scripts/utils.js";
-import { openLargeEditor } from "@/utils/large-editor";
-import { templatePath } from "@/utils/default-settings";
+import { ChatDataStore, DataEntry, DATA_NAMESPACES, worldInfoKey } from "@/features/chat-data-store";
+import { setup as setupOverridesModal, registerDataSection } from "@/ui/overrides-modal";
 
 interface WIOverride {
     type: string;
     content: string;
 }
 
-type WIOverrides = Record<string, Record<string, WIOverride>>;
+/**
+ * World Info override adapter: consumes the `worldinfo` namespace of
+ * {@link ChatDataStore} and substitutes entry contents when WI entries load.
+ * Stateless besides the store itself.
+ */
+function applyWorldInfoOverrides(store: ChatDataStore, data: WorldInfoLoaded) {
+    const lores: Array<[string, (typeof data.globalLore)]> = [
+        ['global', data.globalLore],
+        ['persona', data.personaLore],
+        ['character', data.characterLore],
+        ['chat', data.chatLore],
+    ];
 
-type SwipeInfoEx = SwipeInfo & { wi_overrides?: WIOverrides, mes_override?: string };
-type ChatMessageEx = ChatMessage & { swipe_info?: SwipeInfoEx[] };
+    for (const [kind, lore] of lores) {
+        for (let i = 0; i < lore.length; ++i) {
+            const entry = lore[i];
+            const override = store.get(DATA_NAMESPACES.WORLDINFO, worldInfoKey(entry.world, entry.uid));
+            if (override) {
+                lore[i] = { ...entry, content: override.content };
+                console.debug(`override ${kind} lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
+            }
+        }
+    }
+}
 
-type WorldInfoOverrideEntry = WIOverride & { world: string; uid: string; messageId: number; swipeId: number; };
-type ChatMessageOverrideEntry = { messageId: number; swipeId: number; content: string; name: string; };
-
-const PREVIEW_LIMIT = 120;
-let isOverridesEventsBound = false;
-
+/**
+ * @deprecated Use {@link ChatDataStore} instead. Kept as a thin wrapper because
+ * `globalThis.CustomGeneration.DataOverride` is a public API.
+ */
 export class DataOverride {
-    public chat: ChatMessageEx[];
-    public chat_metadata: ChatMetadata;
+    public store: ChatDataStore;
 
-    constructor({ chat, chat_metadata }: { chat: ChatMessageEx[]; chat_metadata: ChatMetadata }) {
-        this.chat = Array.isArray(chat) ? chat : [];
-        this.chat_metadata = chat_metadata ?? {};
+    constructor(env: { chat: ChatMessage[]; chat_metadata: ChatMetadata }) {
+        this.store = new ChatDataStore(env);
+    }
+
+    get chat() {
+        return this.store.chat;
+    }
+
+    get chat_metadata() {
+        return this.store.chat_metadata;
     }
 
     /**
@@ -36,44 +58,6 @@ export class DataOverride {
      */
     static global(): DataOverride {
         return new DataOverride({ chat, chat_metadata });
-    }
-
-    /**
-     * Dont use this.
-     */
-    async onWorldInfoLoaded(data: WorldInfoLoaded) {
-        for(let i = 0; i < data.globalLore.length; ++i) {
-            const entry = data.globalLore[i];
-            const override = this.getOverride(entry.world, String(entry.uid));
-            if(override) {
-                data.globalLore[i] = {  ...entry, content: override.content };
-                console.debug(`override global lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
-            }
-        }
-        for(let i = 0; i < data.personaLore.length; ++i) {
-            const entry = data.personaLore[i];
-            const override = this.getOverride(entry.world, String(entry.uid));
-            if(override) {
-                data.personaLore[i] = {  ...entry, content: override.content };
-                console.debug(`override persona lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
-            }
-        }
-        for(let i = 0; i < data.characterLore.length; ++i) {
-            const entry = data.characterLore[i];
-            const override = this.getOverride(entry.world, String(entry.uid));
-            if(override) {
-                data.characterLore[i] = {  ...entry, content: override.content };
-                console.debug(`override character lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
-            }
-        }
-        for(let i = 0; i < data.chatLore.length; ++i) {
-            const entry = data.chatLore[i];
-            const override = this.getOverride(entry.world, String(entry.uid));
-            if(override) {
-                data.chatLore[i] = {  ...entry, content: override.content };
-                console.debug(`override chat lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
-            }
-        }
     }
 
     /**
@@ -86,20 +70,8 @@ export class DataOverride {
      * @returns Returns overwritten data on success, otherwise returns null.
      */
     getOverride(world: string, uid: string | number, mesId?: number, swipeId?: number, maxDepth: number = 999): WIOverride | null {
-        for(let i = mesId ?? this.chat.length - 1; i >= 0; --i) {
-            if(maxDepth < 0)
-                return null;
-
-            const message = this.chat[i];
-            const swipe = (i === mesId || i === this.chat.length - 1) ? swipeId ?? message.swipe_id ?? 0 : message.swipe_id ?? 0;
-            const override = message.swipe_info?.[swipe]?.wi_overrides?.[world]?.[String(uid)];
-            if(override)
-                return override;
-
-            maxDepth -= 1;
-        }
-
-        return null;
+        const entry = this.store.get(DATA_NAMESPACES.WORLDINFO, worldInfoKey(world, uid), { messageId: mesId, swipeId, maxDepth });
+        return entry ? { type: entry.source, content: entry.content } : null;
     }
 
     /**
@@ -116,411 +88,118 @@ export class DataOverride {
         uid: string | number,
         type: string,
         content: string,
-        messageId: number = this.chat.length - 1,
-        swipeId: number = this.chat[messageId].swipe_id ?? 0,
+        messageId?: number,
+        swipeId?: number,
     ) {
-        const last = this.chat[messageId];
-        if(!last.swipe_info)
-            last.swipe_info = [];
-        if(!last.swipe_info[swipeId])
-            last.swipe_info[swipeId] = {};
-        if(!last.swipe_info[swipeId].wi_overrides)
-            last.swipe_info[swipeId].wi_overrides = {};
-        if(!last.swipe_info[swipeId].wi_overrides?.[world])
-            last.swipe_info[swipeId].wi_overrides[world] = {};
-        last.swipe_info[swipeId].wi_overrides[world][String(uid)] = { type, content };
+        this.store.set(DATA_NAMESPACES.WORLDINFO, worldInfoKey(world, uid), type, content, messageId, swipeId);
     }
 
     getChatOverride(messageId: number): string | null {
-        const message = this.chat[messageId];
-        return message?.swipe_info?.[message.swipe_id ?? 0]?.mes_override ?? null;
+        const message = this.store.chat[messageId];
+        return this.store.get(DATA_NAMESPACES.MESSAGE, '', { messageId, maxDepth: 0, swipeId: message?.swipe_id ?? 0 })?.content ?? null;
     }
 
     setChatOverride(messageId: number, content: string) {
-        const message = this.chat[messageId];
-        if(!message.swipe_info)
-            message.swipe_info = [];
-        if(!message.swipe_info[message.swipe_id ?? 0])
-            message.swipe_info[message.swipe_id ?? 0] = {};
-        message.swipe_info[message.swipe_id ?? 0].mes_override = content;
+        this.store.set(DATA_NAMESPACES.MESSAGE, '', 'user-edit', content, messageId);
     }
 
     lookupOverrides(depth: number = 9): (WIOverride & {
         world: string; uid: string; messageId: number; swipeId: number;
     })[] {
-        const results = new Map<string, WIOverride & { world: string; uid: string; messageId: number; swipeId: number; }>();
-
-        for(let i = this.chat.length - 1; i >= 0; --i) {
-            if(depth < 0)
-                break;
-
-            const message = this.chat[i];
-            if(!message)
-                continue;
-
-            const overrides = message.swipe_info?.[message.swipe_id ?? 0]?.wi_overrides;
-            if(overrides) {
-                for(const [world, entries] of Object.entries(overrides)) {
-                    for(const [uid, override] of Object.entries(entries)) {
-                        if(!results.has(`${world}/${uid}`)) {
-                            results.set(`${world}/${uid}`, {
-                                ...override,
-                                world: world,
-                                uid: uid,
-                                messageId: i,
-                                swipeId: message.swipe_id ?? 0,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        return Array.from(results.values());
+        return this.store.lookup(DATA_NAMESPACES.WORLDINFO, depth).map(({ key, entry, messageId, swipeId }) => {
+            const slash = key.indexOf('/');
+            return {
+                type: entry.source,
+                content: entry.content,
+                world: slash >= 0 ? key.slice(0, slash) : key,
+                uid: slash >= 0 ? key.slice(slash + 1) : '',
+                messageId,
+                swipeId,
+            };
+        });
     }
 
     lookupChatOverrides(depth: number = 9): ({
         messageId: number; swipeId: number; content: string; name: string;
     })[] {
-        const results: {
-            messageId: number; swipeId: number; content: string; name: string;
-        }[] = [];
-
-        const startIndex = Math.max(0, this.chat.length - 1 - depth);
-        for(let i = startIndex; i < this.chat.length; ++i) {
-            const message = this.chat[i];
-
-            // message is hidden
-            if(!message || message.is_system)
-                continue;
-
-            const content = message.swipe_info?.[message.swipe_id ?? 0]?.mes_override;
-            if(content) {
-                results.push({
-                    messageId: i,
-                    swipeId: message.swipe_id ?? 0,
-                    content: content,
-                    name: message.name ?? (message.is_user ? name1 : name2),
-                });
-            }
-        }
-
-        return results;
+        return this.store.scan(DATA_NAMESPACES.MESSAGE, depth).map(({ entry, messageId, swipeId }) => {
+            const message = this.store.chat[messageId];
+            return {
+                messageId,
+                swipeId,
+                content: entry.content,
+                name: message?.name ?? (message?.is_user ? name1 : name2),
+            };
+        });
     }
 }
 
 async function onWorldInfoLoaded(data: WorldInfoLoaded) {
-    const override: DataOverride = data.context ?
-        new DataOverride(data.context) :
-        DataOverride.global();
-    
-    await override.onWorldInfoLoaded(data);
+    const store: ChatDataStore = data.context ?
+        new ChatDataStore(data.context) :
+        ChatDataStore.global();
+
+    applyWorldInfoOverrides(store, data);
+}
+
+function splitWorldInfoKey(key: string): { world: string; uid: string } {
+    const slash = key.indexOf('/');
+    return slash >= 0
+        ? { world: key.slice(0, slash), uid: key.slice(slash + 1) }
+        : { world: key, uid: '' };
+}
+
+function describeSource(entry: DataEntry): string {
+    return entry.source === 'legacy' ? '' : entry.source;
 }
 
 export async function setup() {
     eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded);
-    eventSource.on(event_types.APP_READY, onAppReady);
-}
+    eventSource.on(event_types.APP_READY, setupOverridesModal);
 
-async function onAppReady() {
-    if (!$('#custom_generation_overrides_dialog').length) {
-        const host = document.body ?? document.documentElement;
-        $(host).append(await renderExtensionTemplateAsync(templatePath, 'overrides-modal'));
-    }
-
-    bindOverridesEvents();
-
-    if (!$('#extensionsMenu')?.find('custom_generation_overrides_button')?.length) {
-        $('#extensionsMenu').append(`
-            <div id="custom_generation_overrides_button" class="extension_container interactable" tabindex="0">
-                <div id="customGenerateOverrides" class="list-group-item flex-container flexGap5 interactable" title="View Overrides." tabindex="0" role="listitem">
-                    <div class="fa-fw fa-solid fa-book extensionsMenuExtensionButton"></div>
-                    <span data-i18n="View Overrides">View Overrides</span>
-                </div>
-            </div>
-        `);
-
-        $('#customGenerateOverrides').on('click', () => {
-            updateOverridesList();
-            openDialog('#custom_generation_overrides_dialog');
-        });
-    }
-}
-
-function getDialog(selector: string): HTMLDialogElement | null {
-    const element = document.querySelector(selector);
-    return element instanceof HTMLDialogElement ? element : null;
-}
-
-function openDialog(selector: string): void {
-    const dialog = getDialog(selector);
-    if (!dialog || dialog.open) {
-        return;
-    }
-
-    try {
-        dialog.showModal();
-    } catch {
-        dialog.setAttribute('open', 'open');
-    }
-}
-
-function closeDialog(selector: string): void {
-    const dialog = getDialog(selector);
-    if (!dialog) {
-        return;
-    }
-
-    if (dialog.open) {
-        dialog.close();
-    } else {
-        dialog.removeAttribute('open');
-    }
-}
-
-function getPreviewText(text: string): string {
-    return String(text ?? '').trim().replace(/\s+/g, ' ').slice(0, PREVIEW_LIMIT);
-}
-
-function buildOverrideInfoItem(label: string, value: string): JQuery<HTMLElement> {
-    const item = $('<div class="custom_generation_overrides_info_item"></div>');
-    const labelEl = $('<span class="custom_generation_overrides_info_label"></span>').text(label);
-    const valueEl = $('<span class="custom_generation_overrides_info_value"></span>').text(value);
-    item.append(labelEl, valueEl);
-    return item;
-}
-
-function createCopyButton(content: string): JQuery<HTMLElement> {
-    const button = $('<button class="menu_button fa-solid fa-copy custom_generation_copy_button" type="button" title="Copy" data-i18n="[title]Copy"></button>');
-    button.on('click', async (event: JQuery.ClickEvent) => {
-        event.preventDefault();
-        event.stopPropagation();
-
-        try {
-            await copyText(content);
-            toastr.success('Copied to clipboard', 'Copy');
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error ?? 'Copy failed');
-            toastr.error(message, 'Copy');
-        }
+    registerDataSection({
+        namespace: DATA_NAMESPACES.WORLDINFO,
+        title: 'World Info Overrides',
+        describe: (item) => {
+            const { world, uid } = splitWorldInfoKey(item.key);
+            return {
+                name: `World ${world} · UID ${uid}`,
+                meta: `Message ${item.messageId + 1} · Swipe ${item.swipeId}`,
+                badges: ['World Info', describeSource(item.entry) || 'Override'],
+                info: [
+                    ['World', world],
+                    ['UID', uid],
+                    ['Type', describeSource(item.entry) || '-'],
+                    ['Message', String(item.messageId + 1)],
+                    ['Swipe', String(item.swipeId)],
+                ],
+            };
+        },
+        onEdit: (item, content, store) => {
+            store.set(DATA_NAMESPACES.WORLDINFO, item.key, item.entry.source, content, item.messageId, item.swipeId);
+        },
     });
-    return button;
-}
 
-function buildOverrideBlock(title: string, content: string, onEdit?: (newContent: string) => void): JQuery<HTMLElement> {
-    const block = $('<div class="custom_generation_overrides_block"></div>');
-    const header = $('<div class="custom_generation_overrides_block_header"></div>');
-    const titleEl = $('<div class="custom_generation_overrides_block_title"></div>').text(title);
-    const copyButton = createCopyButton(content);
-    const pre = $('<pre class="custom_generation_overrides_pre"></pre>').text(content);
-    const buttonGroup = $('<div class="custom_generation_overrides_buttons"></div>');
-    header.append(titleEl, buttonGroup);
-    block.append(header, pre);
-    buttonGroup.append(copyButton);
-
-    // Add edit button (if edit callback provided)
-    if (onEdit) {
-        const expandButton = $('<button class="menu_button fa-solid fa-expand custom_generation_large_editor_button" type="button" title="Open in large editor" data-i18n="[title]Open in large editor"></button>');
-        buttonGroup.append(expandButton);
-        expandButton.on('click', async (event: JQuery.ClickEvent) => {
-            event.preventDefault();
-            event.stopPropagation();
-            openLargeEditor('Override Content', pre.text() ?? '', (newContent) => {
-                pre.text(newContent);
-                onEdit(newContent);
-            });
-        });
-
-        const editButton = $('<button class="menu_button fa-solid fa-edit custom_generation_edit_button" type="button" title="Edit" data-i18n="[title]Edit"></button>');
-        const saveButton = $('<button class="menu_button fa-solid fa-check custom_generation_save_button" type="button" title="Save" data-i18n="[title]Save" style="display:none;"></button>');
-        const cancelButton = $('<button class="menu_button fa-solid fa-times custom_generation_cancel_button" type="button" title="Cancel" data-i18n="[title]Cancel" style="display:none;"></button>');
-        const textarea = $('<textarea class="custom_generation_overrides_textarea" style="display:none;"></textarea>').val(content);
-
-        buttonGroup.append(editButton, saveButton, cancelButton);
-
-        const toggleEditMode = (editing: boolean) => {
-            if (editing) {
-                pre.hide();
-                textarea.show();
-                copyButton.hide();
-                expandButton.hide();
-                editButton.hide();
-                saveButton.show();
-                cancelButton.show();
-            } else {
-                pre.show();
-                textarea.hide();
-                copyButton.show();
-                expandButton.show();
-                editButton.show();
-                saveButton.hide();
-                cancelButton.hide();
-            }
-        };
-
-        editButton.on('click', (event: JQuery.ClickEvent) => {
-            event.preventDefault();
-            event.stopPropagation();
-            textarea.val(pre.text());
-            toggleEditMode(true);
-        });
-
-        cancelButton.on('click', (event: JQuery.ClickEvent) => {
-            event.preventDefault();
-            event.stopPropagation();
-            textarea.val(pre.text());
-            toggleEditMode(false);
-        });
-
-        saveButton.on('click', (event: JQuery.ClickEvent) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const newContent = String(textarea.val() ?? '');
-            pre.text(newContent);
-            toggleEditMode(false);
-            onEdit(newContent);
-        });
-
-        block.append(textarea);
-    }
-
-    return block;
-}
-
-function buildOverrideTitle(base: string, content: string): string {
-    const preview = getPreviewText(content);
-    return preview ? `${base}: ${preview}` : base;
-}
-
-function buildWorldInfoEntry(entry: WorldInfoOverrideEntry, onEdit?: (newContent: string) => void): JQuery<HTMLElement> {
-    const details = $('<details class="custom_generation_overrides_entry"></details>');
-    const summary = $('<summary class="custom_generation_overrides_summary"></summary>');
-    const caret = $('<i class="fa-solid fa-chevron-right custom_generation_overrides_caret"></i>');
-
-    const left = $('<div class="custom_generation_overrides_summary_left"></div>');
-    const title = $('<div class="custom_generation_overrides_title"></div>').text(
-        buildOverrideTitle(`World ${entry.world} · UID ${entry.uid}`, entry.content),
-    );
-    const meta = $('<div class="custom_generation_overrides_meta"></div>').text(
-        `Message ${entry.messageId + 1} · Swipe ${entry.swipeId}`,
-    );
-    left.append(title, meta);
-
-    const right = $('<div class="custom_generation_overrides_summary_right"></div>');
-    const typeBadge = $('<span class="custom_generation_overrides_badge"></span>').text(entry.type || 'Override');
-    const kindBadge = $('<span class="custom_generation_overrides_badge"></span>').text('World Info');
-    right.append(kindBadge, typeBadge);
-
-    summary.append(caret, left, right);
-
-    const body = $('<div class="custom_generation_overrides_body"></div>');
-    const info = $('<div class="custom_generation_overrides_info"></div>');
-    info.append(
-        buildOverrideInfoItem('World', entry.world),
-        buildOverrideInfoItem('UID', entry.uid),
-        buildOverrideInfoItem('Type', entry.type || '-'),
-        buildOverrideInfoItem('Message', String(entry.messageId + 1)),
-        buildOverrideInfoItem('Swipe', String(entry.swipeId)),
-    );
-
-    body.append(info);
-    body.append(buildOverrideBlock('Content', entry.content, onEdit));
-
-    details.append(summary, body);
-    return details;
-}
-
-function buildChatOverrideEntry(entry: ChatMessageOverrideEntry, onEdit?: (newContent: string) => void): JQuery<HTMLElement> {
-    const details = $('<details class="custom_generation_overrides_entry"></details>');
-    const summary = $('<summary class="custom_generation_overrides_summary"></summary>');
-    const caret = $('<i class="fa-solid fa-chevron-right custom_generation_overrides_caret"></i>');
-
-    const left = $('<div class="custom_generation_overrides_summary_left"></div>');
-    const title = $('<div class="custom_generation_overrides_title"></div>').text(
-        buildOverrideTitle(`${entry.name ?? 'Unknown'} · Message ${entry.messageId + 1}`, entry.content),
-    );
-    const meta = $('<div class="custom_generation_overrides_meta"></div>').text(
-        `Swipe ${entry.swipeId}`,
-    );
-    left.append(title, meta);
-
-    const right = $('<div class="custom_generation_overrides_summary_right"></div>');
-    const kindBadge = $('<span class="custom_generation_overrides_badge"></span>').text('Chat Message');
-    right.append(kindBadge);
-
-    summary.append(caret, left, right);
-
-    const body = $('<div class="custom_generation_overrides_body"></div>');
-    const info = $('<div class="custom_generation_overrides_info"></div>');
-    info.append(
-        buildOverrideInfoItem('Name', entry.name ?? '-'),
-        buildOverrideInfoItem('Message', String(entry.messageId + 1)),
-        buildOverrideInfoItem('Swipe', String(entry.swipeId)),
-    );
-
-    body.append(info);
-    body.append(buildOverrideBlock('Content', entry.content, onEdit));
-
-    details.append(summary, body);
-    return details;
-}
-
-function buildOverridesSection(title: string, entries: JQuery<HTMLElement>[], i18nKey?: string): JQuery<HTMLElement> {
-    const section = $('<div class="custom_generation_overrides_section"></div>');
-    const titleEl = $('<div class="custom_generation_overrides_section_title"></div>').text(title);
-    if (i18nKey) {
-        titleEl.attr('data-i18n', i18nKey);
-    }
-    const body = $('<div class="custom_generation_overrides_section_body"></div>');
-    entries.forEach(entry => body.append(entry));
-    section.append(titleEl, body);
-    return section;
-}
-
-function updateOverridesList(): void {
-    const list = $('#custom_generation_overrides_list');
-    if (!list.length) {
-        return;
-    }
-
-    list.empty();
-
-    const override = DataOverride.global();
-    const worldInfoOverrides = override.lookupOverrides();
-    const chatOverrides = override.lookupChatOverrides();
-
-    if (!worldInfoOverrides.length && !chatOverrides.length) {
-        const emptyText = String(list.attr('no-items-text') ?? 'No overrides');
-        const empty = $('<div class="custom_generation_logger_empty text_muted"></div>').text(emptyText);
-        list.append(empty);
-        return;
-    }
-
-    if (worldInfoOverrides.length) {
-        const entries = worldInfoOverrides.map(entry => buildWorldInfoEntry(entry, (newContent) => {
-            override.setOverride(entry.world, entry.uid, entry.type, newContent, entry.messageId, entry.swipeId);
-            toastr.success('Override updated', 'Edit');
-        }));
-        list.append(buildOverridesSection('World Info Overrides', entries, 'World Info Overrides'));
-    }
-
-    if (chatOverrides.length) {
-        const entries = chatOverrides.map(entry => buildChatOverrideEntry(entry, (newContent) => {
-            override.setChatOverride(entry.messageId, newContent);
-            toastr.success('Chat override updated', 'Edit');
-        }));
-        list.append(buildOverridesSection('Chat Message Overrides', entries, 'Chat Message Overrides'));
-    }
-}
-
-function bindOverridesEvents(): void {
-    if (isOverridesEventsBound) {
-        return;
-    }
-
-    isOverridesEventsBound = true;
-
-    $('#custom_generation_overrides_close').on('click', () => {
-        closeDialog('#custom_generation_overrides_dialog');
+    registerDataSection({
+        namespace: DATA_NAMESPACES.MESSAGE,
+        title: 'Chat Message Overrides',
+        list: (store) => store.scan(DATA_NAMESPACES.MESSAGE),
+        describe: (item) => {
+            const message = chat[item.messageId];
+            const name = message?.name ?? (message?.is_user ? name1 : name2);
+            return {
+                name: `${name ?? 'Unknown'} · Message ${item.messageId + 1}`,
+                meta: `Swipe ${item.swipeId}`,
+                badges: ['Chat Message'],
+                info: [
+                    ['Name', name ?? '-'],
+                    ['Message', String(item.messageId + 1)],
+                    ['Swipe', String(item.swipeId)],
+                ],
+            };
+        },
+        onEdit: (item, content, store) => {
+            store.set(DATA_NAMESPACES.MESSAGE, item.key, 'user-edit', content, item.messageId, item.swipeId);
+        },
     });
 }

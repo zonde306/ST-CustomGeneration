@@ -1,4 +1,4 @@
-import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/trigger-manager";
+import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData, getEntryOverride, setEntryOverride } from "@/features/trigger-manager";
 import { substituteParams } from "@st/script.js";
 import { applyPatch } from "diff";
 
@@ -14,7 +14,7 @@ export async function setup() {
 
 async function checker(data: DecoratorProcessData) {
     // Unable to search and replace empty content
-    const content = data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content || data.content;
+    const content = getEntryOverride(data) || data.content;
     if(content.includes('<%')) {
         console.warn(`Content to replace for ${data.entry.world}/${data.entry.uid}-${data.entry.comment} includes EJS code`);
         return false;
@@ -31,10 +31,10 @@ async function processor(data: DecoratorProcessData) {
     if(data.content.trim().length < 1)
         return true;
 
-    const oldContent = substituteParams(data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content ?? '');
+    const oldContent = substituteParams(getEntryOverride(data) ?? '');
     const diff = applyPatch(oldContent, data.content, { fuzzFactor: 99 });
     if(diff) {
-        data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, diff, data.messageId, data.swipeId);
+        setEntryOverride(data, WI_DECORATOR, diff);
         console.debug(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} replace with diff to ${data.messageId}#${data.swipeId}, and result: ${diff}`);
     } else {
         console.error(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} replace with diff failed`);

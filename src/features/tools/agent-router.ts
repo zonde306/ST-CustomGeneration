@@ -4,7 +4,8 @@ import { collectEnabledWorldInfos, loadWorldInfoEntries, getWorldInfoSorter, fil
 import { WorldInfoEntry, WorldInfoLoaded } from '@/utils/defines';
 import { TOOL_DEFINITION, Tool } from '@/features/tool-manager';
 import { Context } from '@/features/context';
-import { TemplateHandler } from '@/functions/template';
+import { ProfileStore } from '@/functions/template';
+import { GenerationRunner } from '@/features/generation-runner';
 import { settings } from '@/settings';
 import { generate } from "@/utils/retries";
 import { z } from 'zod';
@@ -163,8 +164,8 @@ async function loadAgents() {
                 if (!existing.triggers || existing.triggers.length === 0) {
                     existing.triggers = ['normal', 'regenerate', 'swipe'];
                 } else {
-                    // Remove 'agent' trigger (if present)
-                    existing.triggers = existing.triggers.filter(t => t !== 'agent');
+                    // Remove 'agent' / 'agent:*' triggers (if present)
+                    existing.triggers = existing.triggers.filter(t => t !== 'agent' && !t.startsWith('agent:'));
                     if (existing.triggers.length === 0) {
                         existing.triggers = ['normal', 'regenerate', 'swipe'];
                     }
@@ -257,6 +258,9 @@ function unregisterAllAgents() {
 async function callAgent(agentEntry: AgentEntry, validatedData: Record<string, any>): Promise<string> {
     console.log(`Agent Router: calling agent "${agentEntry.name}" with params`, validatedData);
 
+    // Namespaced generation type: bare 'agent' entries in prompt/tool triggers match at kind level.
+    const generateType = `agent:${agentEntry.name}`;
+
     // Read-only global context to access chat and chat_metadata, do not mutate global context directly
     const globalCtx = (validatedData.context ?? Context.global()) as Context;
 
@@ -274,32 +278,47 @@ async function callAgent(agentEntry: AgentEntry, validatedData: Record<string, a
         macros['task'] = validatedData.task;
     }
 
-    // Use TemplateHandler to find matching template
-    const template = TemplateHandler.find('@@agent', agentEntry.name);
+    // Find a matching agent profile: exact agent name binding, falling back to the default agent profile.
+    const template = ProfileStore.find('agent', agentEntry.name, '') ?? ProfileStore.find('agent', '', '');
 
-    // Create an independent sub-Context to avoid polluting the global Context
-    // Follows the pattern from agent-manager.ts:505-506
-    // Shallow copy so sub-generation cannot append messages to the real chat.
-    const ctx = new Context({
-        chat: template ? globalCtx.chat.slice() : [ { mes: agentEntry.content } ],
-        chat_metadata: globalCtx.chat_metadata,
-    });
-    if (template) {
-        // Expand the template prompts in place of the chat history slot.
-        ctx.historyPrompts = template.prompts;
-        ctx.historyPromptsType = template.decorator;
-    }
+    try {
+        if (template) {
+            // Runner path: profile-driven context, lifecycle events, retries and output extraction.
+            const ctx = GenerationRunner.buildContext(template, globalCtx, {
+                original: agentEntry.content,
+                macros,
+                presetOverride: agentEntry.preset,
+            });
+            ctx.historyPromptsType = generateType;
 
-    // Set macroOverride
-    ctx.macroOverride = {
-        original: agentEntry.content,
-        macros,
-    };
+            let output = '';
+            const message = globalCtx.chat.length - 1;
+            await GenerationRunner.run(template, ctx, {
+                runId: `agent:${agentEntry.name}`,
+                kind: 'agent',
+                label: agentEntry.name,
+                messageId: message,
+                swipeId: globalCtx.chat[message]?.swipe_id ?? 0,
+                type: generateType,
+                validator: (processed) => {
+                    output = processed.content ?? '';
+                    return true;
+                },
+            });
 
-    // Apply template filters (disable unwanted prompt sections)
-    if (template) {
-        ctx.filters = template.filters;
-    } else {
+            console.log(`Agent Router: agent "${agentEntry.name}" completed`);
+            return output;
+        }
+
+        // No profile: minimal standalone sub-generation.
+        const ctx = new Context({
+            chat: [ { mes: agentEntry.content } ],
+            chat_metadata: globalCtx.chat_metadata,
+        });
+        ctx.macroOverride = {
+            original: agentEntry.content,
+            macros,
+        };
         // Default filters: sub-generation does not need full context
         ctx.filters = {
             chatHistory: false,
@@ -307,23 +326,11 @@ async function callAgent(agentEntry: AgentEntry, validatedData: Record<string, a
             worldInfoAfter: false,
             worldInfoDepth: false,
         };
-    }
+        if (agentEntry.preset) {
+            ctx.presetOverride = agentEntry.preset;
+        }
 
-    // Support @@preset override
-    if (agentEntry.preset) {
-        ctx.presetOverride = agentEntry.preset;
-    }
-
-    try {
-        // Use 'agent' type for sub-generation, dontCreate prevents message creation
-        const result = await generate(
-            ctx,
-            'agent',
-            { dontCreate: true },
-            false,
-            template?.retries,
-            template?.interval,
-        );
+        const result = await generate(ctx, generateType, { dontCreate: true });
         const output = typeof result === 'string' ? result : String(result);
         console.log(`Agent Router: agent "${agentEntry.name}" completed`);
         return output;
