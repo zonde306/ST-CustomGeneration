@@ -575,12 +575,12 @@ export class Context {
 
         await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat: messages, dryRun, context: this, type });
 
+        await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: messages, context: this, type }, dryRun);
+
         // Every transformation is done and the request has not been assembled yet:
         // the only window where restoring is both safe and still counted in the
         // token budget.
         restoreProtected(messages);
-
-        await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: messages, context: this, type }, dryRun);
 
         if(dryRun)
             return '';
