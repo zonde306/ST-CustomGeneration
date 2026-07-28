@@ -4,8 +4,8 @@ import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { z } from 'zod';
 import { KNOWN_DECORATORS } from '@/functions/worldinfo';
 import { TOOL_DEFINITION } from '@/features/tool-manager';
-import { ApiSettings, Preset, PresetPrompt, RegEx, Settings, Template, ToolSettings } from '@/utils/defines';
-import { defaultApiName, defaultApiSettings, defaultPreset, defaultSettings, defaultTemplate, defaultToolSettings } from '@/utils/default-settings';
+import { ApiSettings, Preset, PresetPrompt, RegEx, Settings, StorageSettings, Template, ToolSettings } from '@/utils/defines';
+import { defaultApiName, defaultApiSettings, defaultPreset, defaultSettings, defaultStorageSettings, defaultTemplate, defaultToolSettings } from '@/utils/default-settings';
 import { clone, isRecord, normalizeRecord, parseNumber, sanitizeName } from '@/utils/values';
 import { withUiUpdate } from '@/ui/common';
 
@@ -583,8 +583,62 @@ function syncToolsWithDefinitions(): void {
 // Integrity
 // ============================================
 
+/** Tools replaced by the virtual file system, and their replacements. */
+const LEGACY_FS_TOOLS = ['get_worldinfo', 'search_worldinfo', 'set_worldinfo'];
+const FS_TOOLS = ['list_dir', 'read_file', 'search_files', 'write_file', 'edit_file'];
+
+function normalizeStorageSettings(): void {
+    const storage = isRecord(settings.storage) ? settings.storage : {} as Partial<StorageSettings>;
+
+    settings.storage = {
+        autoCompact: storage.autoCompact ?? defaultStorageSettings.autoCompact,
+        keepDepth: parseNumber(storage.keepDepth, defaultStorageSettings.keepDepth, 1, 100000, true),
+        sizeThreshold: parseNumber(storage.sizeThreshold, defaultStorageSettings.sizeThreshold, 0, Number.MAX_SAFE_INTEGER, true),
+        pruneLegacy: storage.pruneLegacy ?? defaultStorageSettings.pruneLegacy,
+        fuzzyIndexFiles: storage.fuzzyIndexFiles ?? defaultStorageSettings.fuzzyIndexFiles,
+    };
+}
+
+/**
+ * One-off migrations. Enabling the file tools for anyone who had the World Info
+ * tools enabled keeps existing presets working, since tool settings are keyed by
+ * tool name and the old names are now deprecated shims.
+ */
+function applyMigrations(): void {
+    if (!isRecord(settings.migrations)) {
+        settings.migrations = {};
+    }
+
+    if (!settings.migrations['fs-tools']) {
+        for (const preset of Object.values(settings.presets)) {
+            if (!preset.tools)
+                continue;
+
+            const enabled = LEGACY_FS_TOOLS.some(name => preset.tools[name]?.enabled);
+            if (!enabled)
+                continue;
+
+            const triggers = LEGACY_FS_TOOLS.map(name => preset.tools[name]).find(t => t?.enabled)?.triggers ?? [];
+            for (const name of FS_TOOLS) {
+                if (!preset.tools[name]) {
+                    preset.tools[name] = clone(defaultToolSettings);
+                }
+
+                const tool = preset.tools[name];
+                if (!tool.enabled) {
+                    tool.enabled = true;
+                    tool.triggers = [...triggers];
+                }
+            }
+        }
+
+        settings.migrations['fs-tools'] = true;
+    }
+}
+
 export function ensureSettingsIntegrity(): void {
     settings.interceptGenerate = Boolean(settings.interceptGenerate);
+    normalizeStorageSettings();
     settings.apis = normalizeApiMap(settings.apis);
     if (Object.keys(settings.apis).length === 0) {
         settings.apis = {
@@ -602,4 +656,5 @@ export function ensureSettingsIntegrity(): void {
     settings.currentPreset = ensureCurrentPresetKey();
 
     syncToolsWithDefinitions();
+    applyMigrations();
 }

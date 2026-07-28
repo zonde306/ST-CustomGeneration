@@ -2,7 +2,7 @@ import { renderExtensionTemplateAsync } from '@st/scripts/extensions.js';
 import { copyText } from '@st/scripts/utils.js';
 import { openLargeEditor } from '@/utils/large-editor';
 import { templatePath } from '@/utils/default-settings';
-import { ChatDataStore, DataLookupResult } from '@/features/chat-data-store';
+import { ChatDataStore, DataLookupResult } from '@/functions/chat-data-store';
 
 const PREVIEW_LIMIT = 120;
 let isOverridesEventsBound = false;
@@ -31,9 +31,22 @@ export interface DataSection {
     describe: (item: DataLookupResult) => DataSectionDescription;
     /** Persist an edited entry. Omit to render read-only. */
     onEdit?: (item: DataLookupResult, content: string, store: ChatDataStore) => void;
+    /** Remove an entry. Omit to hide the delete action. */
+    onDelete?: (item: DataLookupResult, store: ChatDataStore) => void;
+}
+
+/**
+ * A non-list panel shown above the sections, e.g. storage statistics.
+ * `render` is called every time the dialog is refreshed.
+ */
+export interface InfoPanel {
+    title: string;
+    i18nKey?: string;
+    render: (refresh: () => void) => JQuery<HTMLElement>;
 }
 
 const sections: DataSection[] = [];
+const panels: InfoPanel[] = [];
 
 /**
  * Register a section in the Overrides dialog. New namespaces (memory, summary, ...)
@@ -41,6 +54,11 @@ const sections: DataSection[] = [];
  */
 export function registerDataSection(section: DataSection): void {
     sections.push(section);
+}
+
+/** Register an informational panel rendered above the entry sections. */
+export function registerInfoPanel(panel: InfoPanel): void {
+    panels.push(panel);
 }
 
 export async function setup() {
@@ -213,7 +231,7 @@ function buildOverrideTitle(base: string, content: string): string {
     return preview ? `${base}: ${preview}` : base;
 }
 
-function buildSectionEntry(section: DataSection, item: DataLookupResult, store: ChatDataStore): JQuery<HTMLElement> {
+function buildSectionEntry(section: DataSection, item: DataLookupResult, store: ChatDataStore, refresh: () => void): JQuery<HTMLElement> {
     const description = section.describe(item);
 
     const details = $('<details class="custom_generation_overrides_entry"></details>');
@@ -251,6 +269,18 @@ function buildSectionEntry(section: DataSection, item: DataLookupResult, store: 
         : undefined;
     body.append(buildOverrideBlock('Content', item.entry.content, onEdit));
 
+    if (section.onDelete) {
+        const remove = $('<button class="menu_button custom_generation_overrides_delete" type="button" data-i18n="Delete">Delete</button>');
+        remove.on('click', (event: JQuery.ClickEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            section.onDelete!(item, store);
+            toastr.success('Entry removed', 'Delete');
+            refresh();
+        });
+        body.append(remove);
+    }
+
     details.append(summary, body);
     return details;
 }
@@ -278,6 +308,14 @@ function updateOverridesList(): void {
     const store = ChatDataStore.global();
     let hasEntries = false;
 
+    for (const panel of panels) {
+        list.append(buildOverridesSection(
+            panel.title,
+            [panel.render(updateOverridesList)],
+            panel.i18nKey ?? panel.title,
+        ));
+    }
+
     for (const section of sections) {
         const items = section.list ? section.list(store) : store.lookup(section.namespace);
         if (!items.length) {
@@ -285,7 +323,7 @@ function updateOverridesList(): void {
         }
 
         hasEntries = true;
-        const entries = items.map(item => buildSectionEntry(section, item, store));
+        const entries = items.map(item => buildSectionEntry(section, item, store, updateOverridesList));
         list.append(buildOverridesSection(section.title, entries, section.i18nKey ?? section.title));
     }
 

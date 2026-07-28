@@ -1,4 +1,4 @@
-import { Template, Preset, Settings, ApiSettings, ToolSettings } from '@/utils/defines';
+import { Template, Preset, Settings, ApiSettings, StorageSettings, ToolSettings } from '@/utils/defines';
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { t } from "@st/scripts/i18n.js"
 
@@ -2391,6 +2391,14 @@ export const defaultToolSettings: ToolSettings = {
     description: '',
 };
 
+export const defaultStorageSettings: StorageSettings = {
+    autoCompact: true,
+    keepDepth: 32,
+    sizeThreshold: 256 * 1024,
+    pruneLegacy: true,
+    fuzzyIndexFiles: false,
+};
+
 export const defaultSettings: Settings = {
     apis: {
         [defaultApiName]: defaultApiSettings,
@@ -2401,4 +2409,6 @@ export const defaultSettings: Settings = {
     },
     currentPreset: defaultPreset.name,
     interceptGenerate: false,
+    storage: defaultStorageSettings,
+    migrations: {},
 };

@@ -1,7 +1,7 @@
 import { eventSource, event_types } from "@st/scripts/events.js";
 import { chat, chat_metadata, name1, name2 } from "@st/script.js";
 import { WorldInfoLoaded } from "@/utils/defines";
-import { ChatDataStore, DataEntry, DATA_NAMESPACES, worldInfoKey } from "@/features/chat-data-store";
+import { ChatDataStore, DataEntry, DATA_NAMESPACES, worldInfoKey } from "@/functions/chat-data-store";
 import { setup as setupOverridesModal, registerDataSection } from "@/ui/overrides-modal";
 
 interface WIOverride {
@@ -25,7 +25,9 @@ function applyWorldInfoOverrides(store: ChatDataStore, data: WorldInfoLoaded) {
     for (const [kind, lore] of lores) {
         for (let i = 0; i < lore.length; ++i) {
             const entry = lore[i];
-            const override = store.get(DATA_NAMESPACES.WORLDINFO, worldInfoKey(entry.world, entry.uid));
+            // `getPending` so an override written by a tool earlier in this same
+            // turn is already in effect, before its message layer exists.
+            const override = store.getPending(DATA_NAMESPACES.WORLDINFO, worldInfoKey(entry.world, entry.uid));
             if (override) {
                 lore[i] = { ...entry, content: override.content };
                 console.debug(`override ${kind} lore ${entry.world}/${entry.uid}-${entry.comment} to `, override.content);
@@ -38,7 +40,7 @@ function applyWorldInfoOverrides(store: ChatDataStore, data: WorldInfoLoaded) {
  * @deprecated Use {@link ChatDataStore} instead. Kept as a thin wrapper because
  * `globalThis.CustomGeneration.DataOverride` is a public API.
  */
-export class DataOverride {
+export class WorldInfoRewrier {
     public store: ChatDataStore;
 
     constructor(env: { chat: ChatMessage[]; chat_metadata: ChatMetadata }) {
@@ -56,8 +58,8 @@ export class DataOverride {
     /**
      * WI overrides of the current chat file
      */
-    static global(): DataOverride {
-        return new DataOverride({ chat, chat_metadata });
+    static global(): WorldInfoRewrier {
+        return new WorldInfoRewrier({ chat, chat_metadata });
     }
 
     /**
@@ -143,7 +145,7 @@ async function onWorldInfoLoaded(data: WorldInfoLoaded) {
 }
 
 function splitWorldInfoKey(key: string): { world: string; uid: string } {
-    const slash = key.indexOf('/');
+    const slash = key.lastIndexOf('/');
     return slash >= 0
         ? { world: key.slice(0, slash), uid: key.slice(slash + 1) }
         : { world: key, uid: '' };
@@ -151,6 +153,11 @@ function splitWorldInfoKey(key: string): { world: string; uid: string } {
 
 function describeSource(entry: DataEntry): string {
     return entry.source === 'legacy' ? '' : entry.source;
+}
+
+/** Compacted base entries have no message of their own. */
+function describeLocation(messageId: number, swipeId: number): string {
+    return messageId < 0 ? 'Compacted history' : `Message ${messageId + 1} · Swipe ${swipeId}`;
 }
 
 export async function setup() {
@@ -164,19 +171,29 @@ export async function setup() {
             const { world, uid } = splitWorldInfoKey(item.key);
             return {
                 name: `World ${world} · UID ${uid}`,
-                meta: `Message ${item.messageId + 1} · Swipe ${item.swipeId}`,
+                meta: describeLocation(item.messageId, item.swipeId),
                 badges: ['World Info', describeSource(item.entry) || 'Override'],
                 info: [
                     ['World', world],
                     ['UID', uid],
                     ['Type', describeSource(item.entry) || '-'],
-                    ['Message', String(item.messageId + 1)],
+                    ['Message', item.messageId < 0 ? 'compacted' : String(item.messageId + 1)],
                     ['Swipe', String(item.swipeId)],
                 ],
             };
         },
         onEdit: (item, content, store) => {
+            if (item.messageId < 0) {
+                store.set(DATA_NAMESPACES.WORLDINFO, item.key, item.entry.source, content);
+                return;
+            }
+
             store.set(DATA_NAMESPACES.WORLDINFO, item.key, item.entry.source, content, item.messageId, item.swipeId);
+        },
+        onDelete: (item, store) => {
+            store.erase(DATA_NAMESPACES.WORLDINFO, item.key, 'user-delete',
+                item.messageId < 0 ? undefined : item.messageId,
+                item.messageId < 0 ? undefined : item.swipeId);
         },
     });
 

@@ -4,15 +4,11 @@ import { z } from 'zod';
 import { TOOL_DEFINITION, Tool } from '@/features/tool-manager';
 import { settings } from '@/settings';
 import { WorldInfoEntry, WorldInfoLoaded } from '@/utils/defines';
-import { DecoratorParser } from '@/functions/worldinfo';
-
-const NOT_ALLOWED_DECORATORS = ['@@skill'];
+import { classifyEntry } from '@/functions/worldinfo';
 
 function onWorldInfoLoaded(data: WorldInfoLoaded) {
-    const filterFn = (entry: WorldInfoEntry) => {
-        const parsed = new DecoratorParser(entry);
-        return parsed.decorators.some(d => NOT_ALLOWED_DECORATORS.includes(d));
-    };
+    // Shared classifier: `/skills` and this filter must agree on what a skill is.
+    const filterFn = (entry: WorldInfoEntry) => classifyEntry(entry) === 'skill';
 
     for (let i = data.globalLore.length - 1; i >= 0; --i) {
         if (filterFn(data.globalLore[i])) {
@@ -40,25 +36,33 @@ function onWorldInfoLoaded(data: WorldInfoLoaded) {
     }
 }
 
+/** Accept both a bare skill name and the `/skills/<name>.md` path form. */
+function normalizeSkillRef(value: string): string {
+    return String(value ?? '')
+        .replace(/^\/?skills\//i, '')
+        .replace(/\.md$/i, '');
+}
+
 export async function setup() {
     eventSource.on(event_types.WORLDINFO_ENTRIES_LOADED, onWorldInfoLoaded);
 
     const tool: Tool = {
         name: 'add_skill',
-        description: 'Add a skill to the activated skills list by name or UID',
+        description: 'Add a skill to the activated skills list by name, UID or "skills/<name>.md" path. Reading a skill file does not activate it; this tool does.',
         parameters: z.object({
-            skill: z.string().describe('Name or UID of the skill to add'),
+            skill: z.string().describe('Name, UID or "skills/<name>.md" path of the skill to add'),
         }),
         function: async (params: any) => {
             const globalCtx = (params.context ?? Context.global()) as Context;
-            const result = globalCtx.skillScanner.addSkill(params.skill);
+            const skill = normalizeSkillRef(params.skill);
+            const result = globalCtx.skillScanner.addSkill(skill);
             if (result.added) {
                 const activatedSkills = globalCtx.skillScanner.getActivatedSkills();
                 return `Successfully added skill "${result.skill?.name}". Current activated skills: ${activatedSkills.map(s => s.name).join(', ')}`;
             } else if (result.skill) {
                 return `Skill "${result.skill.name}" is already activated.`;
             } else {
-                return `Skill "${params.skill}" not found.`;
+                return `Skill "${skill}" not found.`;
             }
         },
     };

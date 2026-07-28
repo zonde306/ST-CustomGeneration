@@ -1,5 +1,5 @@
 import { WorldInfoEntry, Skill } from '@/utils/defines';
-import { filterWIByDecorator, getWorldInfoSorter, loadWorldInfoEntries } from '@/functions/worldinfo';
+import { filterWIByDecorator, getWorldInfoSorter } from '@/functions/worldinfo';
 
 /**
  * Skill scanner that manages skill collection and activation

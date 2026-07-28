@@ -9,6 +9,7 @@ import {
     name2,
     substituteParams,
     refreshSwipeButtons,
+    saveChatDebounced,
 } from '@st/script.js';
 import { settings } from '@/settings';
 import { generate as runGenerate, ApiConfig, Response as GenResponse, StreamResponse as GenStreamResponse } from '@/functions/generate';
@@ -24,6 +25,10 @@ import { z } from 'zod';
 import { yaml } from "@st/lib.js";
 import { SkillScanner } from '@/features/skill-scanner';
 import { getActivatedEntries, loadWorldInfoEntries } from '@/functions/worldinfo';
+import { FileSystem } from '@/functions/filesystem';
+import { createFileSystem } from '@/functions/fs-mounts';
+import { clearStagedData, flushStagedData } from '@/functions/chat-data-store';
+import { protect, restoreProtected } from '@/functions/protect';
 
 const locker = new AsyncMutex();
 
@@ -130,6 +135,7 @@ export class Context {
     public historyPrompts: PresetPrompt[] | null;
     /** Trigger type used to match `historyPrompts` triggers, e.g. the template decorator. */
     public historyPromptsType: string | null;
+    public files: FileSystem;
 
     constructor({ chat, chat_metadata }: { chat: ChatMessageEx[], chat_metadata: ChatMetadataEx }) {
         this.chat = chat;
@@ -143,6 +149,10 @@ export class Context {
         this.skillScanner = new SkillScanner();
         this.historyPrompts = null;
         this.historyPromptsType = null;
+
+        // Mounts read `this` lazily, so the trees stay correct even though
+        // `Context.global()` / `fromObject()` reassign `chat` afterwards.
+        this.files = createFileSystem(this);
     }
 
     /**
@@ -289,8 +299,29 @@ export class Context {
             });
         }
 
+        // The message this turn wrote its files "into" now exists: move the
+        // staged layer onto it so rerolling the message also rolls the files back.
+        this.commitStagedData();
+
         await eventSource.emit(eventTypes.MESSAGE_RECEIVED, { messageId: this.chat.length - 1, message: this.chat[this.chat.length - 1], context: this });
         return swipes;
+    }
+
+    /**
+     * Move data staged during generation onto the message/swipe that was just
+     * created. Writes cannot target that layer directly because it does not
+     * exist yet while the tools run.
+     */
+    protected commitStagedData(): void {
+        const messageId = this.chat.length - 1;
+        const swipeId = this.chat[messageId]?.swipe_id ?? 0;
+        const flushed = flushStagedData(this, messageId, swipeId);
+        if (!flushed)
+            return;
+
+        console.debug(`[CG] flushed ${flushed} staged entries to ${messageId}#${swipeId}`);
+        if (this.isGlobal)
+            saveChatDebounced();
     }
 
     /**
@@ -308,6 +339,8 @@ export class Context {
         const swipeId = last.swipe_id ?? 0;
         if(last.swipes && last.swipes[swipeId] != null)
             last.swipes[swipeId] += swipes[0];
+
+        this.commitStagedData();
     }
 
     /**
@@ -399,6 +432,11 @@ export class Context {
         dryRun: boolean = false
     ): Promise<string | GenResponse | AsyncGenerator<GenStreamResponse | string>> {
         console.log('Generate entered');
+
+        // A fresh turn: drop anything staged by an aborted previous turn. Nested
+        // tool-call rounds carry `toolMessages` and belong to the same turn.
+        if(!options.toolMessages?.length)
+            clearStagedData(this);
 
         // Prevent generation from shallow characters
         await unshallowCharacter(this_chid);
@@ -502,7 +540,26 @@ export class Context {
         // macro would read the global extension_prompts instead.
         const evalMacro = (content: string) => substitute(builder.resolveOutlets(content));
 
+        // `{{file::path}}` must be expanded before the macro engine runs, and its
+        // result protected, so file content reaches the model byte for byte.
+        await this.expandFileMacros(messages);
+
         for(const message of messages) {
+            // Tool results are data, not templates. Running macros or EJS over them
+            // would both corrupt `edit_file` anchors and execute whatever the model
+            // just wrote into a file.
+            if(message.role === 'tool') {
+                if(typeof message.content === 'string') {
+                    message.content = protect(message.content);
+                } else if(message.content) {
+                    for(const part of message.content) {
+                        if(part.type === 'text' && part.text)
+                            part.text = protect(part.text);
+                    }
+                }
+                continue;
+            }
+
             if(typeof message.content === 'string') {
                 message.content = evalMacro(message.content);
             } else if(message.content) {
@@ -517,6 +574,11 @@ export class Context {
         await eventSource.emit(event_types.GENERATE_AFTER_COMBINE_PROMPTS, { prompt: '', dryRun, context: this, type });
 
         await eventSource.emit(event_types.CHAT_COMPLETION_PROMPT_READY, { chat: messages, dryRun, context: this, type });
+
+        // Every transformation is done and the request has not been assembled yet:
+        // the only window where restoring is both safe and still counted in the
+        // token budget.
+        restoreProtected(messages);
 
         await eventSource.emit(event_types.GENERATE_AFTER_DATA, { prompt: messages, context: this, type }, dryRun);
 
@@ -626,6 +688,9 @@ export class Context {
 
                 await eventSource.emit(eventTypes.GENERATE_AFTER, { type, options, taskId, error, response: { swipes, reasoning: [reasoning], toolCalls }, context: this, streaming: true, apiConfig });
 
+                // `dontCreate` turns never call recv(): land the staged layer on
+                // whatever the last message is rather than losing it.
+                this.commitStagedData();
                 await this.onGenerationEnded(type);
             }
 
@@ -672,6 +737,8 @@ export class Context {
         const data = { type, options, taskId, error: null, response, context: this, streaming: false, apiConfig };
         await eventSource.emit(eventTypes.GENERATE_AFTER, data);
 
+        // See the streaming branch: covers `dontCreate` turns.
+        this.commitStagedData();
         await this.onGenerationEnded(type);
 
         if(options.allResponses) {
@@ -682,13 +749,65 @@ export class Context {
     }
 
     /**
+     * Expand `{{file::path}}` across a built prompt.
+     *
+     * This is the recommended injection path: it works in presets and in World
+     * Info, needs no round trip, and does not depend on ST-Prompt-Template being
+     * installed. Missing files expand to nothing so a preset can reference
+     * `memory.md` before the model has ever written it.
+     */
+    private async expandFileMacros(messages: ChatCompMessage[]): Promise<void> {
+        const pattern = /{{file::([^{}]+?)}}/gi;
+        const paths = new Set<string>();
+
+        const collect = (text: string) => {
+            for (const match of text.matchAll(pattern))
+                paths.add(match[1].trim());
+        };
+
+        for(const message of messages) {
+            if(message.role === 'tool')
+                continue;
+            if(typeof message.content === 'string')
+                collect(message.content);
+            else if(message.content)
+                for(const part of message.content)
+                    if(part.type === 'text' && part.text) collect(part.text);
+        }
+
+        if(!paths.size)
+            return;
+
+        const resolved = new Map<string, string>();
+        await Promise.all(Array.from(paths).map(async (path) => {
+            try {
+                resolved.set(path, protect(await this.files.readFile(path)));
+            } catch (error) {
+                console.debug(`[CG] {{file::${path}}} is unavailable`, error);
+                resolved.set(path, '');
+            }
+        }));
+
+        const replace = (text: string) => text.replace(pattern, (_, path: string) => resolved.get(String(path).trim()) ?? '');
+
+        for(const message of messages) {
+            if(message.role === 'tool')
+                continue;
+            if(typeof message.content === 'string')
+                message.content = replace(message.content);
+            else if(message.content)
+                for(const part of message.content)
+                    if(part.type === 'text' && part.text) part.text = replace(part.text);
+        }
+    }
+
+    /**
      * Convert the preset apiConfig to the general apiConfig format.
      * @param type Generate type
      * @param preset Preset name
      * @returns 
      */
-    private buildApiConfig(type: string, preset: string): ApiConfig | undefined {
-        const api = Object.values(settings.apis).find(x => x.linkedPreset === preset) ?? settings.apis[settings.currentApi] ?? {};
+    private buildApiConfig(type: string, preset: string): ApiConfig | undefined {        const api = Object.values(settings.apis).find(x => x.linkedPreset === preset) ?? settings.apis[settings.currentApi] ?? {};
         const hasCustomApi = Boolean(api.baseUrl || api.apiKey || api.model);
         if (!hasCustomApi) {
             console.error(`No custom API configured. Using default API.`);

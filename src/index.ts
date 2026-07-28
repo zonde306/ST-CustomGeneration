@@ -5,8 +5,9 @@ import { MessageBuilder } from "@/functions/message-builder";
 import { setup as setupEmbedCard } from "@/embed-card";
 import { eventTypes } from "@/utils/events";
 import { setup as setupTriggers, runAfterTriggers, isGenerating } from "@/features/trigger-manager";
-import { setup as setupOverrides, DataOverride } from "@/features/override";
-import { ChatDataStore } from "@/features/chat-data-store";
+import { setup as setupOverrides, WorldInfoRewrier } from "@/features/worldinfo-rewrite";
+import { setup as setupFileSystem } from "@/features/filesystem-manager";
+import { ChatDataStore } from "@/functions/chat-data-store";
 import { setup as setupGlobalContext, GlobalContext } from "@/features/global-context";
 import { setup as setupInterceptor } from "@/features/interceptor";
 import { setup as setupLogger } from "@/features/generate-logger";
@@ -23,6 +24,7 @@ $(async () => {
     await setupEmbedCard();
     await setupTriggers();
     await setupOverrides();
+    await setupFileSystem();
     await setupLogger();
     await setupTools();
     await setupSchema();
@@ -33,7 +35,7 @@ $(async () => {
         Context,
         GlobalContext,
         /** @deprecated Use ChatDataStore instead. */
-        DataOverride,
+        WorldInfoRewrier,
         ChatDataStore,
         PromptContext,
         MessageBuilder,

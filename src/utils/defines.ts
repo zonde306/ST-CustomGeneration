@@ -546,6 +546,23 @@ export interface ApiSettings {
     maxConcurrency: number;
 }
 
+export interface StorageSettings {
+    /** Automatically flatten cold layers when the stored data grows too large. */
+    autoCompact: boolean;
+
+    /** Keep this many trailing messages un-compacted. Must exceed the hot window. */
+    keepDepth: number;
+
+    /** Estimated `cg_data` bytes above which auto compaction kicks in. */
+    sizeThreshold: number;
+
+    /** Migrate and drop the legacy `wi_overrides` / `mes_override` fields. */
+    pruneLegacy: boolean;
+
+    /** Include the chat workspace (root files) in the fuzzy search index. */
+    fuzzyIndexFiles: boolean;
+}
+
 export interface Settings {
     // openai api connections
     apis: Record<string, ApiSettings>;
@@ -561,6 +578,12 @@ export interface Settings {
 
     // Take over ST's native Generate() via generate_interceptor
     interceptGenerate: boolean;
+
+    // layered data storage / virtual file system
+    storage: StorageSettings;
+
+    // one-off migrations already applied, keyed by migration id
+    migrations: Record<string, boolean>;
 }
 
 export interface ToolSettings {

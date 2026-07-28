@@ -4,7 +4,6 @@ import { matchesTriggerType } from '@/utils/defines';
 import { setup as setupButtons } from '@/features/tools/buttons';
 import { setup as setupInput } from '@/features/tools/input';
 import { setup as setupConfirm } from '@/features/tools/confirmation';
-import { setup as setupWIActivate } from '@/features/tools/worldinfo-activate';
 import { setup as setupWIGet } from '@/features/tools/worldinfo-get';
 import { setup as setupWISearch } from '@/features/tools/worldinfo-search';
 import { setup as setupVarSet } from '@/features/tools/variable-set';
@@ -13,6 +12,11 @@ import { setup as setupWISet } from '@/features/tools/worldinfo-set';
 import { setup as setupAgentRouter } from '@/features/tools/agent-router';
 import { setup as setupCalculate } from '@/features/tools/calculate';
 import { setup as setupSkillLoader } from '@/features/tools/skill-loader';
+import { setup as setupFileList } from '@/features/tools/file-list';
+import { setup as setupFileRead } from '@/features/tools/file-read';
+import { setup as setupFileSearch } from '@/features/tools/file-search';
+import { setup as setupFileWrite } from '@/features/tools/file-write';
+import { setup as setupFileEdit } from '@/features/tools/file-edit';
 
 export interface Tool {
     name: string;
@@ -27,15 +31,22 @@ export async function setup() {
     await setupButtons();
     await setupInput();
     await setupConfirm();
-    await setupWIActivate();
-    await setupWIGet();
-    await setupWISearch();
+    await setupFileList();
+    await setupFileRead();
+    await setupFileSearch();
+    await setupFileWrite();
+    await setupFileEdit();
     await setupVarSet();
     await setupVarGet();
-    await setupWISet();
     await setupAgentRouter();
     await setupCalculate();
     await setupSkillLoader();
+
+    // Deprecated shims: registration is kept so presets keyed by these names do
+    // not silently lose their configuration.
+    await setupWIGet();
+    await setupWISearch();
+    await setupWISet();
 }
 
 /**

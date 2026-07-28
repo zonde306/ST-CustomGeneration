@@ -3,7 +3,7 @@ import { substituteParams, messageFormatting, appendMediaToMessage, addCopyToCod
 import { eventSource, event_types } from "@st/scripts/events.js";
 import { world_info_depth } from "@st/scripts/world-info.js";
 import { getActivatedEntries, DecoratorParser } from "@/functions/worldinfo";
-import { ChatDataStore, DATA_NAMESPACES, worldInfoKey } from "@/features/chat-data-store";
+import { ChatDataStore, DATA_NAMESPACES, worldInfoKey } from "@/functions/chat-data-store";
 import { Context } from "@/features/context";
 import { GenerationRunner } from "@/features/generation-runner";
 import { WorldInfoEntry, WorldInfoLoaded } from "@/utils/defines";

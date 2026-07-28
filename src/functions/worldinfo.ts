@@ -229,6 +229,34 @@ export class DecoratorParser {
 }
 
 /**
+ * How a World Info entry may be exposed.
+ *
+ * - `plain`: an ordinary entry. Visible and writable through `/lorebooks`.
+ * - `skill`: `@@skill` entry. Read-only, and only visible under `/skills`.
+ * - `system`: any other decorated entry. Code-controlled trigger, so it does not
+ *   exist in the file system at all — hiding it while still allowing writes, or
+ *   exposing it read-only, would only make the model retry and get confused.
+ */
+export type EntryClass = 'plain' | 'skill' | 'system';
+
+/**
+ * Classify a WI entry. Single source of truth shared by `/lorebooks`, `/skills`
+ * and the skill loader, so their filters cannot drift apart.
+ */
+export function classifyEntry(entry: Pick<WorldInfoEntry, 'content'> & { decorators?: string[] }): EntryClass {
+    const decorators = entry.decorators?.length
+        ? entry.decorators
+        : parseDecorators(entry.content ?? '')[0];
+
+    if (!decorators.length)
+        return 'plain';
+    if (decorators.some(d => d.startsWith('@@skill')))
+        return 'skill';
+
+    return 'system';
+}
+
+/**
  * Parse decorators from worldinfo content
  * @param content The content to parse
  * @returns The decorators found in the content and the content without decorators
