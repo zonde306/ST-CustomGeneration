@@ -6,7 +6,7 @@ import { KNOWN_DECORATORS } from '@/functions/worldinfo';
 import { TOOL_DEFINITION } from '@/features/tool-manager';
 import { ApiSettings, Preset, PresetPrompt, RegEx, Settings, StorageSettings, Template, ToolSettings } from '@/utils/defines';
 import { defaultApiName, defaultApiSettings, defaultPreset, defaultSettings, defaultStorageSettings, defaultTemplate, defaultToolSettings } from '@/utils/default-settings';
-import { clone, isRecord, normalizeRecord, parseNumber, sanitizeName } from '@/utils/values';
+import { clone, isRecord, normalizeFileMap, normalizeRecord, parseNumber, sanitizeName } from '@/utils/values';
 import { withUiUpdate } from '@/ui/common';
 
 export const settings: Settings = clone(defaultSettings);
@@ -271,6 +271,8 @@ export function normalizePreset(input: Partial<Preset>, fallbackName: string): P
             : [],
         templates: normalizeTriggers((input as { templates?: unknown }).templates),
         tools: normalizeToolMap((input as { tools?: unknown }).tools),
+        // Must be normalized here, or importing a preset silently drops its files.
+        files: normalizeFileMap((input as { files?: unknown }).files),
     };
 }
 

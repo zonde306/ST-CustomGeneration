@@ -10,12 +10,17 @@ import { fuzzySearch } from "@/functions/fuzzy-search";
 import { LOREBOOK_MOUNT, WorldInfoTree } from "@/functions/fs-worldinfo";
 import {
     CHARACTER_MOUNT,
-    CharacterTree,
     PERSONA_MOUNT,
-    PersonaTree,
+    PRESET_MOUNT,
+    PresetTree,
     SKILLS_MOUNT,
     SkillTree,
+    activeCharacterScope,
+    activePersonaScope,
+    characterSnapshot,
+    personaSnapshot,
 } from "@/functions/fs-scopes";
+import { HybridTree, ScopedDataStore } from "@/functions/fs-hybrid";
 import { SkillScanner } from "@/features/skill-scanner";
 
 /** Scope where `/global` files live inside ST's shared variable storage. */
@@ -36,9 +41,10 @@ export interface FileSystemEnv {
  * ```
  * /                     message-layered workspace   rw   rolls back with swipes
  * /global/              account-wide store          rw   survives every chat
- * /persona/             active persona              ro
- * /character/           active character card       ro
+ * /persona/             active persona              ro + overlay allowlist
+ * /character/           active character card       ro + overlay allowlist
  * /skills/              @@skill entries             ro
+ * /preset/              files shipped with preset   ro
  * /lorebooks/<book>/    World Info                  book text ro, override rw
  * ```
  *
@@ -66,13 +72,37 @@ export function createFileSystem(env: FileSystemEnv): FileSystem {
 
     ensureGlobalScope();
     files.mount(GLOBAL_MOUNT, new FileSystem(new PersistentGlobalStore(GLOBAL_FILES_SCOPE)));
-    files.mount(PERSONA_MOUNT, new PersonaTree());
-    files.mount(CHARACTER_MOUNT, new CharacterTree());
+    files.mount(PERSONA_MOUNT, new HybridTree(
+        personaSnapshot,
+        new ScopedDataStore(
+            new MessageDataStore(env, DATA_NAMESPACES.PERSONA_FILES, 'filesystem'),
+            activePersonaScope,
+        ),
+        OVERLAY_WRITES,
+    ));
+    files.mount(CHARACTER_MOUNT, new HybridTree(
+        characterSnapshot,
+        new ScopedDataStore(
+            new MessageDataStore(env, DATA_NAMESPACES.CHARACTER_FILES, 'filesystem'),
+            activeCharacterScope,
+        ),
+        OVERLAY_WRITES,
+    ));
     files.mount(SKILLS_MOUNT, new SkillTree(env));
+    files.mount(PRESET_MOUNT, new PresetTree());
     files.mount(LOREBOOK_MOUNT, new WorldInfoTree(env));
 
     return files;
 }
+
+/**
+ * The only files the model may create under `/persona` and `/character`.
+ *
+ * Both corrections paths need somewhere to land next to the data they correct:
+ * `CONSTRAINTS.md` for hard rules the user gave, `LESSONS.md` for the model's own
+ * notes on where it went wrong. Anything else belongs in the workspace.
+ */
+const OVERLAY_WRITES = new Set(['CONSTRAINTS.md', 'LESSONS.md']);
 
 /**
  * `/global` backend. Unlike the chat workspace, nothing else persists this

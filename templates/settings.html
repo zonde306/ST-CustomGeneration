@@ -323,6 +323,34 @@
                     <input id="custom_generation_tool_import_input" type="file" accept=".json,application/json" style="display: none;" />
                 </div>
             </div>
+
+            <hr />
+
+            <div class="inline-drawer" id="custom_generation_files_drawer">
+                <div id="custom_generation_files_toggle" class="inline-drawer-header">
+                    <div class="flex-container alignItemsBaseline flex1">
+                        <h3 class="margin0">
+                            <span data-i18n="Preset Files">Preset Files</span>
+                        </h3>
+                    </div>
+                    <div class="flex-container alignItemsCenter">
+                        <div id="custom_generation_add_file" class="custom_generation_button custom_generation_button_icon" title="Add file" data-i18n="[title]Add file">
+                            <i class="fa-solid fa-plus"></i>
+                            <small data-i18n="Add">Add</small>
+                        </div>
+                        <div id="custom_generation_upload_file" class="custom_generation_button custom_generation_button_icon" title="Upload" data-i18n="[title]Upload">
+                            <i class="fa-solid fa-file-import"></i>
+                            <small data-i18n="Upload">Upload</small>
+                        </div>
+                        <div id="custom_generation_files_icon" class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                    </div>
+                </div>
+                <div id="custom_generation_files_body" class="inline-drawer-content" style="display: none;">
+                    <small class="cg-hint" data-i18n="cg_files_help">Files shipped with this preset, readable by the model at preset/&lt;name&gt;. They travel with the preset when it is exported.</small>
+                    <div id="custom_generation_files_list" class="cg-list" no-items-text="No files" data-i18n="[no-items-text]No files"></div>
+                    <input id="custom_generation_files_upload_input" type="file" accept=".md,.txt,.json,.yaml,.yml,text/*" multiple style="display: none;" />
+                </div>
+            </div>
         </div>
     </div>
 

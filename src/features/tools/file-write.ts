@@ -12,14 +12,14 @@ import { Context } from '@/features/context';
  */
 const TOOL_NAME = 'write_file';
 const SCHEMA = z.object({
-    path: z.string().min(1).describe('Target path. Root files (e.g. "memory.md") belong to this chat and roll back with swipes; "global/..." persists across chats; "lorebooks/<book>/<entry>.md" writes a chat-local World Info override.'),
-    content: z.string().describe('Full new content of the file. Replaces the previous content entirely.'),
+    path: z.string().min(1).describe('Target path. Root files (e.g. "memory.md") belong to this chat and roll back with swipes; "global/..." persists across chats; "lorebooks/<book>/<entry>.md" writes a chat-local World Info override, and a name that does not exist yet creates a new entry in this chat\'s own lorebook; under persona/ and character/ only CONSTRAINTS.md and LESSONS.md may be written.'),
+    content: z.string().describe('Full new content of the file. Replaces the previous content entirely. When creating a new lorebook entry, an optional "---" frontmatter header may set comment, keys (activation keywords) and constant (true = always in context); without keys the entry never activates.'),
 });
 
 export async function setup() {
     TOOL_DEFINITION.set(TOOL_NAME, {
         name: TOOL_NAME,
-        description: 'Create or fully overwrite a file. Root paths are chat-scoped and roll back with swipes, global/ persists across chats, lorebooks/ writes a chat-local World Info override. persona/, character/ and skills/ are read-only.',
+        description: 'Create or fully overwrite a file. Root paths are chat-scoped and roll back with swipes, global/ persists across chats, lorebooks/<book>/<entry>.md writes a chat-local World Info override while an unused name creates a new entry in this chat\'s own lorebook. persona/ and character/ expose read-only card data plus two writable files, CONSTRAINTS.md (rules the user gave) and LESSONS.md (your own corrections); skills/ is read-only.',
         parameters: SCHEMA,
         function: call,
     });

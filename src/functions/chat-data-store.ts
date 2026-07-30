@@ -45,6 +45,10 @@ export const DATA_NAMESPACES = {
     WORLDINFO: 'worldinfo',
     MESSAGE: 'message',
     FILES: 'files',
+    /** Writable overlay of `/persona`, keyed `<persona>/<file>`. */
+    PERSONA_FILES: 'persona-files',
+    /** Writable overlay of `/character`, keyed `<avatar>/<file>`. */
+    CHARACTER_FILES: 'character-files',
 } as const;
 
 export interface NamespacePolicy {
@@ -66,6 +70,10 @@ export const NAMESPACE_POLICY: Record<string, NamespacePolicy> = {
     [DATA_NAMESPACES.WORLDINFO]: { layered: true },
     [DATA_NAMESPACES.FILES]: { layered: true },
     [DATA_NAMESPACES.MESSAGE]: { layered: false },
+    // Registered explicitly: an unregistered namespace still reads as layered,
+    // but compaction skips it, so its cold layers would never be flattened.
+    [DATA_NAMESPACES.PERSONA_FILES]: { layered: true },
+    [DATA_NAMESPACES.CHARACTER_FILES]: { layered: true },
 };
 
 /** Whether a namespace uses layered (backtracking) semantics. */

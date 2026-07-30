@@ -88,7 +88,8 @@ function registerStorageSection(): void {
             );
             container.append(warning);
 
-            const buttons = $('<div class="custom_generation_overrides_buttons"></div>');
+            // Text buttons, not the 26px icon group used in block headers.
+            const buttons = $('<div class="custom_generation_overrides_actions"></div>');
 
             const dryRun = $('<button class="menu_button" type="button" data-i18n="Preview compaction">Preview compaction</button>');
             dryRun.on('click', () => {

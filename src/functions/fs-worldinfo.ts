@@ -1,5 +1,15 @@
 import { yaml } from "@st/lib.js";
-import { WorldInfoEntry } from "@/utils/defines";
+import {
+    METADATA_KEY,
+    createWorldInfoEntry,
+    loadWorldInfo,
+    saveWorldInfo,
+    updateWorldInfoList,
+    world_names,
+} from "@st/scripts/world-info.js";
+import { saveMetadata } from "@st/script.js";
+import { getFreeName } from "@st/scripts/utils.js";
+import { LoreBook, WorldInfoEntry } from "@/utils/defines";
 import {
     FSTree,
     SearchHit,
@@ -117,9 +127,14 @@ export async function loadEnabledBooks(): Promise<Map<string, WorldInfoEntry[]>>
     return await bookPromise;
 }
 
-/** Entries of one book that are visible in the file system. */
+/**
+ * Entries of one book that are visible in the file system.
+ *
+ * Disabled entries are excluded: they are never injected, so showing them would
+ * hand the model a setting it then reasons from as if it were in effect.
+ */
 export function plainEntries(entries: WorldInfoEntry[]): WorldInfoEntry[] {
-    return entries.filter(entry => classifyEntry(entry) === 'plain');
+    return entries.filter(entry => classifyEntry(entry) === 'plain' && !entry.disable);
 }
 
 /** Entries of one book with a given classification. */
@@ -173,6 +188,13 @@ const FRONTMATTER_FENCE = '---';
  * Read-only metadata header. It makes the entry identity explicit and, as a nice
  * side effect, lets `grep` match on keys. Making it writable would mean "move a
  * file by editing its frontmatter", which needs a separate metadata namespace.
+ *
+ * Only fields that decide *whether and where* an entry reaches the context are
+ * exposed. The scanner and budget knobs (`selective`, `scanDepth`,
+ * `matchWholeWords`, `characterFilter*`, `vectorized`, ...) are left out: the
+ * model cannot judge them, and showing a field implies it can be set — which
+ * leads to repeated failed attempts. `disable` in particular is absent because a
+ * disabled entry has no file at all (see {@link plainEntries}).
  */
 export function withFrontmatter(entry: WorldInfoEntry, body: string): string {
     const meta = yaml.stringify({
@@ -181,6 +203,24 @@ export function withFrontmatter(entry: WorldInfoEntry, body: string): string {
         comment: entry.comment ?? '',
         keys: entry.key ?? [],
         keysecondary: entry.keysecondary ?? [],
+        // true: always in context. false: only when a key matches.
+        constant: !!entry.constant,
+        // see world_info_position
+        position: entry.position ?? 0,
+        // insertion depth, used by the @D positions
+        depth: entry.depth ?? 0,
+        // sort order within one position
+        order: entry.order ?? 0,
+        // activation chance, 0-100
+        probability: entry.probability ?? 100,
+        // inclusion group: only one member of a group is picked
+        group: entry.group ?? '',
+        // stay active for N more turns after activating
+        sticky: entry.sticky ?? 0,
+        // cannot reactivate for N turns after triggering
+        cooldown: entry.cooldown ?? 0,
+        // null/0: system, 1: user, 2: assistant
+        role: entry.role ?? null,
     });
 
     return `${FRONTMATTER_FENCE}\n${meta}${FRONTMATTER_FENCE}\n\n${body}`;
@@ -216,6 +256,131 @@ export function stripFrontmatter(content: string, entry: WorldInfoEntry): string
     return rest;
 }
 
+/**
+ * Metadata accepted when *creating* an entry.
+ *
+ * Creation is the one moment with no existing entry identity to protect, so the
+ * frontmatter is honoured here. Once the entry exists it goes back to read-only:
+ * editing metadata would mean "move the file by rewriting its header", which
+ * needs a metadata namespace of its own.
+ */
+export interface NewEntryMeta {
+    comment?: string;
+    keys?: string[];
+    constant?: boolean;
+}
+
+/** Split a new file's frontmatter into the fields that may be set, plus the body. */
+export function parseNewEntryFrontmatter(content: string): { meta: NewEntryMeta; body: string } {
+    if (!content.startsWith(FRONTMATTER_FENCE + '\n'))
+        return { meta: {}, body: content };
+
+    const end = content.indexOf(`\n${FRONTMATTER_FENCE}`, FRONTMATTER_FENCE.length);
+    if (end < 0)
+        return { meta: {}, body: content };
+
+    const header = content.slice(FRONTMATTER_FENCE.length + 1, end + 1);
+    const body = content.slice(end + FRONTMATTER_FENCE.length + 1).replace(/^\r?\n/, '');
+
+    let parsed: Record<string, any> = {};
+    try {
+        parsed = yaml.parse(header) ?? {};
+    } catch (error) {
+        throw new Error(`Invalid frontmatter: ${(error as Error).message}`);
+    }
+
+    const meta: NewEntryMeta = {};
+    if (parsed.comment != null)
+        meta.comment = String(parsed.comment);
+    if (parsed.keys != null)
+        meta.keys = (Array.isArray(parsed.keys) ? parsed.keys : [parsed.keys]).map(String).filter(Boolean);
+    if (parsed.constant != null)
+        meta.constant = parsed.constant === true || String(parsed.constant).toLowerCase() === 'true';
+
+    return { meta, body };
+}
+
+// ---------------------------------------------------------------------------
+// Chat lorebook
+// ---------------------------------------------------------------------------
+
+/** Name used for the chat's own lorebook when it does not have one yet. */
+export const CG_CHAT_LORE_PREFIX = 'cg-chat-lore';
+
+/**
+ * The lorebook that receives model-created entries, creating and binding one on
+ * first use.
+ *
+ * A chat can bind exactly one lorebook (`chat_metadata[METADATA_KEY]` is a
+ * scalar), so an existing binding is reused rather than replaced: it is already
+ * "this chat's book", and refusing to write to it would break the feature in the
+ * most common setup.
+ *
+ * `createNewWorldInfo` is deliberately avoided. For a name that already exists it
+ * deletes and recreates the book (world-info.js:4457) and it yanks the world
+ * editor's selection around — neither is acceptable for a background write.
+ */
+export async function ensureChatLorebook(metadata: ChatMetadata): Promise<{ name: string; data: LoreBook }> {
+    const bound = String((metadata as Record<string, unknown>)[METADATA_KEY] ?? '').trim();
+
+    if (bound) {
+        const data = await loadWorldInfo(bound) as LoreBook | null;
+        if (data)
+            return { name: bound, data };
+
+        // Bound to a book that no longer exists: fall through and rebind rather
+        // than throwing, so the tool call still succeeds.
+        console.warn(`[CG] chat lorebook "${bound}" is missing, rebinding`);
+    }
+
+    // Names are deduplicated against the existing books: sharing one name across
+    // chats would surface one chat's entries in another.
+    const name = getFreeName(CG_CHAT_LORE_PREFIX, world_names ?? []);
+    await saveWorldInfo(name, { entries: {} }, true);
+    await updateWorldInfoList();
+
+    (metadata as Record<string, unknown>)[METADATA_KEY] = name;
+    await saveMetadata();
+
+    const data = await loadWorldInfo(name) as LoreBook | null;
+    if (!data)
+        throw new Error(`Could not create the chat lorebook "${name}"`);
+
+    return { name, data };
+}
+
+/**
+ * Append an entry to a book and persist it right away.
+ *
+ * The default of `constant: false` with no keys means the entry never activates
+ * until keys are given. That is intentional: defaulting to always-on would let
+ * the model quietly grow the context with every note it takes.
+ */
+export async function createChatLoreEntry(
+    book: string,
+    data: LoreBook,
+    comment: string,
+    content: string,
+    keys: string[] = [],
+    constant: boolean = false,
+): Promise<WorldInfoEntry> {
+    const entry = createWorldInfoEntry(book, data) as WorldInfoEntry | undefined;
+    if (!entry)
+        throw new Error(`Could not allocate an entry in "${book}"`);
+
+    entry.comment = comment;
+    entry.content = content;
+    entry.key = keys;
+    entry.constant = constant;
+
+    // Immediate: the debounced save would leave the entry invisible for a while.
+    await saveWorldInfo(book, data, true);
+    // Otherwise the new file stays hidden until the next chat switch.
+    invalidateLorebookCache();
+
+    return entry;
+}
+
 // ---------------------------------------------------------------------------
 // Tree
 // ---------------------------------------------------------------------------
@@ -230,7 +395,7 @@ interface ResolvedPath {
 export class WorldInfoTree implements FSTree {
     private overrides: MessageDataStore;
 
-    constructor(env: { chat: ChatMessageEx[]; chat_metadata: ChatMetadata }) {
+    constructor(private env: { chat: ChatMessageEx[]; chat_metadata: ChatMetadata }) {
         this.overrides = new MessageDataStore(env, DATA_NAMESPACES.WORLDINFO, 'tool_call');
     }
 
@@ -276,8 +441,8 @@ export class WorldInfoTree implements FSTree {
         if (!resolved || !resolved.rest || resolved.rest.includes('/'))
             return null;
 
-        const entry = this.findEntry(resolved.entries, resolved.rest);
-        if (!entry || classifyEntry(entry) !== 'plain')
+        const entry = this.findEntry(plainEntries(resolved.entries), resolved.rest);
+        if (!entry)
             return null;
 
         return entry;
@@ -384,11 +549,46 @@ export class WorldInfoTree implements FSTree {
 
     async writeFile(path: string, content: string): Promise<boolean> {
         const entry = await this.resolveEntry(path);
-        if (!entry)
-            throw new Error(`File not found: ${LOREBOOK_MOUNT}/${path}`);
+        if (entry) {
+            // Existing entry: write an override, leaving the book text alone.
+            const body = escapeAt(stripFrontmatter(content, entry));
+            await this.overrides.set(worldInfoKey(entry.world, entry.uid), body);
+            return true;
+        }
 
-        const body = escapeAt(stripFrontmatter(content, entry));
-        await this.overrides.set(worldInfoKey(entry.world, entry.uid), body);
+        return await this.createEntry(path, content);
+    }
+
+    /**
+     * Create a new entry, only ever in this chat's own lorebook.
+     *
+     * Overriding an existing entry is what World Info already means; injecting a
+     * *new* entry into someone else's book is not, so the two are kept apart
+     * instead of blurred into one write path.
+     */
+    private async createEntry(path: string, content: string): Promise<boolean> {
+        const parts = splitPath(path);
+        if (parts.length !== 2)
+            throw new Error(`Cannot create "${path}": expected "<book>/<name>.md"`);
+
+        const [book, file] = parts;
+        const { name: chatBook, data } = await ensureChatLorebook(this.env.chat_metadata);
+
+        if (book !== chatBook)
+            throw new Error(
+                `Cannot create entries in "${book}". New entries go to "${chatBook}" `
+                + `(this chat's own lorebook); existing files can be edited in place.`);
+
+        const { meta, body } = parseNewEntryFrontmatter(content);
+        await createChatLoreEntry(
+            chatBook,
+            data,
+            meta.comment ?? file.replace(/\.md$/i, ''),
+            escapeAt(body),
+            meta.keys ?? [],
+            meta.constant ?? false,
+        );
+
         return true;
     }
 

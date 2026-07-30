@@ -2362,6 +2362,7 @@ export const defaultPreset: Preset = {
         },
     },
     tools: {},
+    files: {},
 };
 
 export const defaultApiSettings: ApiSettings = {

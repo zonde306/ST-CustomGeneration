@@ -32,6 +32,8 @@ export function convertPreset(data: Record<string, any>): { api: ApiSettings, pr
         regexs: [],
         templates: defaultPreset.templates,
         tools: defaultPreset.tools,
+        // A converted ST preset carries no CG files.
+        files: {},
     };
 
     const ordered = data.prompt_order[1] ?? data.prompt_order[0];

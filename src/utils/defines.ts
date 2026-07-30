@@ -209,31 +209,31 @@ interface WorldInfoExtension {
 }
 
 export interface WorldInfoEntry {
-    uid: number;
-    key: string[];
-    keysecondary: string[];
+    uid: number; // unique id
+    key: string[]; // Activate (scan) primary keywords
+    keysecondary: string[]; // Activate (scan) secondary keywords
     comment: string; // Title/Memo
     content: string;
-    constant: boolean; // 🔵 Constant
-    vectorized: boolean; // 🔗 Vectorized
+    constant: boolean; // 🔵 Constant, Stay active within the context
+    vectorized: boolean; // 🔗 Vectorized, unused
     selective: boolean;
-    selectiveLogic: number;
+    selectiveLogic: number; // see world_info_logic
     addMemo: boolean;
     order: number;
-    position: number;
+    position: number; // see world_info_position
     disable: boolean;
     excludeRecursion: boolean;
     preventRecursion: boolean;
     delayUntilRecursion: boolean;
-    probability: number;
+    probability: number; // 0~100
     useProbability: boolean;
-    depth: number;
-    group: string;
+    depth: number;  // depth of chat messages
+    group: string;  // Only one of the same names will be selected.
     groupOverride: boolean;
     groupWeight: number;
     scanDepth: number | null;
-    caseSensitive: boolean | null;
-    matchWholeWords: null | number;
+    caseSensitive: boolean | null; // For activating (scanning) keywords
+    matchWholeWords: null | number; // For activating (scanning) keywords
     useGroupScoring: boolean | null;
     automationId: string;
     role: null | number;
@@ -241,7 +241,7 @@ export interface WorldInfoEntry {
     cooldown: number;
     delay: number;
     displayIndex: number;
-    world: string;
+    world: string; // lorebook name
     decorators: string[]; // A list of identifiers starting with @@ extracted from `content`
     extensions: WorldInfoExtension;
     hash: number | undefined; // getStringHash(JSON.stringify(entry))
@@ -254,13 +254,14 @@ export interface WorldInfoEntry {
     characterFilterTags: string[];
     characterFilterExclude: boolean;
     
-    // Additional Matching Sources
+    // Activating (scanning) keywords enables the use of these data sources.
     matchPersonaDescription: boolean;
     matchCharacterDescription: boolean;
     matchCharacterPersonality: boolean;
     matchCharacterDepthPrompt: boolean;
     matchScenario: boolean;
     matchCreatorNotes: boolean;
+
     ignoreBudget: boolean;
 }
 
@@ -490,6 +491,21 @@ export interface Preset {
 
     // tools
     tools: Record<string, ToolSettings>;
+
+    // Files exposed read-only at `/preset/<name>`, exported with the preset.
+    files: Record<string, string>;
+}
+
+/**
+ * Files embedded in a character card, exported and imported with it.
+ *
+ * Versioned because the payload lives inside a PNG that outlives any given
+ * release of this extension.
+ */
+export interface EmbeddedFiles {
+    version: 1;
+    /** File name -> content. */
+    files: Record<string, string>;
 }
 
 export interface ApiSettings {

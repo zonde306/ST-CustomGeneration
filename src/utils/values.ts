@@ -80,3 +80,72 @@ export function getPreviewText(content: string): string {
 export function getErrorMessage(error: unknown, fallback: string = 'Unknown error'): string {
     return error instanceof Error ? error.message : String(error ?? fallback);
 }
+
+/**
+ * Total size of an embedded file map. Both preset files and card files are
+ * capped: they travel inside a settings object or a PNG text chunk, where a
+ * large payload slows down everything that loads them.
+ */
+export const FILE_MAP_SIZE_LIMIT = 256 * 1024;
+
+/**
+ * Reject a file name that cannot be addressed as a single path segment.
+ * @returns an error message, or `null` when the name is usable.
+ */
+export function validateFileName(name: string): string | null {
+    const trimmed = name.trim();
+
+    if (!trimmed)
+        return 'Name is required';
+    // `%` is decoded twice by the path router, `#`/`?` truncate it, `/\` split it.
+    if (/[/\\%#?]/.test(trimmed))
+        return 'Cannot contain / \\ % # ?';
+    // Dotfiles are hidden by listDir, so such a file could never be found again.
+    if (trimmed.startsWith('.'))
+        return 'Cannot start with "."';
+    if (trimmed.length > 120)
+        return 'Name is too long';
+
+    return null;
+}
+
+/**
+ * Normalize an untrusted `name -> content` map, dropping unusable names.
+ *
+ * Used while importing presets and character cards, so it never throws on bad
+ * input; oversized content is the one hard failure, because silently truncating
+ * a file would corrupt it without telling anyone.
+ * @throws when the total size exceeds {@link FILE_MAP_SIZE_LIMIT}.
+ */
+export function normalizeFileMap(raw: unknown): Record<string, string> {
+    const result: Record<string, string> = {};
+    if (!isRecord(raw))
+        return result;
+
+    let total = 0;
+
+    for (const [key, value] of Object.entries(raw)) {
+        if (typeof value !== 'string')
+            continue;
+
+        const name = key.trim();
+        const problem = validateFileName(name);
+        if (problem) {
+            console.warn(`[CG] dropping file "${key}": ${problem}`);
+            continue;
+        }
+
+        total += name.length + value.length;
+        if (total > FILE_MAP_SIZE_LIMIT)
+            throw new Error(`Files exceed the ${Math.floor(FILE_MAP_SIZE_LIMIT / 1024)} KB limit.`);
+
+        result[name] = value;
+    }
+
+    return result;
+}
+
+/** Total size of a file map, as counted against {@link FILE_MAP_SIZE_LIMIT}. */
+export function fileMapSize(files: Record<string, string>): number {
+    return Object.entries(files).reduce((sum, [name, content]) => sum + name.length + content.length, 0);
+}

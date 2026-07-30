@@ -14,6 +14,7 @@ import { setupPromptSection } from '@/ui/prompt-modal';
 import { setupRegexSection } from '@/ui/regex-modal';
 import { fillDecoratorOptions, setupTriggerSection } from '@/ui/trigger-modal';
 import { setupToolSection } from '@/ui/tool-modal';
+import { setupFilesSection } from '@/ui/files';
 
 export { settings, saveSettings, updateSettingsUI } from '@/ui/state';
 
@@ -22,6 +23,7 @@ const drawers: Array<{ toggle: string; body: string; icon: string }> = [
     { toggle: '#custom_generation_regex_toggle', body: '#custom_generation_regex_body', icon: '#custom_generation_regex_icon' },
     { toggle: '#custom_generation_template_toggle', body: '#custom_generation_template_body', icon: '#custom_generation_template_icon' },
     { toggle: '#custom_generation_tool_toggle', body: '#custom_generation_tool_body', icon: '#custom_generation_tool_icon' },
+    { toggle: '#custom_generation_files_toggle', body: '#custom_generation_files_body', icon: '#custom_generation_files_icon' },
 ];
 
 const modalTemplates: Array<{ dialog: string; template: string }> = [
@@ -122,6 +124,7 @@ export async function setupSettings(): Promise<void> {
     setupRegexSection();
     setupTriggerSection();
     setupToolSection();
+    setupFilesSection();
     bindLargeEditorButtons();
 
     eventSource.on(event_types.SETTINGS_LOADED, onSettingsLoaded);

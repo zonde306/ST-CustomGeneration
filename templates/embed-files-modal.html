@@ -1,0 +1,25 @@
+<dialog id="custom_generation_embed_files_dialog" class="cg-dialog">
+    <div class="cg-dialog__panel">
+        <div class="cg-dialog__header">
+            <div class="cg-dialog__titlegroup">
+                <i class="cg-dialog__icon fa-solid fa-file-lines"></i>
+                <h3 class="cg-dialog__title" data-i18n="Linked Card Files">Linked Card Files</h3>
+            </div>
+            <form method="dialog" class="cg-dialog__closeform">
+                <button class="cg-dialog__close fa-solid fa-xmark" type="submit" title="Close" data-i18n="[title]Close"></button>
+            </form>
+        </div>
+
+        <div class="cg-dialog__body">
+            <small class="cg-hint" data-i18n="Embed card files help">Select files to travel with this character card. Sources are this chat's workspace files and the current preset's files; importing places them in the chat workspace.</small>
+            <div id="custom_generation_embed_files_list" class="cg-list cg-list--scroll" no-items-text="No files" data-i18n="[no-items-text]No files"></div>
+        </div>
+
+        <div class="cg-dialog__footer">
+            <div class="cg-dialog__footer-actions">
+                <button id="custom_generation_embed_files_cancel" class="cg-btn" type="button" data-i18n="Cancel">Cancel</button>
+                <button id="custom_generation_embed_files_save" class="cg-btn cg-btn--primary" type="button" data-i18n="Save">Save</button>
+            </div>
+        </div>
+    </div>
+</dialog>

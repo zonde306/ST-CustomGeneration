@@ -146,7 +146,12 @@ function createCopyButton(content: string): JQuery<HTMLElement> {
     return button;
 }
 
-function buildOverrideBlock(title: string, content: string, onEdit?: (newContent: string) => void): JQuery<HTMLElement> {
+function buildOverrideBlock(
+    title: string,
+    content: string,
+    onEdit?: (newContent: string) => void,
+    onDelete?: () => void,
+): JQuery<HTMLElement> {
     const block = $('<div class="custom_generation_overrides_block"></div>');
     const header = $('<div class="custom_generation_overrides_block_header"></div>');
     const titleEl = $('<div class="custom_generation_overrides_block_title"></div>').text(title);
@@ -156,6 +161,9 @@ function buildOverrideBlock(title: string, content: string, onEdit?: (newContent
     header.append(titleEl, buttonGroup);
     block.append(header, pre);
     buttonGroup.append(copyButton);
+
+    /** Buttons that only make sense while viewing; hidden as one batch when editing. */
+    const viewButtons: JQuery<HTMLElement>[] = [copyButton];
 
     // Add edit button (if edit callback provided)
     if (onEdit) {
@@ -176,25 +184,15 @@ function buildOverrideBlock(title: string, content: string, onEdit?: (newContent
         const textarea = $('<textarea class="custom_generation_overrides_textarea" style="display:none;"></textarea>').val(content);
 
         buttonGroup.append(editButton, saveButton, cancelButton);
+        viewButtons.push(expandButton, editButton);
 
         const toggleEditMode = (editing: boolean) => {
-            if (editing) {
-                pre.hide();
-                textarea.show();
-                copyButton.hide();
-                expandButton.hide();
-                editButton.hide();
-                saveButton.show();
-                cancelButton.show();
-            } else {
-                pre.show();
-                textarea.hide();
-                copyButton.show();
-                expandButton.show();
-                editButton.show();
-                saveButton.hide();
-                cancelButton.hide();
-            }
+            pre.toggle(!editing);
+            textarea.toggle(editing);
+            // Captured by reference, so a button pushed after this point is included.
+            viewButtons.forEach(button => button.toggle(!editing));
+            saveButton.toggle(editing);
+            cancelButton.toggle(editing);
         };
 
         editButton.on('click', (event: JQuery.ClickEvent) => {
@@ -221,6 +219,22 @@ function buildOverrideBlock(title: string, content: string, onEdit?: (newContent
         });
 
         block.append(textarea);
+    }
+
+    if (onDelete) {
+        const deleteButton = $('<button class="menu_button fa-solid fa-trash-can custom_generation_overrides_delete" type="button" title="Delete" data-i18n="[title]Delete"></button>');
+        // Appended after the hidden save/cancel pair, so the visible order reads
+        // `copy expand edit delete`.
+        buttonGroup.append(deleteButton);
+        // Hidden while editing: deleting the entry being edited would silently
+        // discard the textarea, and it belongs with the other view actions.
+        viewButtons.push(deleteButton);
+
+        deleteButton.on('click', (event: JQuery.ClickEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onDelete();
+        });
     }
 
     return block;
@@ -267,19 +281,21 @@ function buildSectionEntry(section: DataSection, item: DataLookupResult, store: 
             toastr.success('Override updated', 'Edit');
         }
         : undefined;
-    body.append(buildOverrideBlock('Content', item.entry.content, onEdit));
 
-    if (section.onDelete) {
-        const remove = $('<button class="menu_button custom_generation_overrides_delete" type="button" data-i18n="Delete">Delete</button>');
-        remove.on('click', (event: JQuery.ClickEvent) => {
-            event.preventDefault();
-            event.stopPropagation();
+    // Confirmed because the action is irreversible and now sits on a 26px icon,
+    // where a misclick is much cheaper than it was on a full-width button.
+    const onDelete = section.onDelete
+        ? () => {
+            if (!window.confirm(`Delete override "${description.name}"?`))
+                return;
+
             section.onDelete!(item, store);
             toastr.success('Entry removed', 'Delete');
             refresh();
-        });
-        body.append(remove);
-    }
+        }
+        : undefined;
+
+    body.append(buildOverrideBlock('Content', item.entry.content, onEdit, onDelete));
 
     details.append(summary, body);
     return details;
