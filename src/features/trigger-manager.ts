@@ -24,13 +24,19 @@ import { callGenericPopup, POPUP_TYPE } from "@st/scripts/popup.js";
 
 export interface DecoratorProcessData {
     entry: WorldInfoEntry;
+
+    // The content of the latest message at the time of triggering: if "Find Regex" is used, it is the extracted content; otherwise, it is the original WI content.
     content: string;
+
+    // If "Find Regex" is present, this is the parameter table for named capture groups.
     args: Record<string, any>;
     store: ChatDataStore;
     decorator: DecoratorParser;
     env: Context;
     messageId: number;
     swipeId: number;
+
+    // The latest content of the WI entry—that is, the version that has overwritten the previous one.
     current: string;
 }
 

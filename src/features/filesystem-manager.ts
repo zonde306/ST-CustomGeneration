@@ -69,7 +69,7 @@ function registerStorageSection(): void {
             const row = (label: string, value: string) => {
                 const item = $('<div class="custom_generation_overrides_info_item"></div>');
                 item.append(
-                    $('<span class="custom_generation_overrides_info_label"></span>').text(label),
+                    $(`<span class="custom_generation_overrides_info_label" data-i18n="${label}"></span>`).text(label),
                     $('<span class="custom_generation_overrides_info_value"></span>').text(value),
                 );
                 info.append(item);
@@ -83,7 +83,7 @@ function registerStorageSection(): void {
             row('Threshold', formatBytes(settings.storage.sizeThreshold));
             container.append(info);
 
-            const warning = $('<div class="custom_generation_overrides_meta"></div>').text(
+            const warning = $('<div class="custom_generation_overrides_meta" data-i18n="cg_overrides_meta"></div>').text(
                 'Compaction flattens history: older versions and inactive swipe branches of compacted messages are discarded, so swiping them no longer restores their overrides.',
             );
             container.append(warning);
