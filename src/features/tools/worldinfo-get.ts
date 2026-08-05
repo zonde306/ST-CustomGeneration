@@ -1,21 +1,18 @@
 import { z } from 'zod';
 import { TOOL_DEFINITION } from "@/features/tool-manager";
-import { getWorldInfoEntry, DecoratorParser } from '@/functions/worldinfo';
+import { getWorldInfoEntry, DecoratorParser, classifyEntry } from '@/functions/worldinfo';
 import { evaluate } from '@/utils/ejs';
 import { substituteParams } from '@st/script.js';
 import { WorldInfoEntry } from '@/utils/defines';
 import { Context } from '@/features/context';
-import { DataOverride } from '@/features/override';
+import { ChatDataStore, DATA_NAMESPACES, worldInfoKey } from '@/functions/chat-data-store';
 
 /**
- * Retrieve the full content of specific World Info / Lorebook entries.
+ * @deprecated Superseded by `read_file` on `lorebooks/<book>/<entry>.md`.
  *
- * Provide one or more entries identified by their `world` (lorebook name) and `uid` (entry unique ID).
- * Each returned entry includes: world, uid, key, keysecondary, comment, and the resolved content.
- *
- * Returns a JSON object: { ok: true, entries: Array<{ world, uid, key, keysecondary, comment, content }> }
- *
- * Use this after `search_worldinfo` to fetch the complete content of entries you want to examine in detail.
+ * Kept registered because tool settings are stored per tool name: deleting the
+ * name would silently disable it in every existing preset. The implementation is
+ * unchanged so old presets keep behaving exactly as before.
  */
 const TOOL_NAME = 'get_worldinfo';
 const SCHEMA = z.object({
@@ -28,7 +25,7 @@ const SCHEMA = z.object({
 export async function setup() {
     TOOL_DEFINITION.set(TOOL_NAME, {
         name: TOOL_NAME,
-        description: 'Retrieve the full content of specific World Info entries by their world name and UID. Returns key, comment, and resolved content for each entry.',
+        description: '[Deprecated: use read_file with "lorebooks/<book>/<entry>-<uid>.md"] Retrieve the full content of specific World Info entries by their world name and UID.',
         parameters: SCHEMA,
         function: call,
     });
@@ -36,11 +33,12 @@ export async function setup() {
 
 async function call(params: any): Promise<string> {
     const args = params as z.infer<typeof SCHEMA> & { context: Context };
+    const context = args.context ?? Context.global();
 
     async function mapping(entry: WorldInfoEntry) {
         const parsed = new DecoratorParser(entry);
-        const override = new DataOverride(args.context);
-        const content = override.getOverride(entry.world, entry.uid)?.content ?? parsed.cleanContent;
+        const store = new ChatDataStore(context);
+        const content = store.getPending(DATA_NAMESPACES.WORLDINFO, worldInfoKey(entry.world, entry.uid))?.content ?? parsed.cleanContent;
         return {
             world: entry.world,
             uid: entry.uid,
@@ -52,11 +50,14 @@ async function call(params: any): Promise<string> {
     }
 
     const entries = await Promise.allSettled(args.entries.map(({ world, uid }) => getWorldInfoEntry(world, uid)));
-    // @ts-expect-error: 2339
-    const results = entries.filter(t => t.status === 'fulfilled' && t.value != null).map(t => mapping(t.value));
+    const resolved = entries
+        .filter((t): t is PromiseFulfilledResult<WorldInfoEntry | null> => t.status === 'fulfilled')
+        .map(t => t.value)
+        // Code-controlled entries are never exposed to the model.
+        .filter((entry): entry is WorldInfoEntry => entry != null && classifyEntry(entry) === 'plain');
 
     return JSON.stringify({
         ok: true,
-        entries: await Promise.all(results),
+        entries: await Promise.all(resolved.map(mapping)),
     });
 }

@@ -1,7 +1,6 @@
 import { ReasoningType } from "@st/scripts/reasoning.js";
 import { PromptFilter } from '@/functions/message-builder';
 import { KNOWN_DECORATORS } from "@/functions/worldinfo";
-import { TEMPLATE_FILTER_OPTIONS } from "@/settings";
 import { Context } from "@/features/context";
 
 type TextContent = {
@@ -210,31 +209,31 @@ interface WorldInfoExtension {
 }
 
 export interface WorldInfoEntry {
-    uid: number;
-    key: string[];
-    keysecondary: string[];
+    uid: number; // unique id
+    key: string[]; // Activate (scan) primary keywords
+    keysecondary: string[]; // Activate (scan) secondary keywords
     comment: string; // Title/Memo
     content: string;
-    constant: boolean; // 🔵 Constant
-    vectorized: boolean; // 🔗 Vectorized
+    constant: boolean; // 🔵 Constant, Stay active within the context
+    vectorized: boolean; // 🔗 Vectorized, unused
     selective: boolean;
-    selectiveLogic: number;
+    selectiveLogic: number; // see world_info_logic
     addMemo: boolean;
     order: number;
-    position: number;
+    position: number; // see world_info_position
     disable: boolean;
     excludeRecursion: boolean;
     preventRecursion: boolean;
     delayUntilRecursion: boolean;
-    probability: number;
+    probability: number; // 0~100
     useProbability: boolean;
-    depth: number;
-    group: string;
+    depth: number;  // depth of chat messages
+    group: string;  // Only one of the same names will be selected.
     groupOverride: boolean;
     groupWeight: number;
     scanDepth: number | null;
-    caseSensitive: boolean | null;
-    matchWholeWords: null | number;
+    caseSensitive: boolean | null; // For activating (scanning) keywords
+    matchWholeWords: null | number; // For activating (scanning) keywords
     useGroupScoring: boolean | null;
     automationId: string;
     role: null | number;
@@ -242,7 +241,7 @@ export interface WorldInfoEntry {
     cooldown: number;
     delay: number;
     displayIndex: number;
-    world: string;
+    world: string; // lorebook name
     decorators: string[]; // A list of identifiers starting with @@ extracted from `content`
     extensions: WorldInfoExtension;
     hash: number | undefined; // getStringHash(JSON.stringify(entry))
@@ -255,13 +254,14 @@ export interface WorldInfoEntry {
     characterFilterTags: string[];
     characterFilterExclude: boolean;
     
-    // Additional Matching Sources
+    // Activating (scanning) keywords enables the use of these data sources.
     matchPersonaDescription: boolean;
     matchCharacterDescription: boolean;
     matchCharacterPersonality: boolean;
     matchCharacterDepthPrompt: boolean;
     matchScenario: boolean;
     matchCreatorNotes: boolean;
+
     ignoreBudget: boolean;
 }
 
@@ -292,18 +292,18 @@ export interface WorldInfoLoaded {
 }
 
 export interface PartialToolCall {
-    id?: string;                     // OpenAI / Anthropic 工具调用 ID
-    type?: 'function';               // OpenAI 固定为 'function'
-    function?: {                     // OpenAI 格式
+    id?: string;                     // OpenAI / Anthropic tool call ID
+    type?: 'function';               // OpenAI fixed value 'function'
+    function?: {                     // OpenAI format
         name?: string;
-        arguments?: string;          // JSON 字符串
+        arguments?: string;          // JSON string
     };
-    signature?: string;              // 来自 toolSignatures 的 thought signature
-    thoughtSignature?: string;       // Gemini 特有
-    name?: string;                   // Anthropic / Cohere / Gemini 函数名
-    input?: any;                     // Anthropic 输入对象
-    args?: any;                      // Gemini 参数对象
-    [key: string]: any;              // 其他供应商扩展字段
+    signature?: string;              // thought signature from toolSignatures
+    thoughtSignature?: string;       // Gemini specific
+    name?: string;                   // Anthropic / Cohere / Gemini function name
+    input?: any;                     // Anthropic input object
+    args?: any;                      // Gemini args object
+    [key: string]: any;              // other provider extension fields
 }
 
 /**
@@ -312,23 +312,26 @@ export interface PartialToolCall {
  */
 export type ToolCalls = PartialToolCall[][];
 
-// 可选的 thought signature 映射，键为 tool call id
+// Optional thought signature mapping, keyed by tool call id
 export type ToolSignatures = Record<string, string>;
 
-export interface ChatMessage {
-    role: string;
-    reasoning_content?: string;
-    content?: string;
+export interface ChatCompMessage {
     name?: string;
-}
-
-export interface ToolMessage {
     role: string;
-    reasoning_content?: string; // for role=assistant
+    content?: string | ChatCompPart[];
+    reasoning_content?: string;
     tool_calls?: PartialToolCall[]; // for role=assistant
     tool_call_id?: string; // for role=tool
-    content?: string; // for role=tool
 }
+
+export interface ChatCompPart {
+    type: string;
+    text?: string;
+    image_url?: { url: string; };
+    file?: { file_data: string; filename?: string; }
+}
+
+type SetElementType<T> = T extends Set<infer U> ? U : never;
 
 export interface PresetPrompt {
     // A name for this prompt. (displayed in the UI)
@@ -338,7 +341,7 @@ export interface PresetPrompt {
     role: 'user' | 'assistant' | 'system';
 
     // Filter to specific generation types. empty means all.
-    triggers: (typeof KNOWN_DECORATORS[number] | string)[];
+    triggers: (SetElementType<typeof KNOWN_DECORATORS> | string)[];
 
     // content (User-defined only)
     prompt: string;
@@ -360,6 +363,10 @@ export interface PresetPrompt {
 
     // How many messages to retain (chatHistory only)
     maxDepth: number;
+
+    // Include this prompt's content in the World Info activation scan.
+    // Only resolvable-before-scan prompts are supported, see SCANNABLE_INTERNALS.
+    scan?: boolean;
 }
 
 export interface RegEx {
@@ -399,14 +406,26 @@ export interface RegEx {
     response: boolean;
 }
 
-export interface Template {
-    // e.g: @@record, must in KNOWN_DECORATORS lists
-    decorator: typeof KNOWN_DECORATORS[number];
+/**
+ * Generic sub-generation configuration package (formerly `Template`).
+ * Identity is the triple `kind + binding + tag`.
+ */
+export interface GenerationProfile {
+    // Stable unique id (auto-generated on normalize).
+    id: string;
+
+    // Caller domain: 'trigger' | 'agent' | future 'memory' | 'summary' ...
+    kind: string;
+
+    // Binding key within the kind:
+    // - kind 'trigger': decorator name (must be in KNOWN_DECORATORS), e.g. '@@replace'
+    // - kind 'agent': agent name (empty = default for all agents)
+    binding: SetElementType<typeof KNOWN_DECORATORS> | string;
 
     // can be empty, used by (@@<decorator> <tag>)
     tag: string;
 
-    // template prompts
+    // profile prompts
     prompts: PresetPrompt[];
 
     // Generate a result that matches the regex, and pass Capture Group 1.
@@ -427,6 +446,36 @@ export interface Template {
     retryInterval: number;
 }
 
+/** @deprecated Use {@link GenerationProfile}. */
+export type Template = GenerationProfile;
+
+/** Well-known profile kinds. Callers may define new ones (e.g. 'memory', 'summary'). */
+export const PROFILE_KINDS = {
+    TRIGGER: 'trigger',
+    AGENT: 'agent',
+} as const;
+
+/**
+ * The namespaced generation-type value of a profile, used to match
+ * `PresetPrompt.triggers` / `ToolSettings.triggers`, e.g. 'trigger:@@replace'.
+ */
+export function profileTypeValue(profile: Pick<GenerationProfile, 'kind' | 'binding'>): string {
+    return `${profile.kind}:${profile.binding}`;
+}
+
+/**
+ * Match a prompt/tool trigger list against a generation type.
+ * Exact match, or kind-level match for namespaced types
+ * (a bare 'agent' entry matches 'agent:router').
+ */
+export function matchesTriggerType(triggers: string[], type: string): boolean {
+    if (triggers.includes(type))
+        return true;
+
+    const colon = type.indexOf(':');
+    return colon > 0 && triggers.includes(type.slice(0, colon));
+}
+
 export interface Preset {
     // preset group name (displayed in the UI)
     name: string;
@@ -442,6 +491,21 @@ export interface Preset {
 
     // tools
     tools: Record<string, ToolSettings>;
+
+    // Files exposed read-only at `/preset/<name>`, exported with the preset.
+    files: Record<string, string>;
+}
+
+/**
+ * Files embedded in a character card, exported and imported with it.
+ *
+ * Versioned because the payload lives inside a PNG that outlives any given
+ * release of this extension.
+ */
+export interface EmbeddedFiles {
+    version: 1;
+    /** File name -> content. */
+    files: Record<string, string>;
 }
 
 export interface ApiSettings {
@@ -498,6 +562,23 @@ export interface ApiSettings {
     maxConcurrency: number;
 }
 
+export interface StorageSettings {
+    /** Automatically flatten cold layers when the stored data grows too large. */
+    autoCompact: boolean;
+
+    /** Keep this many trailing messages un-compacted. Must exceed the hot window. */
+    keepDepth: number;
+
+    /** Estimated `cg_data` bytes above which auto compaction kicks in. */
+    sizeThreshold: number;
+
+    /** Migrate and drop the legacy `wi_overrides` / `mes_override` fields. */
+    pruneLegacy: boolean;
+
+    /** Include the chat workspace (root files) in the fuzzy search index. */
+    fuzzyIndexFiles: boolean;
+}
+
 export interface Settings {
     // openai api connections
     apis: Record<string, ApiSettings>;
@@ -510,6 +591,15 @@ export interface Settings {
 
     // default preset (current active preset)
     currentPreset: string;
+
+    // Take over ST's native Generate() via generate_interceptor
+    interceptGenerate: boolean;
+
+    // layered data storage / virtual file system
+    storage: StorageSettings;
+
+    // one-off migrations already applied, keyed by migration id
+    migrations: Record<string, boolean>;
 }
 
 export interface ToolSettings {
@@ -517,7 +607,7 @@ export interface ToolSettings {
     enabled: boolean;
 
     // Filter to specific generation types. empty means all.
-    triggers: (typeof KNOWN_DECORATORS[number] | string)[];
+    triggers: (SetElementType<typeof KNOWN_DECORATORS> | string)[];
 
     // Description of each parameter
     parameters: Record<string, string>;
@@ -616,3 +706,64 @@ export interface ToolDefinition {
         strict?: boolean;
     }
 }
+
+export interface Skill {
+    name: string;
+    description: string;
+    body: string;
+    entry: WorldInfoEntry;
+}
+
+export const TEMPLATE_FILTER_OPTIONS = [
+    'main',
+    'personaDescription',
+    'charDescription',
+    'charPersonality',
+    'scenario',
+    'chatExamples',
+    'worldInfoBefore',
+    'worldInfoAfter',
+    'chatHistory',
+    'worldInfoDepth',
+    'authorsNoteDepth',
+    'presetDepth',
+    'charDepth',
+    'worldInfoOutlet',
+    'charNote',
+    'authorsNote',
+    'lastCharMessage',
+    'lastUserMessage',
+    'worldInfoDepth0',
+    'worldInfoDepth1',
+    'worldInfoDepth2',
+    'worldInfoDepth3',
+    'worldInfoDepth4',
+    'presetDepth0',
+    'presetDepth1',
+    'presetDepth2',
+    'presetDepth3',
+    'presetDepth4',
+    'chatDepth0',
+    'chatDepth1',
+    'chatDepth2',
+    'chatDepth3',
+    'chatDepth4',
+    'toolCalls',
+    'skillDefinitions',
+    'skillBodies',
+];
+
+/**
+ * Internal prompts whose content can be resolved before the World Info scan runs,
+ * so they may be used as extra activation text. All other internals are derived
+ * from the scan result and would create a circular dependency.
+ */
+export const SCANNABLE_INTERNALS: readonly (typeof TEMPLATE_FILTER_OPTIONS[number])[] = [
+    'lastCharMessage',
+    'lastUserMessage',
+    'chatDepth0',
+    'chatDepth1',
+    'chatDepth2',
+    'chatDepth3',
+    'chatDepth4',
+];

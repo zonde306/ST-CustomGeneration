@@ -1,4 +1,4 @@
-import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/agent-manager";
+import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData, getEntryOverride, setEntryOverride } from "@/features/trigger-manager";
 
 /**
  * The generated result will directly replace the original WorldInfo content.
@@ -12,7 +12,7 @@ export async function setup() {
 
 async function checker(data: DecoratorProcessData) {
     // Unable to search and replace empty content
-    const content = data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content || data.content;
+    const content = getEntryOverride(data) || data.content;
     if(content.trim().length)
         return true;
 
@@ -24,7 +24,7 @@ async function processor(data: DecoratorProcessData) {
     if(data.content.trim().length < 1)
         return true;
 
-    data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, data.content, data.messageId, data.swipeId);
+    setEntryOverride(data, WI_DECORATOR, data.content);
     console.debug(`WI replace ${data.entry.world}/${data.entry.uid}-${data.entry.comment} to ${data.messageId}#${data.swipeId}, and result: ${data.content}`);
     return true;
 }

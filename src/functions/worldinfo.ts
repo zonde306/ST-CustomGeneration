@@ -8,7 +8,7 @@ import { eventSource, event_types } from '@st/scripts/events.js';
 import { GENERATION_TYPE_TRIGGERS } from '@st/scripts/constants.js';
 import { splitWithQuotes } from '@/utils/stringutl';
 
-export const KNOWN_DECORATORS = [
+export const KNOWN_DECORATORS = new Set([
     '@@replace',             // Full-Text Replacement Update
     '@@replace_before',             // Full-Text Replacement Update
     '@@replace_diff',        // Unified Diff-based Text Updates
@@ -33,7 +33,13 @@ export const KNOWN_DECORATORS = [
     '@@preset',             // Process using the specified preset.
     '@@json_schema',        // Define a JSON Schema to validate variables.
     '@@zod_schema',        // Define a Zod Schema to validate variables.
-];
+    '@@agent',              // Agent Router - register as an LLM-callable sub-agent tool
+    '@@skill',              // Skill system - define a skill
+    '@@replace_output',
+    '@@replace_output_before',
+    '@@replace_output_ejs',
+    '@@replace_output_ejs_before',
+]);
 
 /**
  * Gets the WI by name, or selects a suitable WI if name is not provided.
@@ -222,6 +228,42 @@ export class DecoratorParser {
             }
         }
     }
+
+    has(decorator: string): boolean {
+        return this.decorators.includes(decorator);
+    }
+
+    args(decorator: string): string[] {
+        return this.parameters[decorator] ?? [];
+    }
+}
+
+/**
+ * How a World Info entry may be exposed.
+ *
+ * - `plain`: an ordinary entry. Visible and writable through `/lorebooks`.
+ * - `skill`: `@@skill` entry. Read-only, and only visible under `/skills`.
+ * - `system`: any other decorated entry. Code-controlled trigger, so it does not
+ *   exist in the file system at all — hiding it while still allowing writes, or
+ *   exposing it read-only, would only make the model retry and get confused.
+ */
+export type EntryClass = 'plain' | 'skill' | 'system';
+
+/**
+ * Classify a WI entry. Single source of truth shared by `/lorebooks`, `/skills`
+ * and the skill loader, so their filters cannot drift apart.
+ */
+export function classifyEntry(entry: Pick<WorldInfoEntry, 'content'> & { decorators?: string[] }): EntryClass {
+    const decorators = entry.decorators?.length
+        ? entry.decorators
+        : parseDecorators(entry.content ?? '')[0];
+
+    if (!decorators.length)
+        return 'plain';
+    if (decorators.some(d => d.startsWith('@@skill')))
+        return 'skill';
+
+    return 'system';
 }
 
 /**
@@ -230,66 +272,61 @@ export class DecoratorParser {
  * @returns The decorators found in the content and the content without decorators
  */
 export function parseDecorators(content: string): [string[], string] {
-    /**
-     * Extract the base decorator name from a line (e.g., "@@depth 5" → "@@depth")
-     * @param line The decorator line
-     * @returns The base decorator name
-     */
-    const getBaseDecorator = (line: string): string => {
-        // Remove possible leading '@@@' (escape)
-        let candidate = line.startsWith('@@@') ? line.substring(1) : line;
-        // Take the part before the first space as the decorator name
-        const firstSpaceIndex = candidate.indexOf(' ');
-        if (firstSpaceIndex !== -1) {
-            candidate = candidate.substring(0, firstSpaceIndex);
-        }
-        return candidate;
-    };
-
-    /**
-     * Check if the decorator is known
-     * @param line The full decorator line (e.g., "@@depth 5")
-     * @returns true if the base decorator is known
-     */
-    const isKnownDecorator = (line: string): boolean => {
-        const base = getBaseDecorator(line);
-        return KNOWN_DECORATORS.includes(base);
-    };
-
-    if (!content.trim().startsWith('@@')) {
+    if (!content.startsWith('@@')) {
         return [[], content];
     }
 
-    const lines = content.split('\n');
     const decorators: string[] = [];
-    let contentStartIndex = 0;
+    let lineStart = 0;
     let fallbacked = false;
 
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-
-        if (line.startsWith('@@')) {
-            // Handle escapes: @@@xxx is treated as normal content unless fallbacked
-            if (line.startsWith('@@@') && !fallbacked) {
-                contentStartIndex = i;
-                break;
-            }
-
-            if (isKnownDecorator(line)) {
-                // Keep the original line (including arguments), but remove the escape prefix (if any)
-                const normalizedLine = line.startsWith('@@@') ? line.substring(1) : line;
-                decorators.push(normalizedLine);
-                fallbacked = false;
-            } else {
-                fallbacked = true;
-            }
-        } else {
-            contentStartIndex = i;
+    while (lineStart < content.length) {
+        if (!content.startsWith('@@', lineStart)) {
             break;
         }
+
+        // Find the line break for the current line.
+        let lineEnd = content.indexOf('\n', lineStart);
+        if (lineEnd === -1) {
+            lineEnd = content.length; // Reached the end of the text
+        }
+
+        // Extract only the current line and remove Windows \r as well.
+        let line = content.substring(lineStart, lineEnd);
+        if (line.endsWith('\r')) {
+            line = line.slice(0, -1);
+        }
+
+        // Handle @@@ escape logic
+        const isEscaped = line.startsWith('@@@');
+        if (isEscaped && !fallbacked) {
+            break;
+        }
+
+        // Extract the base name (remove parameters, e.g., "@@depth 5" -> "@@depth")
+        const candidate = isEscaped ? line.substring(1) : line;
+        const spaceIndex = candidate.indexOf(' ');
+        const base = spaceIndex !== -1 ? candidate.substring(0, spaceIndex) : candidate;
+
+        if (KNOWN_DECORATORS.has(base)) {
+            decorators.push(candidate);
+            fallbacked = false;
+        } else {
+            fallbacked = true;
+        }
+
+        // If the end of the last line has been reached, break immediately.
+        if (lineEnd === content.length) {
+            lineStart = content.length;
+            break;
+        }
+
+        // Move the pointer to the beginning of the next line.
+        lineStart = lineEnd + 1;
     }
 
-    const newContent = lines.slice(contentStartIndex).join('\n');
+    // Extract the remaining body text directly using the cursor.
+    const newContent = content.slice(lineStart);
     return [decorators, newContent];
 }
 

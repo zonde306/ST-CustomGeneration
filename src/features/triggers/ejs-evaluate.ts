@@ -1,5 +1,6 @@
-import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/agent-manager";
+import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/trigger-manager";
 import { evaluate, isEjsAvailable } from "@/utils/ejs";
+import { ejsFileHelpers } from "@/functions/fs-mounts";
 
 /**
  * The generated results are processed using EJS, and then the output is discarded.
@@ -21,6 +22,7 @@ async function processor(data: DecoratorProcessData) {
 
     const result = await evaluate(data.content, {
         ...data.args,
+        ...ejsFileHelpers(data.env.files),
     });
 
     console.debug(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} evaluated to ${result}`);

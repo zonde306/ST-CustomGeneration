@@ -1,37 +1,13 @@
 import { templatePath } from "@/utils/default-settings";
 import { renderExtensionTemplateAsync } from '@st/scripts/extensions.js';
 import { eventSource } from "@st/scripts/events.js";
-import { eventTypes } from "@/utils/events";
-import { WorldInfoEntry } from "@/utils/defines";
-import { TemplateHandler } from "@/functions/template";
-import { DecoratorParser } from "@/functions/worldinfo";
-import { Context } from "@/features/context";
-import { WorldInfoEntryWithDecorator } from "@/features/agent-manager";
-
-interface AgnetData {
-    entry: WorldInfoEntry;
-    template: TemplateHandler;
-    decorator: DecoratorParser;
-    context: Context;
-    messageId: number;
-    swipeId: number;
-    current: string;
-}
-
-interface AgentsData {
-    abortController: AbortController;
-    entries: WorldInfoEntryWithDecorator[][];
-    context: Context;
-    messageId: number;
-    swipeId: number;
-    type: 'before' | 'after';
-}
+import { eventTypes, RunBatchData, RunTaskData } from "@/utils/events";
 
 export async function setup() {
-    eventSource.makeLast(eventTypes.AGENT_START, onAgentStart);
-    eventSource.makeLast(eventTypes.AGENT_END, onAgentEnd);
-    eventSource.makeLast(eventTypes.AGENTS_START, onAgentsStart);
-    eventSource.makeLast(eventTypes.AGENTS_END, onAgentsEnd);
+    eventSource.makeLast(eventTypes.RUN_START, onRunStart);
+    eventSource.makeLast(eventTypes.RUN_END, onRunEnd);
+    eventSource.makeLast(eventTypes.RUN_BATCH_START, onBatchStart);
+    eventSource.makeLast(eventTypes.RUN_BATCH_END, onBatchEnd);
 }
 
 const AGENT_COLORS = [
@@ -41,13 +17,25 @@ const AGENT_COLORS = [
     '#c0392b', '#34495e'
 ];
 
-function getAgentColor(uid: number): string {
-    return AGENT_COLORS[uid % AGENT_COLORS.length];
+/** Stable string hash for color selection from a runId. */
+function hashString(value: string): number {
+    let hash = 0;
+    for (let i = 0; i < value.length; ++i) {
+        hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash);
 }
 
-async function onAgentsStart(data: AgentsData) {
+function getAgentColor(runId: string): string {
+    return AGENT_COLORS[hashString(runId) % AGENT_COLORS.length];
+}
+
+async function onBatchStart(data: RunBatchData) {
+    if (data.messageId == null)
+        return;
+
     const node = $(`<div agentsindicator="${data.messageId}"></div>`);
-    node.append(await renderExtensionTemplateAsync(templatePath, 'agent-indicator'));
+    node.append(await renderExtensionTemplateAsync(templatePath, 'work-indicator'));
     $(`[mesid=${data.messageId}] > .mes_block`).append(node);
     // Initialize jQuery UI accordion
     const accordion = node.find('.custom_generation_agents_accordion');
@@ -62,21 +50,28 @@ async function onAgentsStart(data: AgentsData) {
     }
 }
 
-async function onAgentsEnd(data: AgentsData) {
-    $(`[agentsindicator="${data.messageId}"]`).remove();
+async function onBatchEnd(data: RunBatchData) {
+    if (data.messageId != null) {
+        $(`[agentsindicator="${data.messageId}"]`).remove();
+    } else {
+        // Cancellation without a message context: clear all indicators.
+        $('[agentsindicator]').remove();
+    }
 }
 
-async function onAgentStart(data: AgnetData) {
-    const title = data.entry.comment.trim() || data.entry.uid.toString();
+async function onRunStart(data: RunTaskData) {
+    const title = data.label?.trim() || data.runId;
     const iconText = getAgentIconText(title);
-    const color = getAgentColor(data.entry.uid);
-    const icon = $(`<div class="custom_generation_agent_icon" data-agent-world="${data.entry.world}" data-agent-uid="${data.entry.uid}" title="${title}">${iconText}</div>`);
+    const color = getAgentColor(data.runId);
+    const icon = $('<div class="custom_generation_agent_icon"></div>')
+        .attr('data-run-id', data.runId)
+        .attr('title', title)
+        .text(iconText);
     icon.css('background-color', color);
     $(`[agentsindicator="${data.messageId}"] .custom_generation_agents_list`).append(icon);
     // Add to detail list
     const detailItem = $('<div class="custom_generation_agent_detail_item"></div>')
-        .attr('data-agent-world', data.entry.world)
-        .attr('data-agent-uid', data.entry.uid)
+        .attr('data-run-id', data.runId)
         .text(title);
     detailItem.css({
         'background-color': color,
@@ -87,9 +82,10 @@ async function onAgentStart(data: AgnetData) {
     updateStatusText(data.messageId);
 }
 
-async function onAgentEnd(data: AgnetData) {
-    $(`[agentsindicator="${data.messageId}"] .custom_generation_agent_icon[data-agent-world="${data.entry.world}"][data-agent-uid="${data.entry.uid}"]`).remove();
-    $(`[agentsindicator="${data.messageId}"] .custom_generation_agent_detail_item[data-agent-world="${data.entry.world}"][data-agent-uid="${data.entry.uid}"]`).remove();
+async function onRunEnd(data: RunTaskData) {
+    const container = $(`[agentsindicator="${data.messageId}"]`);
+    container.find('.custom_generation_agent_icon').filter((_i, el) => $(el).attr('data-run-id') === data.runId).remove();
+    container.find('.custom_generation_agent_detail_item').filter((_i, el) => $(el).attr('data-run-id') === data.runId).remove();
     updateStatusText(data.messageId);
 }
 
@@ -106,7 +102,7 @@ function updateStatusText(messageId: number) {
 }
 
 /**
- * Extract a short icon text from the agent comment.
+ * Extract a short icon text from the run label.
  * Returns: a single emoji, a single Chinese character, or up to 2 ASCII characters.
  */
 function getAgentIconText(comment: string): string {

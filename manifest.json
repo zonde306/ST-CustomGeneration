@@ -1,12 +1,13 @@
 {
 	"display_name": "Custom Generation",
 	"loading_order": 1,
+	"generate_interceptor": "CustomGeneration_interceptor",
 	"requires": [],
 	"optional": [],
 	"js": "dist/index.js",
-	"css": "",
+	"css": "style.css",
 	"author": "zonde306",
-	"version": "1.1.7.2",
+	"version": "1.6.2",
 	"homePage": "https://github.com/zonde306/ST-CustomGeneration",
 	"auto_update": true,
 	"i18n": {

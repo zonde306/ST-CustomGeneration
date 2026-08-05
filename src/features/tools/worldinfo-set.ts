@@ -1,21 +1,14 @@
 import { z } from 'zod';
 import { TOOL_DEFINITION } from "@/features/tool-manager";
-import { getWorldInfoEntry } from '@/functions/worldinfo';
+import { classifyEntry, getWorldInfoEntry } from '@/functions/worldinfo';
 import { Context } from '@/features/context';
-import { DataOverride } from '@/features/override';
+import { DATA_NAMESPACES, MessageDataStore, worldInfoKey } from '@/functions/chat-data-store';
+import { escapeAt } from '@/functions/fs-worldinfo';
 
 /**
- * Temporarily override the content of a specific World Info / Lorebook entry for the current chat.
+ * @deprecated Superseded by `write_file` on `lorebooks/<book>/<entry>.md`.
  *
- * This creates an override that persists only within the current chat session. The original World Info
- * entry content is NOT permanently modified. The override is tied to the tool call that created it.
- *
- * Provide the `world` (lorebook name), `uid` (entry unique ID), and the new `content` string.
- *
- * Returns a JSON object: { ok: true } on success, or { ok: false, error: "..." } if the entry is not found.
- *
- * Use this to update World Info content based on the current conversation context without permanently
- * changing the original entry data.
+ * Still registered so presets keyed by this tool name keep working.
  */
 const TOOL_NAME = 'set_worldinfo';
 const SCHEMA = z.object({
@@ -27,7 +20,7 @@ const SCHEMA = z.object({
 export async function setup() {
     TOOL_DEFINITION.set(TOOL_NAME, {
         name: TOOL_NAME,
-        description: 'Temporarily override the content of a World Info entry for the current chat session. The original entry data is not permanently modified. Returns ok or error if entry not found.',
+        description: '[Deprecated: use write_file with "lorebooks/<book>/<entry>-<uid>.md"] Temporarily override the content of a World Info entry for the current chat session.',
         parameters: SCHEMA,
         function: call,
     });
@@ -35,6 +28,7 @@ export async function setup() {
 
 async function call(params: any): Promise<string> {
     const args = params as z.infer<typeof SCHEMA> & { context: Context };
+    const context = args.context ?? Context.global();
 
     const entry = await getWorldInfoEntry(args.world, args.uid);
     if (!entry) {
@@ -44,8 +38,15 @@ async function call(params: any): Promise<string> {
         });
     }
 
-    const override = new DataOverride(args.context);
-    override.setOverride(args.world, entry.uid, 'tool_call', args.content);
+    if (classifyEntry(entry) !== 'plain') {
+        return JSON.stringify({
+            ok: false,
+            error: `entry is code-controlled and cannot be overridden: ${args.world}/${args.uid}`,
+        });
+    }
+
+    const store = new MessageDataStore(context, DATA_NAMESPACES.WORLDINFO, 'tool_call');
+    await store.set(worldInfoKey(entry.world, entry.uid), escapeAt(args.content));
 
     return JSON.stringify({
         ok: true,

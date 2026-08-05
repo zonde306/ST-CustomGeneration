@@ -1,22 +1,31 @@
-import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/agent-manager";
-import { substituteParams } from "@st/script.js";
+import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData, getEntryOverride } from "@/features/trigger-manager";
+import { updateMessageBlock } from "@st/script.js";
+import { event_types, eventSource } from "@st/scripts/events.js";
+import { evaluate, isEjsAvailable } from "@/utils/ejs";
+import { ejsFileHelpers } from "@/functions/fs-mounts";
 
 /**
  * The generated results are parsed into a format similar to a Git conflict, and then the original WorldInfo content is searched and replaced.
  */
-const WI_DECORATOR = '@@replace_search';
+const WI_DECORATOR = '@@replace_output';
 
 export async function setup() {
     WI_DECORATOR_MAPPING.set(WI_DECORATOR, { processor, checker });
-    WI_DECORATOR_BEFORE_MAPPING.set(`${WI_DECORATOR}_before`, { processor, checker });
+        WI_DECORATOR_MAPPING.set(`${WI_DECORATOR}_ejs`, { processor, checker });
+        WI_DECORATOR_BEFORE_MAPPING.set(`${WI_DECORATOR}_before`, { processor, checker });
+        WI_DECORATOR_BEFORE_MAPPING.set(`${WI_DECORATOR}_ejs_before`, { processor, checker });
 }
 
 async function checker(data: DecoratorProcessData) {
     // Unable to search and replace empty content
-    const content = data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content || data.content;
+    const content = getEntryOverride(data) || data.content;
     if(content.includes('<%')) {
         console.warn(`Content to replace for ${data.entry.world}/${data.entry.uid}-${data.entry.comment} includes EJS code`);
         return false;
+    }
+
+    if (data.decorator.has(`${WI_DECORATOR}_ejs`) || data.decorator.has(`${WI_DECORATOR}_ejs_before`)) {
+        return isEjsAvailable();
     }
 
     if(content.trim().length)
@@ -30,16 +39,39 @@ async function processor(data: DecoratorProcessData) {
     if(data.content.trim().length < 1)
         return true;
 
-    const original = substituteParams(data.override.getOverride(data.entry.world, data.entry.uid, data.messageId, data.swipeId)?.content ?? data.decorator.cleanContent);
+    const message = data.env.chat[data.messageId];
+    const original = message.swipes?.[data.swipeId];
+    if (!original?.trim()) {
+        console.warn(`No content to replace for ${data.messageId} #${data.swipeId}`);
+        return true;
+    }
+
     let result = gitConflictStyle(data.content, original);
     if(result === false)
         result = jsonStyle(data.content, original);
 
     if(result) {
-        data.override.setOverride(data.entry.world, data.entry.uid, WI_DECORATOR, result, data.messageId, data.swipeId);
-        console.debug(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} replace to ${data.messageId}#${data.swipeId}, and result: ${result}`);
+        if (data.decorator.has(`${WI_DECORATOR}_ejs`) || data.decorator.has(`${WI_DECORATOR}_ejs_before`)) {
+            result = await evaluate(result, {
+                ...data.args,
+                ...ejsFileHelpers(data.env.files),
+            });
+        }
+
+        message.swipes![data.swipeId] = result;
+        if (message.swipe_id === data.swipeId) {
+            message.mes = result;
+
+            updateMessageBlock(data.messageId, message);
+            if (message.is_user)
+                await eventSource.emit(event_types.USER_MESSAGE_RENDERED, data.messageId);
+            else if (!message.is_system)
+                await eventSource.emit(event_types.CHARACTER_MESSAGE_RENDERED, data.messageId, 'after_replace');
+        }
+        
+        console.debug(`chat message ${data.messageId} #${data.swipeId} replace to: ${result}`);
     } else {
-        console.error(`WI ${data.entry.world}/${data.entry.uid}-${data.entry.comment} replace failed`);
+        console.error(`chat message ${data.messageId} #${data.swipeId} replace failed`);
         return false;
     }
     

@@ -1,4 +1,4 @@
-import { Template, Preset, Settings, ApiSettings, ToolSettings } from '@/utils/defines';
+import { Template, Preset, Settings, ApiSettings, StorageSettings, ToolSettings } from '@/utils/defines';
 import { DEFAULT_DEPTH, DEFAULT_WEIGHT } from '@st/scripts/world-info.js';
 import { t } from "@st/scripts/i18n.js"
 
@@ -7,7 +7,9 @@ export const defaultApiName = t`Default`;
 export const templatePath = 'third-party/ST-CustomGeneration/templates';
 
 export const defaultTemplate: Template = {
-    decorator: '@@record',
+    id: '',
+    kind: 'trigger',
+    binding: '@@replace',
     tag: '',
     prompts: [
         {
@@ -348,8 +350,10 @@ export const defaultPreset: Preset = {
     ],
     regexs: [],
     templates: {
-        "@@replace:": {
-            "decorator": "@@replace",
+        "trigger:@@replace:": {
+            "id": "default-replace",
+            "kind": "trigger",
+            "binding": "@@replace",
             "tag": "",
             "prompts": [
                 {
@@ -544,8 +548,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@replace_diff:": {
-            "decorator": "@@replace_diff",
+        "trigger:@@replace_diff:": {
+            "id": "default-replace_diff",
+            "kind": "trigger",
+            "binding": "@@replace_diff",
             "tag": "",
             "prompts": [
                 {
@@ -740,8 +746,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@replace_search:": {
-            "decorator": "@@replace_search",
+        "trigger:@@replace_search:": {
+            "id": "default-replace_search",
+            "kind": "trigger",
+            "binding": "@@replace_search",
             "tag": "",
             "prompts": [
                 {
@@ -936,8 +944,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@variables_json:": {
-            "decorator": "@@variables_json",
+        "trigger:@@variables_json:": {
+            "id": "default-variables_json",
+            "kind": "trigger",
+            "binding": "@@variables_json",
             "tag": "",
             "prompts": [
                 {
@@ -1132,8 +1142,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@variables_yaml:": {
-            "decorator": "@@variables_yaml",
+        "trigger:@@variables_yaml:": {
+            "id": "default-variables_yaml",
+            "kind": "trigger",
+            "binding": "@@variables_yaml",
             "tag": "",
             "prompts": [
                 {
@@ -1328,8 +1340,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@variables_jsonpatch:": {
-            "decorator": "@@variables_jsonpatch",
+        "trigger:@@variables_jsonpatch:": {
+            "id": "default-variables_jsonpatch",
+            "kind": "trigger",
+            "binding": "@@variables_jsonpatch",
             "tag": "",
             "prompts": [
                 {
@@ -1524,8 +1538,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@evaluate_ejs:": {
-            "decorator": "@@evaluate_ejs",
+        "trigger:@@evaluate_ejs:": {
+            "id": "default-evaluate_ejs",
+            "kind": "trigger",
+            "binding": "@@evaluate_ejs",
             "tag": "",
             "prompts": [
                 {
@@ -1720,8 +1736,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@replace_ejs:": {
-            "decorator": "@@replace_ejs",
+        "trigger:@@replace_ejs:": {
+            "id": "default-replace_ejs",
+            "kind": "trigger",
+            "binding": "@@replace_ejs",
             "tag": "",
             "prompts": [
                 {
@@ -1916,8 +1934,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@append_output:": {
-            "decorator": "@@append_output",
+        "trigger:@@append_output:": {
+            "id": "default-append_output",
+            "kind": "trigger",
+            "binding": "@@append_output",
             "tag": "",
             "prompts": [
                 {
@@ -2112,8 +2132,10 @@ export const defaultPreset: Preset = {
             "retryCount": 3,
             "retryInterval": 1000,
         },
-        "@@append_output_ejs:": {
-            "decorator": "@@append_output_ejs",
+        "trigger:@@append_output_ejs:": {
+            "id": "default-append_output_ejs",
+            "kind": "trigger",
+            "binding": "@@append_output_ejs",
             "tag": "",
             "prompts": [
                 {
@@ -2307,9 +2329,40 @@ export const defaultPreset: Preset = {
             ],
             "retryCount": 3,
             "retryInterval": 1000,
+        },
+        "agent::": {
+            "id": "default-agent",
+            "kind": "agent",
+            "binding": "",
+            "tag": "",
+            "prompts": [
+                {
+                    name: t`Agent System`,
+                    "role": "system",
+                    "triggers": [],
+                    "prompt": "{{original}}",
+                    "injectionPosition": "relative",
+                    "injectionDepth": 0,
+                    "injectionOrder": 0,
+                    "enabled": true,
+                    "internal": "main",
+                    "maxDepth": 0
+                }
+            ],
+            "regex": "",
+            "findRegex": "",
+            "filters": [
+                "chatHistory",
+                "worldInfoBefore",
+                "worldInfoAfter",
+                "worldInfoDepth"
+            ],
+            "retryCount": 0,
+            "retryInterval": 0
         },
     },
     tools: {},
+    files: {},
 };
 
 export const defaultApiSettings: ApiSettings = {
@@ -2339,6 +2392,14 @@ export const defaultToolSettings: ToolSettings = {
     description: '',
 };
 
+export const defaultStorageSettings: StorageSettings = {
+    autoCompact: true,
+    keepDepth: 32,
+    sizeThreshold: 256 * 1024,
+    pruneLegacy: true,
+    fuzzyIndexFiles: false,
+};
+
 export const defaultSettings: Settings = {
     apis: {
         [defaultApiName]: defaultApiSettings,
@@ -2348,4 +2409,7 @@ export const defaultSettings: Settings = {
         [defaultPreset.name]: defaultPreset,
     },
     currentPreset: defaultPreset.name,
+    interceptGenerate: false,
+    storage: defaultStorageSettings,
+    migrations: {},
 };

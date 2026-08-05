@@ -1,5 +1,6 @@
-import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/agent-manager";
+import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData } from "@/features/trigger-manager";
 import { evaluate, isEjsAvailable } from "@/utils/ejs";
+import { ejsFileHelpers } from "@/functions/fs-mounts";
 
 /**
  * The generated result is first processed by EJS, and then appended to the end of the message.
@@ -21,6 +22,7 @@ async function processor(data: DecoratorProcessData) {
 
     const content = '\n' + await evaluate(data.content, {
         ...data.args,
+        ...ejsFileHelpers(data.env.files),
     });
     if(content.trim().length < 1)
         return true;

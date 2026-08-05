@@ -1,0 +1,107 @@
+<dialog id="custom_generation_template_dialog" class="cg-dialog cg-dialog--lg">
+    <div class="cg-dialog__panel">
+        <div class="cg-dialog__header">
+            <div class="cg-dialog__titlegroup">
+                <i class="cg-dialog__icon fa-solid fa-bolt"></i>
+                <h3 class="cg-dialog__title" data-i18n="Template Editor">Trigger Editor</h3>
+            </div>
+            <form method="dialog" class="cg-dialog__closeform">
+                <button class="cg-dialog__close fa-solid fa-xmark" type="submit" title="Close" data-i18n="[title]Close"></button>
+            </form>
+        </div>
+
+        <div class="cg-dialog__body">
+            <div class="cg-row">
+                <div class="cg-field">
+                    <label class="cg-field__label" for="custom_generation_template_kind">
+                        <span data-i18n="Kind">Kind</span>
+                    </label>
+                    <select id="custom_generation_template_kind" class="text_pole"></select>
+                </div>
+                <div class="cg-field" id="custom_generation_template_decorator_field">
+                    <label class="cg-field__label" for="custom_generation_template_decorator">
+                        <span data-i18n="Decorator">Decorator</span>
+                    </label>
+                    <select id="custom_generation_template_decorator" class="text_pole"></select>
+                </div>
+                <div class="cg-field" id="custom_generation_template_binding_field" style="display: none;">
+                    <label class="cg-field__label" for="custom_generation_template_binding">
+                        <span data-i18n="Binding">Binding</span>
+                    </label>
+                    <input id="custom_generation_template_binding" class="text_pole" type="text" placeholder="agent name (empty = all agents)" />
+                </div>
+                <div class="cg-field">
+                    <label class="cg-field__label" for="custom_generation_template_tag">
+                        <span data-i18n="Tag">Tag</span>
+                    </label>
+                    <input id="custom_generation_template_tag" class="text_pole" type="text" />
+                </div>
+            </div>
+            <small class="cg-hint" data-i18n="cg_template_decorator_help">
+                In WI, this is utilized in the form of an `@@decorator` tag; if no matching tag is found, it falls back to an empty tag.
+            </small>
+
+            <div class="cg-row">
+                <div class="cg-field">
+                    <label class="cg-field__label" for="custom_generation_template_retry_count">
+                        <span data-i18n="Retry Count">Retry Count</span>
+                    </label>
+                    <input id="custom_generation_template_retry_count" class="text_pole" type="number" min="0" step="1" />
+                </div>
+                <div class="cg-field">
+                    <label class="cg-field__label" for="custom_generation_template_retry_interval">
+                        <span data-i18n="Retry Interval (ms)">Retry Interval (ms)</span>
+                    </label>
+                    <input id="custom_generation_template_retry_interval" class="text_pole" type="number" min="0" step="1" />
+                </div>
+            </div>
+
+            <div class="cg-field">
+                <label class="cg-field__label" for="custom_generation_template_filters">
+                    <span data-i18n="Filters (comma separated)">Filters (comma separated)</span>
+                </label>
+                <select id="custom_generation_template_filters" class="text_pole" multiple="multiple" data-placeholder="main, charDescription"></select>
+            </div>
+
+            <div class="cg-field">
+                <label class="cg-field__label" for="custom_generation_template_regex">
+                    <span data-i18n="Regex">Regex</span>
+                </label>
+                <input id="custom_generation_template_regex" class="text_pole cg-mono" type="text" />
+                <small class="cg-hint" data-i18n="cg_template_regex_help">
+                    If the AI ​​outputs an expression that does not match, it will retry.
+                </small>
+            </div>
+
+            <div class="cg-field">
+                <label class="cg-field__label" for="custom_generation_template_find_regex">
+                    <span data-i18n="Find Regex">Find Regex</span>
+                </label>
+                <input id="custom_generation_template_find_regex" class="text_pole cg-mono" type="text" />
+                <small class="cg-hint" data-i18n="cg_template_find_regex_help">
+                    If the chat message does not match the expression, it will not trigger.
+                </small>
+            </div>
+
+            <div class="cg-section-title">
+                <i class="fa-solid fa-list-ul"></i>
+                <span data-i18n="Prompts">Prompts</span>
+                <span class="cg-spacer"></span>
+                <div id="custom_generation_template_add_prompt" class="cg-btn" title="Add prompt" data-i18n="[title]New prompt">
+                    <i class="fa-solid fa-plus"></i>
+                    <span data-i18n="Add">Add</span>
+                </div>
+            </div>
+            <div id="custom_generation_template_prompt_list" class="cg-list cg-list--scroll" no-items-text="No prompts" data-i18n="[no-items-text]No prompts"></div>
+        </div>
+
+        <div class="cg-dialog__footer">
+            <a id="custom_generation_template_delete" class="cg-btn cg-btn--danger cg-btn--icon fa-solid fa-trash" title="Delete template" data-i18n="[title]Delete template"></a>
+            <div class="cg-dialog__footer-actions">
+                <button id="custom_generation_template_cancel" class="cg-btn" type="button" data-i18n="Cancel">Cancel</button>
+                <button id="custom_generation_template_save_as" class="cg-btn" type="button" style="display: none;" data-i18n="Save As">Save As</button>
+                <button id="custom_generation_template_save" class="cg-btn cg-btn--primary" type="button" data-i18n="Save">Save</button>
+            </div>
+        </div>
+    </div>
+</dialog>

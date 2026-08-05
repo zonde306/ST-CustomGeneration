@@ -1,58 +1,65 @@
 import { settings } from "@/settings";
-import { MessageBuilder } from "@/functions/message-builder";
 import { PromptFilter } from "@/functions/message-builder";
-import { Template, PresetPrompt } from "@/utils/defines";
+import { GenerationProfile, PresetPrompt, profileTypeValue } from "@/utils/defines";
 import { parseRegexString } from "@/utils/stringutl";
 
-interface TemplateResult {
+export interface TemplateResult {
     success: boolean;
     content?: string;
     arguments?: Record<string, any>;
 }
 
-export class TemplateHandler {
-    public template: Template;
+/**
+ * Handler for a generation profile (formerly "template").
+ * Lookup identity is the triple `kind + binding + tag`.
+ */
+export class ProfileStore {
+    public template: GenerationProfile;
 
-    constructor(template: Template) {
+    constructor(template: GenerationProfile) {
         this.template = template;
     }
 
     /**
-     * Find a matching template, or the default template.
-     * @param decorator Decorator type
+     * Find a matching profile, falling back to the empty tag profile.
+     * Fallback order: exact key → scan by fields → empty tag key → scan empty tag.
+     * @param kind Profile kind, e.g. 'trigger' | 'agent'
+     * @param binding Binding key within the kind (decorator or agent name)
      * @param tag Tag name
-     * @returns Template handler instance or null if not found
+     * @returns Profile handler instance or null if not found
      */
-    static find(decorator: string, tag: string): TemplateHandler | null {
+    static find(kind: string, binding: string, tag: string): ProfileStore | null {
         const preset = settings.presets[settings.currentPreset];
         if (!preset) {
             return null;
         }
 
-        const primaryKey = `${decorator}:${tag ?? ''}`;
-        const fallbackKey = `${decorator}:`;
+        const primaryKey = `${kind}:${binding}:${tag ?? ''}`;
+        const fallbackKey = `${kind}:${binding}:`;
         const direct = preset.templates?.[primaryKey] ?? null;
         if (direct) {
-            return new TemplateHandler(direct);
+            return new ProfileStore(direct);
         }
 
-        const matchedEntry = Object.entries(preset.templates ?? {}).find(([, template]) => {
-            return template?.decorator === decorator && String(template?.tag ?? '') === String(tag ?? '');
-        });
-        if (matchedEntry?.[1]) {
-            return new TemplateHandler(matchedEntry[1]);
+        const matches = (template: GenerationProfile | undefined, wantTag: string) => {
+            return template?.kind === kind
+                && String(template?.binding ?? '') === String(binding ?? '')
+                && String(template?.tag ?? '') === wantTag;
+        };
+
+        const matchedEntry = Object.values(preset.templates ?? {}).find(template => matches(template, String(tag ?? '')));
+        if (matchedEntry) {
+            return new ProfileStore(matchedEntry);
         }
 
         const fallback = preset.templates?.[fallbackKey] ?? null;
         if (fallback) {
-            return new TemplateHandler(fallback);
+            return new ProfileStore(fallback);
         }
 
-        const fallbackEntry = Object.entries(preset.templates ?? {}).find(([, template]) => {
-            return template?.decorator === decorator && String(template?.tag ?? '') === '';
-        });
-        if (fallbackEntry?.[1]) {
-            return new TemplateHandler(fallbackEntry[1]);
+        const fallbackEntry = Object.values(preset.templates ?? {}).find(template => matches(template, ''));
+        if (fallbackEntry) {
+            return new ProfileStore(fallbackEntry);
         }
 
         return null;
@@ -71,7 +78,7 @@ export class TemplateHandler {
         try {
             regexp = parseRegexString(this.template.findRegex);
         } catch (e) {
-            toastr.error(`Invalid findRegex for ${this.template.decorator}:${this.template.tag}`, e as any);
+            toastr.error(`Invalid findRegex for ${this.template.binding}:${this.template.tag}`, e as any);
             return { success: false };
         }
 
@@ -100,13 +107,13 @@ export class TemplateHandler {
         try {
             regexp = parseRegexString(this.template.regex);
         } catch (e) {
-            toastr.error(`Invalid regex for ${this.template.decorator}:${this.template.tag}`, e as any);
+            toastr.error(`Invalid regex for ${this.template.binding}:${this.template.tag}`, e as any);
             return { success: false };
         }
 
         const matchs = regexp.exec(content);
         if(!matchs) {
-            console.error(`Failed to match regex for ${this.template.decorator}:${this.template.tag}`);
+            console.error(`Failed to match regex for ${this.template.binding}:${this.template.tag}`);
             if(raise)
                 throw new Error(`Failed to match regex for ${this.template.regex}`);
             return { success: false };
@@ -119,23 +126,17 @@ export class TemplateHandler {
         };
     }
 
-    /**
-     * The `Chat History` prompt content is constructed without macro processing.
-     * @param chat The current chat history may need to be filtered first.
-     * @param type The generation type defaults to using the current decorator.
-     * @returns Chat History List
-     */
-    async buildChatHistory(chat: ChatMessage[] = [], type: string = ''): Promise<ChatMessage[]> {
-        const builder = new MessageBuilder(chat);
-        builder.regexs = [];
-        builder.evaluateMacro = false;
-        builder.prompts = this.template.prompts;
-        const messages = await builder.build(type || this.template.decorator, false);
-        return messages.map(msg => ({ is_user: msg.role === 'user', is_system: msg.role === 'system', mes: msg.content }));
-    }
-
     get prompts(): PresetPrompt[] {
         return this.template.prompts;
+    }
+
+    /** Namespaced generation-type value, e.g. 'trigger:@@replace' or 'agent:router'. */
+    get typeValue(): string {
+        return profileTypeValue(this.template);
+    }
+
+    get binding(): string {
+        return this.template.binding;
     }
 
     get filters(): PromptFilter {
@@ -155,3 +156,7 @@ export class TemplateHandler {
     }
 }
 
+/** @deprecated Use {@link ProfileStore}. */
+export const TemplateHandler = ProfileStore;
+/** @deprecated Use {@link ProfileStore}. */
+export type TemplateHandler = ProfileStore;
