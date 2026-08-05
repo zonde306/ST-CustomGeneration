@@ -1,15 +1,19 @@
 import { WI_DECORATOR_MAPPING, WI_DECORATOR_BEFORE_MAPPING, DecoratorProcessData, getEntryOverride } from "@/features/trigger-manager";
 import { updateMessageBlock } from "@st/script.js";
 import { event_types, eventSource } from "@st/scripts/events.js";
+import { evaluate, isEjsAvailable } from "@/utils/ejs";
+import { ejsFileHelpers } from "@/functions/fs-mounts";
 
 /**
  * The generated results are parsed into a format similar to a Git conflict, and then the original WorldInfo content is searched and replaced.
  */
-const WI_DECORATOR = '@@message_search';
+const WI_DECORATOR = '@@replace_output';
 
 export async function setup() {
     WI_DECORATOR_MAPPING.set(WI_DECORATOR, { processor, checker });
-    WI_DECORATOR_BEFORE_MAPPING.set(`${WI_DECORATOR}_before`, { processor, checker });
+        WI_DECORATOR_MAPPING.set(`${WI_DECORATOR}_ejs`, { processor, checker });
+        WI_DECORATOR_BEFORE_MAPPING.set(`${WI_DECORATOR}_before`, { processor, checker });
+        WI_DECORATOR_BEFORE_MAPPING.set(`${WI_DECORATOR}_ejs_before`, { processor, checker });
 }
 
 async function checker(data: DecoratorProcessData) {
@@ -18,6 +22,10 @@ async function checker(data: DecoratorProcessData) {
     if(content.includes('<%')) {
         console.warn(`Content to replace for ${data.entry.world}/${data.entry.uid}-${data.entry.comment} includes EJS code`);
         return false;
+    }
+
+    if (data.decorator.has(`${WI_DECORATOR}_ejs`) || data.decorator.has(`${WI_DECORATOR}_ejs_before`)) {
+        return isEjsAvailable();
     }
 
     if(content.trim().length)
@@ -43,6 +51,13 @@ async function processor(data: DecoratorProcessData) {
         result = jsonStyle(data.content, original);
 
     if(result) {
+        if (data.decorator.has(`${WI_DECORATOR}_ejs`) || data.decorator.has(`${WI_DECORATOR}_ejs_before`)) {
+            result = await evaluate(result, {
+                ...data.args,
+                ...ejsFileHelpers(data.env.files),
+            });
+        }
+
         message.swipes![data.swipeId] = result;
         if (message.swipe_id === data.swipeId) {
             message.mes = result;

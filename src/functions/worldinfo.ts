@@ -35,8 +35,10 @@ export const KNOWN_DECORATORS = new Set([
     '@@zod_schema',        // Define a Zod Schema to validate variables.
     '@@agent',              // Agent Router - register as an LLM-callable sub-agent tool
     '@@skill',              // Skill system - define a skill
-    '@@message_search',
-    '@@message_search_before',
+    '@@replace_output',
+    '@@replace_output_before',
+    '@@replace_output_ejs',
+    '@@replace_output_ejs_before',
 ]);
 
 /**
@@ -225,6 +227,14 @@ export class DecoratorParser {
                 this.parameters[name] = splitWithQuotes(args);
             }
         }
+    }
+
+    has(decorator: string): boolean {
+        return this.decorators.includes(decorator);
+    }
+
+    args(decorator: string): string[] {
+        return this.parameters[decorator] ?? [];
     }
 }
 

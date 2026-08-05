@@ -17,7 +17,7 @@ import { setup as setupReplaceEjs } from "@/features/triggers/ejs-replace";
 import { setup as setupReplaceSearch } from "@/features/triggers/replace-search";
 import { setup as setupAppendMessage } from "@/features/triggers/append-message";
 import { setup as setupAppendEjs } from "@/features/triggers/ejs-append";
-import { setup as setupMessageSearch } from "@/features/triggers/message-search";
+import { setup as setupReplaceMessage } from "@/features/triggers/replace-message";
 import { eventTypes } from "@/utils/events";
 import { settings } from "@/settings";
 import { callGenericPopup, POPUP_TYPE } from "@st/scripts/popup.js";
@@ -80,6 +80,11 @@ export const NOT_ALLOWED_DECORATORS = [
     '@@append_output_before',
     '@@append_output_ejs',
     '@@append_output_ejs_before',
+    '@@replace_output',
+    '@@replace_output_before',
+    '@@append_output_ejs_before',
+    '@@replace_output_ejs',
+    '@@replace_output_ejs_before',
 ];
 
 enum GenStage {
@@ -115,7 +120,7 @@ export async function setup() {
     await setupReplaceSearch();
     await setupAppendMessage();
     await setupAppendEjs();
-    await setupMessageSearch();
+    await setupReplaceMessage();
 }
 
 /**

@@ -90,6 +90,10 @@
 	"cg_append_output_before": "追加到消息（生成前） @@append_output_before",
 	"cg_append_output_ejs": "用EJS追加到消息 @@append_output_ejs",
 	"cg_append_output_ejs_before": "用EJS追加到消息（生成前） @@append_output_ejs_before",
+	"cg_replace_output": "对消息进行搜索替换 @@replace_output",
+	"cg_replace_output_before": "对消息进行搜索替换（生成前） @@replace_output_before",
+	"cg_replace_output_ejs": "对消息进行搜索替换并执行EJS @@replace_output_ejs",
+	"cg_replace_output_ejs_before": "对消息进行搜索替换并执行EJS（生成前） @@replace_output_ejs_before",
 	
 	"cg_none": "普通提示词",
 	"cg_main": "主要提示词",
@@ -182,5 +186,15 @@
 	"cg_embed_desc": "如需稍后导入，请在角色面板的\"更多...\"下拉菜单中选择\"导入卡片预设\"。",
 	"cg_tool_set_worldinfo": "设置世界书",
 	"Edit Content": "编辑内容",
-	"cg_tool_calculate": "计算器"
+	"cg_tool_calculate": "计算器",
+
+	"Preset Files": "预设文件",
+	"Upload": "上传",
+	"cg_files_help": "随此预设一同提供的文件，模型可通过 `preset/<name>` 路径读取。当预设被导出时，这些文件也会随之一起导出。",
+	"No files": "没有文件",
+	"Storage": "历史存储",
+	"compaction desc": "裁剪使历史记录，减少文件体积，会导致数据无法回退。",
+	"Preview compaction": "预览裁剪",
+	"Compact now": "立即裁剪",
+	"Disable auto compaction": "禁用自动裁剪"
 }
