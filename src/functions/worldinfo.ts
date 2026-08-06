@@ -1,4 +1,4 @@
-import { loadWorldInfo, METADATA_KEY, selected_world_info, world_info, DEFAULT_DEPTH, world_info_position, world_names, getWorldInfoPrompt, worldInfoCache, scan_state } from '@st/scripts/world-info.js';
+import { loadWorldInfo, METADATA_KEY, selected_world_info, world_info, DEFAULT_DEPTH, world_info_position, world_names, getWorldInfoPrompt, worldInfoCache, scan_state, world_info_depth } from '@st/scripts/world-info.js';
 import { chat_metadata, this_chid, characters, getCharacterCardFieldsLazy } from '@st/script.js';
 import { power_user } from '@st/scripts/power-user.js';
 import { getCharaFilename } from '@st/scripts/utils.js';
@@ -435,6 +435,7 @@ export function normalizeWorldInfoEntry(entry: WorldInfoEntry): WorldInfoEntry {
 /**
  * Scan for active WI entries based on the `triggerWords` list.
  * @note Concurrent calls are not supported unless dryRun is true.
+ * @note It uses only the bottom N triggerWords, so merging is required.
  * 
  * @param triggerWords In other words, the `mes` in the `chat` array needs to be processed using regular expressions and macros first.
  * @param type The generation type and WI entries will be filtered by it.
@@ -473,7 +474,8 @@ export async function getActivatedEntries(triggerWords: string[], type: string =
         eventSource.makeLast(event_types.WORLDINFO_SCAN_DONE, resultHandler);
         eventSource.makeFirst(event_types.WORLDINFO_ENTRIES_LOADED, loadingHandler);
         
-        getWorldInfoPrompt(triggerWords, 1000000, dryRun, globalScanData)
+        // Accepting only `world_info_depth` elements is an internal hard limit that cannot be modified externally.
+        getWorldInfoPrompt(triggerWords.slice(-world_info_depth).toReversed(), 1000000, dryRun, globalScanData)
             .then(() => resolve([]))
             .catch(reject)
             .finally(() => {
