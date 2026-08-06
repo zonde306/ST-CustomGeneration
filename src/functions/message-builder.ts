@@ -21,12 +21,11 @@ import { settings } from '@/settings';
 import { GenerateOptionsLite, ContextRole, ChatCompMessage, matchesTriggerType } from "@/utils/defines";
 import { Preset, RegEx, PresetPrompt, SCANNABLE_INTERNALS } from "@/utils/defines";
 import { runRegexScript, substitute_find_regex } from "@st/scripts/extensions/regex/engine.js";
-import { wi_anchor_position } from '@st/scripts/world-info.js';
+import { wi_anchor_position, world_info_depth } from '@st/scripts/world-info.js';
 import { DynamicMacroValue } from '@st/scripts/macros/engine/MacroEnv.types.js';
 import { defaultPreset } from "@/utils/default-settings";
 import { eventTypes } from "@/utils/events";
 import { SkillScanner } from '@/features/skill-scanner';
-import { world_info_depth } from "@st/scripts/world-info.js";
 
 /** Guards against outlet entries referencing each other in a cycle. */
 const MAX_OUTLET_NESTING = 3;
@@ -126,11 +125,16 @@ export class MessageBuilder {
 
     async build(type: string = 'normal', dryRun: boolean = false): Promise<ChatCompMessage[]> {
         const historyType = this.historyPromptsType ?? type;
-        const worldinfoTrigger: string[] = this.chat.slice(-world_info_depth).map(x => x.mes ?? '');
-        worldinfoTrigger.push(...this.collectScanPrompts(type));
-        if (this.historyPrompts) {
-            worldinfoTrigger.push(...this.collectScanPrompts(historyType, this.historyPrompts));
+        const worldinfoTrigger: string[] = this.chat.map(x => x.mes ?? '');
+        
+        if (worldinfoTrigger.length) {
+            let additionalTriggers = this.collectScanPrompts(type).join('\n\x01');
+            if (this.historyPrompts) {
+                additionalTriggers += '\n\x01' + this.collectScanPrompts(historyType, this.historyPrompts).join('\n\x01');
+            }
+            worldinfoTrigger[worldinfoTrigger.length - 1] += '\n\x01' + additionalTriggers;
         }
+
         const prompt = await PromptContext.create(worldinfoTrigger, type, dryRun, settings.apis[settings.currentApi]?.contextSize);
         const historyMessages = this.buildChatHistory();
         await this.rebuildDepthInjections(prompt, historyMessages, type);

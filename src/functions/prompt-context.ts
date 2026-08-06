@@ -1,5 +1,5 @@
 import { chat, getCharacterCardFieldsLazy, CharacterCardFields, getMaxContextSize, parseMesExamples } from '@st/script.js';
-import { getWorldInfoPrompt, WIPromptResult, WIGlobalScanData, wi_anchor_position } from '@st/scripts/world-info.js';
+import { getWorldInfoPrompt, WIPromptResult, WIGlobalScanData, wi_anchor_position, world_info_depth } from '@st/scripts/world-info.js';
 import { GENERATION_TYPE_TRIGGERS } from '@st/scripts/constants.js';
 
 export class PromptContext {
@@ -30,7 +30,7 @@ export class PromptContext {
         return getter;
     }
 
-    async scan(content: string[], type: string = 'normal', dryRun: boolean = false, contextSize: number = getMaxContextSize()) {
+    async scan(keywords: string[], type: string = 'normal', dryRun: boolean = false, contextSize: number = getMaxContextSize()) {
         const globalScanData: WIGlobalScanData = {
             personaDescription: this.personaDescription,
             characterDescription: this.charDescription,
@@ -41,7 +41,8 @@ export class PromptContext {
             trigger: GENERATION_TYPE_TRIGGERS.includes(type) ? type : 'quiet',
         };
 
-        this.worldInfo = await getWorldInfoPrompt(content, contextSize, dryRun, globalScanData);
+        // Accepting only `world_info_depth` elements is an internal hard limit that cannot be modified externally.
+        this.worldInfo = await getWorldInfoPrompt(keywords.slice(-world_info_depth).toReversed(), contextSize, dryRun, globalScanData);
         this.ready = true;
     }
 

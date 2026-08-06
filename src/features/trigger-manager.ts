@@ -453,6 +453,7 @@ async function getSortedEntries(
     }
 
     const sorted = Array.from(grouped.entries()).sort((a, b) => a[0] - b[0]);
+    console.debug(`Activated trigger entries: `, sorted);
     return sorted.map(g => g[1]);
 }
 
