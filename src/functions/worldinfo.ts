@@ -436,6 +436,7 @@ export function normalizeWorldInfoEntry(entry: WorldInfoEntry): WorldInfoEntry {
  * Scan for active WI entries based on the `triggerWords` list.
  * @note Concurrent calls are not supported unless dryRun is true.
  * @note It uses only the bottom N triggerWords, so merging is required.
+ * @note If dryRun is false, it will affect sticky and cooldown.
  * 
  * @param triggerWords In other words, the `mes` in the `chat` array needs to be processed using regular expressions and macros first.
  * @param type The generation type and WI entries will be filtered by it.
