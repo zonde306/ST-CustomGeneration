@@ -501,8 +501,9 @@ export class Context {
             eventSource.makeFirst(event_types.WORLD_INFO_ACTIVATED, handler);   // data is a array
 
             // backup timedWorldInfo
-            const timedWorldInfo = chat_metadata.timedWorldInfo;
+            const timedWorldInfo = structuredClone(chat_metadata.timedWorldInfo);
             chat_metadata.timedWorldInfo = this.chat_metadata.timedWorldInfo;
+            console.debug(`backup timedWorldInfo `, timedWorldInfo);
 
             try {
                 // Load all world info entries and initial activated ones for skills
@@ -522,6 +523,7 @@ export class Context {
                 // restore timedWorldInfo
                 this.chat_metadata.timedWorldInfo = timedWorldInfo;
                 chat_metadata.timedWorldInfo = timedWorldInfo;
+                console.debug(`restore timedWorldInfo `, timedWorldInfo);
             }
         });
 
