@@ -188,10 +188,14 @@ async function processMessage(
         return;
     }
 
+    const timedWorldInfo = structuredClone(env.chat_metadata.timedWorldInfo);
+
     const groups = await getSortedEntries(
         env.chat.map(msg => msg.mes ?? ''),
         before,
     );
+
+    env.chat_metadata.timedWorldInfo = timedWorldInfo;
 
     if(groups.length < 1) {
         console.log(`Skipping ${before ? 'before' : 'after'}-generate for no available entries`);
